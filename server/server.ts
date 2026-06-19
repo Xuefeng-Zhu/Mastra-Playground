@@ -2,15 +2,19 @@
  * Local dev server for the playground UI.
  *
  * Endpoints:
- *   GET  /                        → static HTML
- *   GET  /style.css, /app.js      → static assets
- *   GET  /api/examples            → list of examples
- *   POST /api/run/:example        → JSON result (one-shot)
- *   GET  /api/stream/:example?input=...  → SSE trace stream
- *   POST /api/resume/:token       → resume a suspended workflow
+ *   GET  /                          → static HTML
+ *   GET  /style.css, /app.js        → static assets
+ *   GET  /api/health                → liveness probe (200 always if process is up)
+ *   GET  /api/examples              → list of examples
+ *   POST /api/run/:example          → JSON result (one-shot)
+ *   GET  /api/stream/:example?input=…  → SSE trace stream
+ *   POST /api/resume/:token         → resume a suspended workflow
  *
  * Run: npm run serve
  * Open: http://localhost:8917
+ *
+ * Wave 2 hardening: structured logger, secrets check on boot, request
+ * validation, per-IP rate limiting, graceful shutdown, /api/health.
  */
 
 import http from 'node:http';
@@ -20,16 +24,41 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import { Tracer, sseLine, type TraceEvent } from '../shared/tracer.js';
 import { takeSuspendedRun } from '../shared/suspended-store.js';
+import { logger } from '../shared/logger.js';
+import {
+  ValidationError,
+  NotFoundError,
+  RateLimitError,
+  readJsonBody,
+  isPlainObject,
+  checkRateLimit,
+  clientIp,
+  sanitizeText,
+} from '../shared/validation.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 8917;
 const ROOT = join(__dirname, '..');
+const STARTED_AT = Date.now();
+const PLACEHOLDER_KEYS = new Set(['', 'your-key-here', 'changeme', '[redacted]']);
+
+// ─── Secrets hardening (boot check) ───────────────────────────────────────
+const apiKey = process.env.OPENAI_API_KEY;
+if (!apiKey || PLACEHOLDER_KEYS.has(apiKey.toLowerCase())) {
+  logger.error('openai_api_key_missing_or_placeholder', {
+    port: PORT,
+    hint: 'Copy .env.example to .env and set OPENAI_API_KEY. See README "Environment variables".',
+  });
+  console.error('\n  FATAL: OPENAI_API_KEY is missing or is the .env.example placeholder.\n');
+  console.error('  Copy .env.example to .env and set OPENAI_API_KEY=<your-key>.');
+  console.error('  See README "Environment variables" for OpenRouter setup.\n');
+  process.exit(1);
+}
+logger.info('server_starting', { port: PORT, nodeEnv: process.env.NODE_ENV ?? 'unset' });
 
 // Periodic cleanup of stale runs (>1 hour old, just to be tidy)
-// (Suspended runs are stored in shared/suspended-store.ts in a globalThis Map.)
 setInterval(
   () => {
-    // Inlined to avoid adding a peek() function to the store API.
     const cutoff = Date.now() - 60 * 60 * 1000;
     const store = (globalThis as { __mastraPlaygroundSuspended?: Map<string, { suspendedAt: number }> })
       .__mastraPlaygroundSuspended;
@@ -102,18 +131,113 @@ const EXAMPLES: Record<string, { file: string; exportName: string; description: 
 type RunFn = (input: unknown, tracer: Tracer) => Promise<unknown>;
 
 async function loadRunFn(name: string): Promise<RunFn> {
+  if (!EXAMPLES[name]) {
+    throw new NotFoundError(`Unknown example: ${name}. Available: ${Object.keys(EXAMPLES).join(', ')}`);
+  }
   const meta = EXAMPLES[name];
-  if (!meta) throw new Error(`Unknown example: ${name}. Available: ${Object.keys(EXAMPLES).join(', ')}`);
   const url = `../${meta.file}?t=${Date.now()}`;
   const mod = (await import(url)) as Record<string, unknown>;
   const fn = mod[meta.exportName] as RunFn | undefined;
   if (typeof fn !== 'function') {
-    throw new Error(`Example ${name} does not export '${meta.exportName}' as a function.`);
+    throw new ValidationError(`Example ${name} does not export '${meta.exportName}' as a function.`);
   }
   return fn;
 }
 
-// ─── 3. HTTP server ────────────────────────────────────────────────────────
+// ─── 3. Per-example input validation ──────────────────────────────────────
+function validateExampleInput(name: string, body: unknown): Record<string, unknown> {
+  if (!isPlainObject(body)) {
+    throw new ValidationError('Request body must be a JSON object', 'body');
+  }
+  switch (name) {
+    case 'support-triage': {
+      if ('message' in body && typeof body.message !== 'string') {
+        throw new ValidationError('Field "message" must be a string', 'message');
+      }
+      return { message: sanitizeText(body.message) };
+    }
+    case 'research':
+    case 'parallel-research': {
+      if ('topic' in body && typeof body.topic !== 'string') {
+        throw new ValidationError('Field "topic" must be a string', 'topic');
+      }
+      return { topic: sanitizeText(body.topic) };
+    }
+    case 'code-review': {
+      if ('path' in body && typeof body.path !== 'string') {
+        throw new ValidationError('Field "path" must be a string', 'path');
+      }
+      return { path: sanitizeText(body.path, 512) };
+    }
+    case 'multi-turn-chat': {
+      const allowed = new Set(['threadId', 'resourceId', 'message', 'model', 'action']);
+      for (const key of Object.keys(body)) {
+        if (!allowed.has(key)) {
+          throw new ValidationError(`Unknown field: ${key}`, key);
+        }
+      }
+      if ('message' in body && typeof body.message !== 'string') {
+        throw new ValidationError('Field "message" must be a string', 'message');
+      }
+      return {
+        ...(typeof body.threadId === 'string' ? { threadId: body.threadId } : {}),
+        ...(typeof body.resourceId === 'string' ? { resourceId: body.resourceId } : {}),
+        message: sanitizeText(body.message),
+        ...(body.action === 'clear' ? { action: 'clear' as const } : {}),
+        ...(typeof body.model === 'string' ? { model: body.model } : {}),
+      };
+    }
+    case 'hitl-approval': {
+      if ('action' in body && typeof body.action !== 'string') {
+        throw new ValidationError('Field "action" must be a string', 'action');
+      }
+      if ('actionType' in body) {
+        const valid = new Set(['refund', 'send', 'delete']);
+        if (typeof body.actionType !== 'string' || !valid.has(body.actionType)) {
+          throw new ValidationError('Field "actionType" must be one of: refund, send, delete', 'actionType');
+        }
+      }
+      return {
+        action: sanitizeText(body.action),
+        ...(typeof body.actionType === 'string' ? { actionType: body.actionType } : {}),
+        ...(typeof body.model === 'string' ? { model: body.model } : {}),
+      };
+    }
+    default:
+      return body;
+  }
+}
+
+// ─── 4. Response helpers ──────────────────────────────────────────────────
+function sendJson(res: http.ServerResponse, status: number, body: unknown) {
+  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(body));
+}
+
+function sendError(res: http.ServerResponse, err: unknown, req: http.IncomingMessage) {
+  if (err instanceof RateLimitError) {
+    res.setHeader('Retry-After', String(err.retryAfter));
+    logger.warn('rate_limit_exceeded', { ip: clientIp(req), retryAfter: err.retryAfter });
+    sendJson(res, 429, { error: err.message, retryAfter: err.retryAfter });
+    return;
+  }
+  if (err instanceof ValidationError) {
+    logger.warn('validation_error', { ip: clientIp(req), field: err.field, message: err.message });
+    sendJson(res, 400, { error: err.message, field: err.field, detail: err.detail });
+    return;
+  }
+  if (err instanceof NotFoundError) {
+    logger.warn('not_found', { ip: clientIp(req), message: err.message });
+    sendJson(res, 404, { error: err.message });
+    return;
+  }
+  const message = err instanceof Error ? err.message : String(err);
+  const stack = err instanceof Error ? err.stack : undefined;
+  logger.error('internal_error', { ip: clientIp(req), message, stack });
+  sendJson(res, 500, { error: message });
+}
+
+// ─── 5. HTTP server ────────────────────────────────────────────────────────
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -124,85 +248,121 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // GET /api/examples
-  if (req.method === 'GET' && req.url === '/api/examples') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify(Object.entries(EXAMPLES).map(([id, meta]) => ({ id, description: meta.description }))),
-    );
-    return;
-  }
+  const t0 = Date.now();
+  res.on('finish', () => {
+    const dur = Date.now() - t0;
+    if (req.url?.startsWith('/api/')) {
+      logger.info('http_request', {
+        method: req.method,
+        path: req.url,
+        status: res.statusCode,
+        durMs: dur,
+        ip: clientIp(req),
+      });
+    }
+  });
 
-  // POST /api/run/:example — one-shot JSON result
-  if (req.method === 'POST' && req.url?.startsWith('/api/run/')) {
-    const name = req.url.slice('/api/run/'.length).split('?')[0];
-    let body = '';
-    for await (const chunk of req) body += chunk;
-    let input: unknown = {};
-    try {
-      input = body ? JSON.parse(body) : {};
-    } catch {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+  try {
+    // GET /api/health — liveness probe. No rate limit (cheap).
+    if (req.method === 'GET' && req.url === '/api/health') {
+      sendJson(res, 200, {
+        ok: true,
+        uptimeSec: Math.floor((Date.now() - STARTED_AT) / 1000),
+        nodeEnv: process.env.NODE_ENV ?? 'development',
+        exampleCount: Object.keys(EXAMPLES).length,
+        ts: new Date().toISOString(),
+      });
       return;
     }
-    try {
+
+    // GET /api/examples — no rate limit (cheap, static)
+    if (req.method === 'GET' && req.url === '/api/examples') {
+      sendJson(
+        res,
+        200,
+        Object.entries(EXAMPLES).map(([id, meta]) => ({ id, description: meta.description })),
+      );
+      return;
+    }
+
+    // POST /api/run/:example — one-shot JSON result
+    if (req.method === 'POST' && req.url?.startsWith('/api/run/')) {
+      const name = req.url.slice('/api/run/'.length).split('?')[0];
+      if (!EXAMPLES[name]) {
+        throw new NotFoundError(`Unknown example: ${name}. Available: ${Object.keys(EXAMPLES).join(', ')}`);
+      }
+      checkRateLimit(clientIp(req) + ':run');
+      const raw = await readJsonBody(req);
+      const input = validateExampleInput(name, raw);
       const fn = await loadRunFn(name);
       const tracer = new Tracer();
       const result = await fn(input, tracer);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, result }));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: false, error: message }));
-    }
-    return;
-  }
-
-  // GET /api/stream/:example?input=... — SSE trace stream
-  if (req.method === 'GET' && req.url?.startsWith('/api/stream/')) {
-    const url = new URL(req.url, `http://localhost:${PORT}`);
-    const name = url.pathname.slice('/api/stream/'.length);
-    const inputParam = url.searchParams.get('input') ?? '{}';
-    let input: unknown = {};
-    try {
-      input = JSON.parse(inputParam);
-    } catch {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Invalid input JSON' }));
+      sendJson(res, 200, { ok: true, result });
       return;
     }
-    return startSseStream(req, res, name, input);
-  }
 
-  // POST /api/resume/:token — resume a suspended workflow
-  if (req.method === 'POST' && req.url?.startsWith('/api/resume/')) {
-    const token = req.url.slice('/api/resume/'.length).split('?')[0];
-    let body = '';
-    for await (const chunk of req) body += chunk;
-    let payload: { decision?: 'approved' | 'rejected' } = {};
-    try {
-      payload = body ? JSON.parse(body) : {};
-    } catch {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Invalid JSON body' }));
-      return;
+    // GET /api/stream/:example?input=... — SSE trace stream
+    if (req.method === 'GET' && req.url?.startsWith('/api/stream/')) {
+      const url = new URL(req.url, `http://localhost:${PORT}`);
+      const name = url.pathname.slice('/api/stream/'.length);
+      if (!EXAMPLES[name]) {
+        throw new NotFoundError(`Unknown example: ${name}. Available: ${Object.keys(EXAMPLES).join(', ')}`);
+      }
+      checkRateLimit(clientIp(req) + ':stream');
+      const inputParam = url.searchParams.get('input') ?? '{}';
+      if (inputParam.length > 8192) {
+        throw new ValidationError(
+          'input query param too large',
+          'input',
+          `${inputParam.length} > 8192 chars`,
+        );
+      }
+      let raw: unknown;
+      try {
+        raw = JSON.parse(inputParam);
+      } catch {
+        throw new ValidationError('Invalid input JSON in query param', 'input');
+      }
+      const input = validateExampleInput(name, raw);
+      return startSseStream(req, res, name, input);
     }
-    return resumeSuspended(res, token, payload);
-  }
 
-  // Static files
-  if (req.method === 'GET') {
-    const served = await serveStatic(req.url || '/', res);
-    if (served) return;
-  }
+    // POST /api/resume/:token — resume a suspended workflow
+    if (req.method === 'POST' && req.url?.startsWith('/api/resume/')) {
+      const token = req.url.slice('/api/resume/'.length).split('?')[0];
+      checkRateLimit(clientIp(req) + ':resume');
+      const raw = await readJsonBody(req);
+      if (!isPlainObject(raw)) {
+        throw new ValidationError('Request body must be a JSON object', 'body');
+      }
+      if ('decision' in raw && raw.decision !== 'approved' && raw.decision !== 'rejected') {
+        throw new ValidationError('Field "decision" must be "approved" or "rejected"', 'decision');
+      }
+      return resumeSuspended(res, token, raw as { decision?: 'approved' | 'rejected' });
+    }
 
-  res.writeHead(404, { 'Content-Type': 'text/plain' });
-  res.end('Not found');
+    // Static files (no rate limit)
+    if (req.method === 'GET') {
+      const served = await serveStatic(req.url || '/', res);
+      if (served) return;
+    }
+
+    throw new NotFoundError(`Route not found: ${req.method} ${req.url}`);
+  } catch (err) {
+    if (!res.headersSent) {
+      sendError(res, err, req);
+    } else {
+      // Response already started (likely SSE) — just end it
+      try {
+        res.end();
+      } catch {
+        // socket already closed
+      }
+    }
+  }
 });
 
-// ─── 4. SSE handler ────────────────────────────────────────────────────────
+// ─── 6. SSE handler ────────────────────────────────────────────────────────
 function startSseStream(_req: http.IncomingMessage, res: http.ServerResponse, name: string, input: unknown) {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -251,7 +411,7 @@ function reqSocketCleanup(req: http.IncomingMessage, cleanup: () => void) {
   req.on('aborted', cleanup);
 }
 
-// ─── 5. Resume handler ───────────────────────────────────────────────────
+// ─── 7. Resume handler ───────────────────────────────────────────────────
 async function resumeSuspended(
   res: http.ServerResponse,
   token: string,
@@ -259,31 +419,52 @@ async function resumeSuspended(
 ) {
   const sr = takeSuspendedRun(token);
   if (!sr) {
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: `No suspended run with token ${token}` }));
-    return;
+    throw new NotFoundError(`No suspended run with token ${token}`);
   }
-  try {
-    const decision = payload.decision ?? 'rejected';
-    const result = (await sr.run.resume({
-      step: sr.step,
-      resumeData: { decision },
-    })) as Record<string, unknown>;
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({
-        ok: true,
-        result: { status: result.status, output: result.result, error: result.error },
-      }),
-    );
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: false, error: message }));
-  }
+  const decision = payload.decision ?? 'rejected';
+  const result = (await sr.run.resume({
+    step: sr.step,
+    resumeData: { decision },
+  })) as Record<string, unknown>;
+  sendJson(res, 200, {
+    ok: true,
+    result: { status: result.status, output: result.result, error: result.error },
+  });
 }
 
+// ─── 8. Graceful shutdown ─────────────────────────────────────────────────
+const SHUTDOWN_TIMEOUT_MS = 30_000; // up to 30s for in-flight LLM calls to drain
+let isShuttingDown = false;
+
+function shutdown(signal: string) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  logger.info('shutdown_initiated', { signal, timeoutMs: SHUTDOWN_TIMEOUT_MS });
+
+  // Stop accepting new connections, but let in-flight finish
+  server.close((err) => {
+    if (err) {
+      logger.error('shutdown_close_error', { error: err.message });
+      process.exit(1);
+    }
+    logger.info('shutdown_complete');
+    process.exit(0);
+  });
+
+  // Hard exit if graceful close takes too long
+  setTimeout(() => {
+    logger.warn('shutdown_timeout_exceeded', { timeoutMs: SHUTDOWN_TIMEOUT_MS });
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT_MS).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+// ─── 9. Start ─────────────────────────────────────────────────────────────
 server.listen(PORT, () => {
-  console.log(`\n  Mastra Playground UI: http://localhost:${PORT}\n`);
-  console.log('  Open in your browser. Make sure OPENAI_API_KEY is set in .env.\n');
+  logger.info('server_listening', { port: PORT, url: `http://localhost:${PORT}` });
+  // Console banner for the dev's convenience (logger goes to stdout too, but
+  // a one-line banner makes it easy to spot in a fresh terminal).
+  process.stdout.write(`\n  Mastra Playground UI: http://localhost:${PORT}\n\n`);
 });

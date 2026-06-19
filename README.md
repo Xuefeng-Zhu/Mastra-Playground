@@ -63,6 +63,35 @@ the full writeup.
 Each example is <350 lines including the CLI demo. The shared modules in
 `shared/` are <300 lines total.
 
+## Endpoints
+
+| Method | Path                           | Purpose                                            | Rate limit    |
+| ------ | ------------------------------ | -------------------------------------------------- | ------------- |
+| GET    | `/`                            | UI shell                                           | none          |
+| GET    | `/style.css`, `/app.js`        | Static assets                                      | none          |
+| GET    | `/api/health`                  | Liveness probe (`{ ok, uptimeSec, exampleCount }`) | none          |
+| GET    | `/api/examples`                | List available examples                            | none          |
+| POST   | `/api/run/:example`            | One-shot JSON result                               | 30 req/min/IP |
+| GET    | `/api/stream/:example?input=…` | SSE trace stream                                   | 30 req/min/IP |
+| POST   | `/api/resume/:token`           | Resume a suspended workflow                        | 30 req/min/IP |
+
+All API requests return JSON. Errors carry `{ error, field?, detail? }` with
+appropriate 4xx/5xx status codes. 429 responses include a `Retry-After`
+header.
+
+### Health check
+
+```bash
+curl -s http://localhost:8917/api/health
+# {"ok":true,"uptimeSec":12,"nodeEnv":"development","exampleCount":6,"ts":"2026-06-19T..."}
+```
+
+### Smoke test
+
+The `npm run smoke` script runs an end-to-end check (health, examples, run,
+unknown example, bad JSON) against a running server. CI runs it as part of
+every commit.
+
 ## Web UI features
 
 - **Live trace visualization** — every step, LLM call, tool call, and branch
@@ -256,8 +285,49 @@ hard refresh in the browser picks up the new version from disk.
 - **The playground is per-session.** To make it survive reboots, pin the
   server + cloudflared as systemd services.
 - **This is a learning project, not a product.** No authentication, no
-  rate limiting (rate limits are in the unreleased CHANGELOG), no audit
-  log. See [SECURITY.md](SECURITY.md).
+  persistent storage, no multi-tenant isolation. See [SECURITY.md](SECURITY.md).
+
+## Running in production-ish mode
+
+The server has light production hardening that's worth knowing about if you
+plan to point a real tunnel at it:
+
+**What the server enforces automatically:**
+
+- **Refuses to start** if `OPENAI_API_KEY` is missing or is the `.env.example`
+  placeholder. The error message guides you to the fix.
+- **Structured JSON logging** to stdout (errors/warnings go to stderr). Set
+  `LOG_LEVEL=debug` for verbose output. Pipe through `jq` for inspection:
+  `npm run serve | jq 'select(.level == "error")'`.
+- **Request validation** on all body-bearing endpoints: 64KB body cap, type
+  checks per example, length caps on user-facing strings, control-character
+  stripping. 400 errors include the field name.
+- **Rate limiting**: 30 requests/minute per IP across `/api/run/*`, `/api/stream/*`,
+  and `/api/resume/*`. 429 responses include `Retry-After`. Health and static
+  endpoints are not rate-limited.
+- **Graceful shutdown** on `SIGTERM`/`SIGINT`: stops accepting new connections,
+  waits up to 30s for in-flight LLM calls to drain, then exits.
+
+**What you still need to add for "real" production:**
+
+- **HTTPS** — use a reverse proxy (Caddy, nginx) in front of the server, or
+  a tunnel that does TLS (Cloudflare Access, ngrok with TLS).
+- **Authentication** — there is none. Anyone who can reach the server can run
+  workflows and consume your LLM credits. The rate limit helps, not solves.
+- **Persistent storage** — suspended runs and conversation history are in-memory
+  and lost on restart. Use a real database if you need to survive crashes.
+- **Distributed rate limiting** — the current limiter is per-process. Behind
+  a load balancer, each replica enforces its own limit. Use Redis or a
+  proper API gateway for shared limits.
+
+**To run in production-ish mode:**
+
+```bash
+NODE_ENV=production npm run start:prod   # alias for the same serve command
+```
+
+`NODE_ENV=production` is reserved for future behavioral changes (e.g.
+disabling dev-only console output). Today it has no effect.
 
 ## See also
 
