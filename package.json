@@ -1,6 +1,6 @@
 {
   "name": "mastra-playground",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "description": "Small isolated repo to learn Mastra by example. Not for production. Not part of InboxPilot.",
   "type": "module",
   "engines": {
@@ -23,8 +23,10 @@
     "health": "curl -s http://localhost:8917/api/health | head -c 500",
     "smoke": "tsx scripts/smoke.ts",
     "test": "vitest run",
+    "test:ui": "vitest run scripts/ui-smoke.test.ts",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "launch:hermes": "./scripts/launch-with-hermes-key.sh"
   },
   "keywords": [
     "mastra",
