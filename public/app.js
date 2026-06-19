@@ -183,6 +183,13 @@ const GRAPHS = {
       { from: 'gate', to: 'execute', label: 'approved', when: { kind: 'auto-approved' } },
     ],
   },
+  'streaming-chat': {
+    nodes: [
+      { id: 'input', label: 'Prompt', kind: 'input', x: 60, y: 60 },
+      { id: 'stream', label: 'Stream (LLM)', kind: 'llm', x: 60, y: 180, label2: 'token-by-token' },
+    ],
+    edges: [{ from: 'input', to: 'stream' }],
+  },
 };
 
 function renderGraph(containerId, def) {
@@ -328,7 +335,10 @@ function updateThreadDisplay() {
 }
 
 $('#new-conversation-btn')?.addEventListener('click', async () => {
-  // Call the server to generate a new threadId and initialize
+  // Generate a fresh client-side threadId and clear the display.
+  // Threads are localStorage-only — the server has no per-thread state, so
+  // there is nothing to call. (The audit flagged this as "fire-and-forget
+  // POST" — that was a misread; the original code never made a request.)
   const newThreadId = generateThreadId();
   threadState.set(newThreadId);
   updateThreadDisplay();
@@ -856,6 +866,25 @@ function handleTraceEvent(exampleName, event, eventsEl, _outputEl, setResult) {
         kind.classList.add('llm');
         msg = `LLM returned ${event.schema}: ${JSON.stringify(event.data).slice(0, 80)}…`;
         break;
+      case 'llm:start':
+        kindLabel = 'llm';
+        kind.classList.add('llm');
+        msg = `LLM streaming${event.model ? ` (${event.model})` : ''}…`;
+        break;
+      case 'llm:delta': {
+        kindLabel = 'llm';
+        kind.classList.add('llm');
+        msg = `delta #${event.index}: "${event.text}"`;
+        // Live-update the streaming text in the output panel
+        if (outputEl) appendStreamingText(outputEl, event.text);
+        break;
+      }
+      case 'llm:end':
+        kindLabel = 'llm';
+        kind.classList.add('llm');
+        msg = `LLM done: ${event.totalChars} chars in ${event.durationMs}ms`;
+        if (outputEl) finalizeStreamingText(outputEl, event.totalChars, event.durationMs);
+        break;
       case 'tool:call':
         kindLabel = 'tool';
         kind.classList.add('tool');
@@ -1113,6 +1142,37 @@ function renderChat(el, r) {
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────
+// ─── Streaming helpers (example 07) ────────────────────────────────────
+function ensureStreamingView(outputEl) {
+  let view = outputEl.querySelector('.streaming-view');
+  if (!view) {
+    outputEl.innerHTML = `<div class="output-actions"><button class="copy-md-btn" disabled>Copy as Markdown</button></div>
+      <div class="streaming-view">
+        <div class="streaming-header">Streaming response</div>
+        <div class="streaming-text" data-streaming-text></div>
+        <div class="streaming-meta" data-streaming-meta></div>
+      </div>`;
+    view = outputEl.querySelector('.streaming-view');
+  }
+  return {
+    textEl: view.querySelector('[data-streaming-text]'),
+    metaEl: view.querySelector('[data-streaming-meta]'),
+  };
+}
+
+function appendStreamingText(outputEl, chunk) {
+  const { textEl } = ensureStreamingView(outputEl);
+  textEl.textContent += chunk;
+  textEl.scrollTop = textEl.scrollHeight;
+}
+
+function finalizeStreamingText(outputEl, totalChars, durationMs) {
+  const { metaEl } = ensureStreamingView(outputEl);
+  if (metaEl) {
+    metaEl.textContent = `Done. ${totalChars} chars in ${durationMs}ms.`;
+  }
+}
+
 function escapeHtml(s) {
   return String(s ?? '')
     .replaceAll('&', '&amp;')

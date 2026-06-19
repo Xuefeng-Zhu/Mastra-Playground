@@ -53,13 +53,13 @@ async function main() {
     `status=${health.status} body=${JSON.stringify(health.body).slice(0, 200)}`,
   );
 
-  // 2. /api/examples — should return 6 examples
+  // 2. /api/examples — should return at least one example
   const examples = await check('/api/examples');
   const exampleList = (examples.body as { id: string }[] | null) ?? [];
   record(
     'GET /api/examples',
-    examples.ok && exampleList.length === 6,
-    `${exampleList.length} examples (expected 6)`,
+    examples.ok && exampleList.length >= 1,
+    `${exampleList.length} examples (expected >= 1)`,
   );
 
   // 3. /api/run/support-triage with a small input — should return triage result

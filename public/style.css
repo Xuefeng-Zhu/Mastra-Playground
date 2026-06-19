@@ -849,135 +849,6 @@ main {
   gap: 8px;
 }
 
-/* ── HITL approval panel (example 06) ── */
-.pending-approval {
-  background: var(--bg-elev-2);
-  border: 2px solid var(--orange);
-  border-radius: 8px;
-  padding: 20px;
-  margin: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.pending-approval-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-  font-size: 14px;
-  color: var(--orange);
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-}
-
-.pending-approval-header::before {
-  content: '';
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--orange);
-  box-shadow: 0 0 8px var(--orange);
-  animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
-}
-
-.pending-approval-detail {
-  display: grid;
-  grid-template-columns: 100px 1fr;
-  gap: 6px 12px;
-  font-size: 13px;
-}
-
-.pending-approval-detail .label {
-  color: var(--text-dim);
-  font-weight: 600;
-}
-
-.pending-approval-detail .value {
-  color: var(--text);
-  font-family: var(--font-mono);
-}
-
-.pending-approval-reasoning {
-  background: var(--bg-elev);
-  border-left: 3px solid var(--accent);
-  padding: 8px 12px;
-  border-radius: 0 4px 4px 0;
-  font-size: 12px;
-  color: var(--text);
-  line-height: 1.5;
-}
-
-.pending-approval-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 4px;
-}
-
-.btn-approve,
-.btn-reject {
-  flex: 1;
-  padding: 10px 16px;
-  border-radius: 6px;
-  border: 1px solid;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.15s;
-  font-family: var(--font-sans);
-}
-
-.btn-approve {
-  background: rgba(63, 185, 80, 0.12);
-  border-color: var(--green);
-  color: var(--green);
-}
-
-.btn-approve:hover:not(:disabled) {
-  background: var(--green);
-  color: #fff;
-}
-
-.btn-reject {
-  background: rgba(248, 81, 73, 0.12);
-  border-color: var(--red);
-  color: var(--red);
-}
-
-.btn-reject:hover:not(:disabled) {
-  background: var(--red);
-  color: #fff;
-}
-
-.btn-approve:disabled,
-.btn-reject:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.pending-approval-token {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-dim);
-  background: var(--bg);
-  padding: 4px 8px;
-  border-radius: 3px;
-  border: 1px solid var(--border);
-  word-break: break-all;
-  margin-top: 4px;
-}
-
 .hitl-final-banner {
   display: flex;
   align-items: center;
@@ -1504,4 +1375,49 @@ footer p {
   border-color: var(--orange) !important;
   box-shadow: 0 0 12px var(--orange);
   animation: hitl-pulse 1.5s infinite;
+}
+
+/* ── Streaming view (example 07) ── */
+.streaming-view {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px;
+}
+
+.streaming-header {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--accent-2);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.streaming-text {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+  min-height: 80px;
+  max-height: 360px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.streaming-text:empty::before {
+  content: 'Waiting for first token…';
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.streaming-meta {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
 }

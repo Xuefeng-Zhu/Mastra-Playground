@@ -57,7 +57,7 @@ if (!apiKey || PLACEHOLDER_KEYS.has(apiKey.toLowerCase())) {
 logger.info('server_starting', { port: PORT, nodeEnv: process.env.NODE_ENV ?? 'unset' });
 
 // Periodic cleanup of stale runs (>1 hour old, just to be tidy)
-setInterval(
+const cleanupInterval = setInterval(
   () => {
     const cutoff = Date.now() - 60 * 60 * 1000;
     const store = (globalThis as { __mastraPlaygroundSuspended?: Map<string, { suspendedAt: number }> })
@@ -69,7 +69,8 @@ setInterval(
     }
   },
   10 * 60 * 1000,
-).unref();
+);
+cleanupInterval.unref();
 
 // ─── 1. Static file serving ────────────────────────────────────────────────
 const STATIC_FILES: Record<string, string> = {
@@ -125,6 +126,11 @@ const EXAMPLES: Record<string, { file: string; exportName: string; description: 
     exportName: 'runOne',
     description:
       'Human-in-the-loop approval. High-risk actions suspend; human clicks Approve/Reject to resume.',
+  },
+  'streaming-chat': {
+    file: 'examples/07-streaming-chat/index.ts',
+    exportName: 'runOne',
+    description: 'Streaming tokens: LLM response appears token-by-token via Agent.stream().',
   },
 };
 
@@ -363,7 +369,20 @@ const server = http.createServer(async (req, res) => {
 });
 
 // ─── 6. SSE handler ────────────────────────────────────────────────────────
-function startSseStream(_req: http.IncomingMessage, res: http.ServerResponse, name: string, input: unknown) {
+function startSseStream(req: http.IncomingMessage, res: http.ServerResponse, name: string, input: unknown) {
+  // Parse trace logging options from the query string
+  //   ?trace=true              → log every event to stderr
+  //   ?trace=true&events=start,step:start,step:end,done
+  //                          → log only these event types (default: all)
+  const traceLogEnabled = req.url ? new URL(req.url, 'http://x').searchParams.get('trace') === 'true' : false;
+  const traceEventFilter = new Set(
+    (req.url ? (new URL(req.url, 'http://x').searchParams.get('events') ?? '') : '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+  const traceFilterActive = traceEventFilter.size > 0;
+
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
@@ -381,22 +400,50 @@ function startSseStream(_req: http.IncomingMessage, res: http.ServerResponse, na
   };
 
   let unsub: (() => void) | null = null;
+  let unsubLog: (() => void) | null = null;
   let closed = false;
 
   const cleanup = () => {
     if (closed) return;
     closed = true;
     if (unsub) unsub();
+    if (unsubLog) unsubLog();
   };
 
-  reqSocketCleanup(_req, cleanup);
+  reqSocketCleanup(req, cleanup);
 
   (async () => {
     try {
       const fn = await loadRunFn(name);
       const tracer = new Tracer();
       unsub = tracer.subscribe(send);
+
+      // Optional server-side trace logging for `npm run serve | jq`
+      const ip = clientIp(req);
+      if (traceLogEnabled) {
+        logger.info('trace_session_start', { example: name, ip, events: traceEventFilter.size || 'all' });
+        unsubLog = tracer.subscribe((event) => {
+          if (traceFilterActive && !traceEventFilter.has(event.type)) return;
+          // Route through the structured logger so it lands in stderr (not stdout
+          // where the SSE bytes live) and survives `jq` filtering.
+          process.stderr.write(
+            JSON.stringify({
+              ts: new Date().toISOString(),
+              level: 'info',
+              msg: 'trace_event',
+              example: name,
+              ip,
+              event,
+            }) + '\n',
+          );
+        });
+      }
+
       await fn(input, tracer);
+
+      if (traceLogEnabled) {
+        logger.info('trace_session_end', { example: name, ip });
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       send({ type: 'done', status: 'failed', output: { error: message }, totalMs: 0 });
@@ -450,6 +497,9 @@ function shutdown(signal: string) {
     logger.info('shutdown_complete');
     process.exit(0);
   });
+
+  // Stop the periodic cleanup timer so it doesn't keep the process alive
+  clearInterval(cleanupInterval);
 
   // Hard exit if graceful close takes too long
   setTimeout(() => {

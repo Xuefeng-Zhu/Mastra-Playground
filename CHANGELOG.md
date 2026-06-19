@@ -24,6 +24,15 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 - README rewritten with badges, table of contents, architecture diagram, troubleshooting, environment variables table
 - `package.json` scripts: added `format`, `format:check`, `health`, `start:prod`
+- Graceful shutdown now also clears the periodic suspended-runs cleanup interval
+
+### Fixed
+
+- `.audit-findings.md` re-baselined: 9 of the 12 originally open items were already resolved by `cc09dd3` / `4038dcb`. The 3 remaining real items are fixed in this branch (`fix/audit-low-findings`):
+  - Stored cleanup `setInterval` handle and clear it in `shutdown()` so the process can exit cleanly (`server/server.ts`)
+  - Removed the orphan `.pending-approval` CSS block (used stale `.label`/`.value`/`pulse` class names); the live block (`pad-label`/`pad-value`/`hitl-pulse`) was already in the second location. 129 lines deleted (`public/style.css`)
+  - Corrected the misleading "Call the server" comment on the new-conversation button — threads are localStorage-only, there is no server call to wait for (`public/app.js`)
+  - Smoke test no longer asserts a hard-coded example count (it broke when example 07 was added) — now `>= 1` (`scripts/smoke.ts`)
 
 ## [0.1.0] — 2026-06-19
 
