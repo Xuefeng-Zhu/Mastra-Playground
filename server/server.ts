@@ -132,6 +132,12 @@ const EXAMPLES: Record<string, { file: string; exportName: string; description: 
     exportName: 'runOne',
     description: 'Streaming tokens: LLM response appears token-by-token via Agent.stream().',
   },
+  'critic-loop': {
+    file: 'examples/08-critic-loop/index.ts',
+    exportName: 'runOne',
+    description:
+      'Evaluator-optimizer: generate → critique → regenerate using the feedback until the score meets the threshold or the iteration budget runs out.',
+  },
 };
 
 type RunFn = (input: unknown, tracer: Tracer) => Promise<unknown>;
@@ -163,11 +169,30 @@ function validateExampleInput(name: string, body: unknown): Record<string, unkno
       return { message: sanitizeText(body.message) };
     }
     case 'research':
-    case 'parallel-research': {
+    case 'parallel-research':
+    case 'critic-loop': {
       if ('topic' in body && typeof body.topic !== 'string') {
         throw new ValidationError('Field "topic" must be a string', 'topic');
       }
-      return { topic: sanitizeText(body.topic) };
+      const out: Record<string, unknown> = { topic: sanitizeText(body.topic) };
+      if ('threshold' in body) {
+        if (typeof body.threshold !== 'number' || body.threshold < 0 || body.threshold > 10) {
+          throw new ValidationError('Field "threshold" must be a number 0-10', 'threshold');
+        }
+        out.threshold = body.threshold;
+      }
+      if ('maxIterations' in body) {
+        if (
+          typeof body.maxIterations !== 'number' ||
+          !Number.isInteger(body.maxIterations) ||
+          body.maxIterations < 1 ||
+          body.maxIterations > 5
+        ) {
+          throw new ValidationError('Field "maxIterations" must be an integer 1-5', 'maxIterations');
+        }
+        out.maxIterations = body.maxIterations;
+      }
+      return out;
     }
     case 'code-review': {
       if ('path' in body && typeof body.path !== 'string') {

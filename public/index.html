@@ -37,6 +37,7 @@
       <button class="tab" data-tab="streaming-chat" role="tab" aria-selected="false">
         07 · Streaming Chat
       </button>
+      <button class="tab" data-tab="critic-loop" role="tab" aria-selected="false">08 · Critic Loop</button>
     </nav>
 
     <main>
@@ -604,6 +605,101 @@ Explain server-sent events in one paragraph.</textarea
           </div>
           <div class="col-output" data-output="streaming-chat">
             <div class="output-empty">Submit a prompt to watch the LLM stream.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 08 Critic Loop ── -->
+      <section class="panel" id="panel-critic-loop" role="tabpanel" hidden>
+        <h2>Critic Loop</h2>
+        <p class="panel-desc">
+          The evaluator-optimizer pattern. A <em>generator</em> drafts an answer, a <em>critic</em> scores it
+          0-10, and the loop regenerates using the feedback until the score meets the threshold (default 7) or
+          the iteration budget runs out (default 3). Watch the score climb across iterations in the trace.
+        </p>
+        <div class="layout">
+          <div class="col-form">
+            <div class="recent-runs" data-recent="critic-loop"></div>
+            <form data-form="critic-loop">
+              <label for="critic-topic">Topic</label>
+              <textarea
+                id="critic-topic"
+                name="topic"
+                rows="3"
+                required
+                placeholder="A topic the generator should write ~150 words on…"
+              >
+What is the difference between an AI agent and an AI workflow?</textarea
+              >
+
+              <div class="threshold-row">
+                <label for="critic-threshold"
+                  >Quality threshold: <span data-threshold-display>7</span>/10</label
+                >
+                <input
+                  type="range"
+                  id="critic-threshold"
+                  name="threshold"
+                  min="1"
+                  max="10"
+                  step="1"
+                  value="7"
+                />
+              </div>
+
+              <label for="critic-max">Max iterations (1-5)</label>
+              <input type="number" id="critic-max" name="maxIterations" min="1" max="5" step="1" value="3" />
+
+              <div class="samples">
+                <button
+                  type="button"
+                  class="sample-btn"
+                  data-fill="critic-topic"
+                  data-value="What is the difference between an AI agent and an AI workflow?"
+                >
+                  Agent vs workflow
+                </button>
+                <button
+                  type="button"
+                  class="sample-btn"
+                  data-fill="critic-topic"
+                  data-value="How do I evaluate whether a small LLM is good enough for my use case?"
+                >
+                  Eval a small LLM
+                </button>
+                <button
+                  type="button"
+                  class="sample-btn"
+                  data-fill="critic-topic"
+                  data-value="Explain the Model Context Protocol to a backend engineer in 150 words."
+                >
+                  MCP, 150 words
+                </button>
+              </div>
+              <button type="submit" class="run-btn">Run critic loop</button>
+              <button type="button" class="settings-toggle" data-toggle-settings="critic-loop">
+                ⚙ Settings
+              </button>
+              <div class="settings-panel" data-settings="critic-loop" hidden>
+                <label>
+                  Model
+                  <select data-setting="model" data-for="critic-loop">
+                    <option value="openai/gpt-4o-mini">gpt-4o-mini (default)</option>
+                    <option value="anthropic/claude-3-5-haiku">claude-3-5-haiku</option>
+                    <option value="meta-llama/llama-3.1-8b-instruct">llama-3.1-8b-instruct</option>
+                    <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001</option>
+                  </select>
+                </label>
+              </div>
+            </form>
+          </div>
+          <div class="col-trace">
+            <div class="trace-header">Workflow trace</div>
+            <div class="trace-graph" id="graph-critic-loop"></div>
+            <div class="trace-events" id="events-critic-loop"></div>
+          </div>
+          <div class="col-output" data-output="critic-loop">
+            <div class="output-empty">Submit a topic to run the generator-critic loop.</div>
           </div>
         </div>
       </section>

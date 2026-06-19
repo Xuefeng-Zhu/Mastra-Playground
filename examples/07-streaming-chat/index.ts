@@ -86,6 +86,11 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
         // the typing indicator in real time.
         tracer.emit({ type: 'llm:delta', stepId: 'stream', text: chunk, index });
         index++;
+        // Yield to the event loop so the SSE server can flush the TCP segment
+        // for this chunk before the next one arrives. Without this, a fast
+        // LLM emits all chunks within a single tick, all writes coalesce into
+        // one TCP segment, and the browser sees them as a single batch.
+        await new Promise<void>((resolve) => setImmediate(resolve));
       }
 
       const durationMs = Date.now() - t0;
