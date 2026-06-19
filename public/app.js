@@ -879,7 +879,13 @@ function handleTraceEvent(exampleName, event, eventsEl, _outputEl, setResult) {
         // function — look up the streaming output panel from the DOM instead.
         // (The HITL wrapper at the bottom of the file uses the same pattern.)
         const streamingOut = document.querySelector('.col-output[data-output="streaming-chat"]');
-        if (streamingOut) appendStreamingText(streamingOut, event.text);
+        if (streamingOut) {
+          appendStreamingText(streamingOut, event.text);
+        } else {
+          // Visible fallback so we can diagnose a missing panel
+          // without checking the console.
+          console.warn('streaming: panel not found for', event);
+        }
         break;
       }
       case 'llm:end': {
