@@ -27,16 +27,20 @@ const ROOT = join(__dirname, '..');
 
 // Periodic cleanup of stale runs (>1 hour old, just to be tidy)
 // (Suspended runs are stored in shared/suspended-store.ts in a globalThis Map.)
-setInterval(() => {
-  // Inlined to avoid adding a peek() function to the store API.
-  const cutoff = Date.now() - 60 * 60 * 1000;
-  const store = (globalThis as { __mastraPlaygroundSuspended?: Map<string, { suspendedAt: number }> }).__mastraPlaygroundSuspended;
-  if (store) {
-    for (const [token, sr] of store) {
-      if (sr.suspendedAt < cutoff) store.delete(token);
+setInterval(
+  () => {
+    // Inlined to avoid adding a peek() function to the store API.
+    const cutoff = Date.now() - 60 * 60 * 1000;
+    const store = (globalThis as { __mastraPlaygroundSuspended?: Map<string, { suspendedAt: number }> })
+      .__mastraPlaygroundSuspended;
+    if (store) {
+      for (const [token, sr] of store) {
+        if (sr.suspendedAt < cutoff) store.delete(token);
+      }
     }
-  }
-}, 10 * 60 * 1000).unref();
+  },
+  10 * 60 * 1000,
+).unref();
 
 // ─── 1. Static file serving ────────────────────────────────────────────────
 const STATIC_FILES: Record<string, string> = {
@@ -66,7 +70,7 @@ const EXAMPLES: Record<string, { file: string; exportName: string; description: 
     exportName: 'runOne',
     description: 'Customer-support triage. Classifies the message, routes to bot-reply or human-escalation.',
   },
-  'research': {
+  research: {
     file: 'examples/02-research-agent/index.ts',
     exportName: 'runOne',
     description: 'Research agent with two mocked tools (web-search, arxiv).',
@@ -84,12 +88,14 @@ const EXAMPLES: Record<string, { file: string; exportName: string; description: 
   'multi-turn-chat': {
     file: 'examples/05-multi-turn-chat/index.ts',
     exportName: 'runOne',
-    description: 'Multi-turn chat with explicit conversation history. Send 3+ messages, see context persist, agent can escalate or look up orders.',
+    description:
+      'Multi-turn chat with explicit conversation history. Send 3+ messages, see context persist, agent can escalate or look up orders.',
   },
   'hitl-approval': {
     file: 'examples/06-hitl-approval/index.ts',
     exportName: 'runOne',
-    description: 'Human-in-the-loop approval. High-risk actions suspend; human clicks Approve/Reject to resume.',
+    description:
+      'Human-in-the-loop approval. High-risk actions suspend; human clicks Approve/Reject to resume.',
   },
 };
 
@@ -122,9 +128,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/api/examples') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(
-      JSON.stringify(
-        Object.entries(EXAMPLES).map(([id, meta]) => ({ id, description: meta.description })),
-      ),
+      JSON.stringify(Object.entries(EXAMPLES).map(([id, meta]) => ({ id, description: meta.description }))),
     );
     return;
   }
@@ -199,12 +203,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 // ─── 4. SSE handler ────────────────────────────────────────────────────────
-function startSseStream(
-  _req: http.IncomingMessage,
-  res: http.ServerResponse,
-  name: string,
-  input: unknown,
-) {
+function startSseStream(_req: http.IncomingMessage, res: http.ServerResponse, name: string, input: unknown) {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
@@ -271,7 +270,12 @@ async function resumeSuspended(
       resumeData: { decision },
     })) as Record<string, unknown>;
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, result: { status: result.status, output: result.result, error: result.error } }));
+    res.end(
+      JSON.stringify({
+        ok: true,
+        result: { status: result.status, output: result.result, error: result.error },
+      }),
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     res.writeHead(500, { 'Content-Type': 'application/json' });

@@ -40,22 +40,11 @@ export function llmStructured(
   tracer.emit({ type: 'llm:structured', stepId, schema, data, tokens });
 }
 
-export function toolCall(
-  tracer: Tracer,
-  stepId: string,
-  tool: string,
-  input: unknown,
-  output: unknown,
-) {
+export function toolCall(tracer: Tracer, stepId: string, tool: string, input: unknown, output: unknown) {
   tracer.emit({ type: 'tool:call', stepId, tool, input, output });
 }
 
-export function branchEvaluate(
-  tracer: Tracer,
-  stepId: string,
-  matched: boolean,
-  predicate?: string,
-) {
+export function branchEvaluate(tracer: Tracer, stepId: string, matched: boolean, predicate?: string) {
   tracer.emit({ type: 'branch:evaluate', stepId, matched, predicate });
 }
 
@@ -74,9 +63,10 @@ export async function timed<T>(
     stepEnd(tracer, stepId, { ...(out as object), durationMs });
     return out;
   } catch (err) {
-    const errorDetail = err instanceof Error
-      ? { message: err.message, name: err.name, stack: err.stack }
-      : { message: String(err) };
+    const errorDetail =
+      err instanceof Error
+        ? { message: err.message, name: err.name, stack: err.stack }
+        : { message: String(err) };
     tracer.emit({ type: 'step:end', stepId, output: { error: errorDetail } });
     throw err;
   }

@@ -101,11 +101,15 @@ function makeFanoutStep(tracer: Tracer) {
       // The tool execute signature accepts a ToolExecutionContext; passing
       // undefined is valid (Mastra will build a default one).
       const [webResults, arxivResults, wikiResult] = await Promise.all([
-        (webSearch.execute as unknown as (input: { query: string }) => Promise<{ results: unknown[] }>)({ query: inputData.subQuestions[0] }).then((r) => {
+        (webSearch.execute as unknown as (input: { query: string }) => Promise<{ results: unknown[] }>)({
+          query: inputData.subQuestions[0],
+        }).then((r) => {
           toolCall(tracer, 'fanout', 'web-search', { query: inputData.subQuestions[0] }, r);
           return r;
         }),
-        (arxivSearch.execute as unknown as (input: { query: string }) => Promise<{ papers: unknown[] }>)({ query: inputData.subQuestions[1] }).then((r) => {
+        (arxivSearch.execute as unknown as (input: { query: string }) => Promise<{ papers: unknown[] }>)({
+          query: inputData.subQuestions[1],
+        }).then((r) => {
           toolCall(tracer, 'fanout', 'arxiv-search', { query: inputData.subQuestions[1] }, r);
           return r;
         }),
@@ -117,7 +121,11 @@ function makeFanoutStep(tracer: Tracer) {
 
       const out = {
         topic: inputData.topic,
-        sources: { web: { query: inputData.subQuestions[0], results: (webResults as { results: unknown[] }).results }, arxiv: { query: inputData.subQuestions[1], papers: (arxivResults as { papers: unknown[] }).papers }, wiki: wikiResult },
+        sources: {
+          web: { query: inputData.subQuestions[0], results: (webResults as { results: unknown[] }).results },
+          arxiv: { query: inputData.subQuestions[1], papers: (arxivResults as { papers: unknown[] }).papers },
+          wiki: wikiResult,
+        },
       };
       stepEnd(tracer, 'fanout', { ...out, _parallelMs: Date.now() - t0 });
       return out;
@@ -200,8 +208,18 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   const useModel = input.model ? getModel(input.model) : defaultModel;
   const mastra = new Mastra({
     agents: {
-      planner: new Agent({ id: 'parallel-planner', name: 'Parallel Planner', instructions: 'plan', model: useModel }),
-      synthesizer: new Agent({ id: 'parallel-synthesizer', name: 'Parallel Synthesizer', instructions: 'synth', model: useModel }),
+      planner: new Agent({
+        id: 'parallel-planner',
+        name: 'Parallel Planner',
+        instructions: 'plan',
+        model: useModel,
+      }),
+      synthesizer: new Agent({
+        id: 'parallel-synthesizer',
+        name: 'Parallel Synthesizer',
+        instructions: 'synth',
+        model: useModel,
+      }),
     },
     workflows: { 'parallel-research': makeWorkflow(tracer, useModel) },
     logger,
@@ -213,11 +231,12 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
   const output = result.status === 'success' ? unwrapWorkflowOutput(result.result) : null;
   // Normalize the failed result into something readable rather than [object Object].
-  const errMsg = result.status !== 'success' ? JSON.stringify(result) ?? String(result) : null;
+  const errMsg = result.status !== 'success' ? (JSON.stringify(result) ?? String(result)) : null;
   // Cast done-status to the tracer's narrower union (Mastra also emits 'tripwire' | 'paused' which we don't surface here).
-  const doneStatus = (result.status === 'success' || result.status === 'failed' || result.status === 'suspended')
-    ? result.status
-    : 'failed' as const;
+  const doneStatus =
+    result.status === 'success' || result.status === 'failed' || result.status === 'suspended'
+      ? result.status
+      : ('failed' as const);
   tracer.emit({ type: 'done', status: doneStatus, output, totalMs: Date.now() - t0 });
 
   return {
@@ -253,4 +272,6 @@ if (isMain) {
   });
 }
 
-void webSearch; void arxivSearch; void wiki;
+void webSearch;
+void arxivSearch;
+void wiki;

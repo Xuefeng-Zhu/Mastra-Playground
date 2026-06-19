@@ -1,8 +1,11 @@
 {
   "name": "mastra-playground",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Small isolated repo to learn Mastra by example. Not for production. Not part of InboxPilot.",
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "example:01": "tsx examples/01-support-triage/index.ts",
     "example:02": "tsx examples/02-research-agent/index.ts",
@@ -11,11 +14,22 @@
     "example:05": "tsx examples/05-multi-turn-chat/index.ts",
     "example:06": "tsx examples/06-hitl-approval/index.ts",
     "typecheck": "tsc --noEmit",
-    "serve": "tsx server/server.ts"
+    "format": "prettier --write \"**/*.{ts,js,css,html,md,json}\" --ignore-path .gitignore",
+    "format:check": "prettier --check \"**/*.{ts,js,css,html,md,json}\" --ignore-path .gitignore",
+    "serve": "tsx server/server.ts",
+    "start:prod": "NODE_ENV=production tsx server/server.ts",
+    "health": "curl -s http://localhost:8917/api/health | head -c 500",
+    "smoke": "tsx scripts/smoke.ts"
   },
-  "keywords": ["mastra", "learning", "playground"],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "mastra",
+    "learning",
+    "playground",
+    "ai",
+    "llm"
+  ],
+  "author": "Mastra Playground contributors",
+  "license": "MIT",
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.85",
     "@ai-sdk/openai": "^3.0.73",
@@ -25,6 +39,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.9.3",
+    "prettier": "^3.8.4",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3"
   }

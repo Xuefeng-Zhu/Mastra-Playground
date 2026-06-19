@@ -14,12 +14,12 @@
 
 ## What you can do at the URL
 
-| Tab | What it does |
-|---|---|
-| 01 · Support Triage | Classify → branch → respond or escalate. Try the model dropdown to see different LLMs in action. The threshold slider adds a `confidence < threshold` branch predicate. |
-| 02 · Research Agent | Agent with 2 tools decides what to call, then formats output. |
-| 03 · Code Review | Read file → run lint → if issues, LLM writes review; else auto-approve (no LLM). |
-| 04 · Parallel Research | Decompose → fan out to web + arxiv + wiki in parallel → synthesize. The trace shows 3 tool calls firing concurrently. |
+| Tab                    | What it does                                                                                                                                                            |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 01 · Support Triage    | Classify → branch → respond or escalate. Try the model dropdown to see different LLMs in action. The threshold slider adds a `confidence < threshold` branch predicate. |
+| 02 · Research Agent    | Agent with 2 tools decides what to call, then formats output.                                                                                                           |
+| 03 · Code Review       | Read file → run lint → if issues, LLM writes review; else auto-approve (no LLM).                                                                                        |
+| 04 · Parallel Research | Decompose → fan out to web + arxiv + wiki in parallel → synthesize. The trace shows 3 tool calls firing concurrently.                                                   |
 
 All calls go through the OpenRouter key stored in `/home/azureuser/.hermes/.env`.
 
@@ -36,19 +36,19 @@ Settings persist across page reloads (`localStorage`).
 
 ## Endpoints verified
 
-| Endpoint | Status | Notes |
-|---|---|---|
-| `GET /` | 200 | 4-tab UI with settings + history |
-| `GET /api/examples` | 200 | 4 examples listed |
-| `POST /api/run/:example` | 200 | One-shot JSON result |
-| `GET /api/stream/:example?input=...` | 200 | SSE trace stream |
+| Endpoint                             | Status | Notes                            |
+| ------------------------------------ | ------ | -------------------------------- |
+| `GET /`                              | 200    | 4-tab UI with settings + history |
+| `GET /api/examples`                  | 200    | 4 examples listed                |
+| `POST /api/run/:example`             | 200    | One-shot JSON result             |
+| `GET /api/stream/:example?input=...` | 200    | SSE trace stream                 |
 
 ## Background processes
 
-| PID | Process | Session |
-|---|---|---|
+| PID     | Process                                                 | Session             |
+| ------- | ------------------------------------------------------- | ------------------- |
 | 4124467 | `tsx server/server.ts` (the playground server on :8917) | `proc_2c60e345c2af` |
-| 4055591 | `cloudflared tunnel --url http://localhost:8917` | original from 19:04 |
+| 4055591 | `cloudflared tunnel --url http://localhost:8917`        | original from 19:04 |
 
 The tunnel from the original start (19:04) survived the server restart — when I killed the old server and started a new one on the same port, the existing cloudflared picked up the new server and the URL stayed the same. **This won't always happen** — a cloudflared process restart WILL rotate the URL. Treat the URL as best-effort.
 

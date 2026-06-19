@@ -51,7 +51,9 @@ const settingsStore = {
       const raw = localStorage.getItem(SETTINGS_KEY);
       const all = raw ? JSON.parse(raw) : {};
       return all[example] || {};
-    } catch { return {}; }
+    } catch {
+      return {};
+    }
   },
   save(example, settings) {
     try {
@@ -59,7 +61,9 @@ const settingsStore = {
       const all = raw ? JSON.parse(raw) : {};
       all[example] = settings;
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(all));
-    } catch (e) { console.warn('settings save failed', e); }
+    } catch (e) {
+      console.warn('settings save failed', e);
+    }
   },
 };
 
@@ -79,7 +83,7 @@ for (const example of ['support-triage', 'research', 'code-review', 'parallel-re
   const thresholdSlider = $(`input[data-setting="threshold"][data-for="${example}"]`);
   if (thresholdSlider && stored.threshold) thresholdSlider.value = stored.threshold;
   const display = $(`span.slider-value[data-display-for="${example}"]`);
-  if (display) display.textContent = (stored.threshold ?? '0.75');
+  if (display) display.textContent = stored.threshold ?? '0.75';
 
   if (modelSelect) {
     modelSelect.addEventListener('change', () => {
@@ -109,11 +113,16 @@ const GRAPHS = {
     edges: [
       { from: 'input', to: 'classify' },
       { from: 'classify', to: 'branch.intent' },
-      { from: 'branch.intent', to: 'respond', label: 'intent ∈ {how_to, billing}', predicate: 'intent how_to or billing' },
+      {
+        from: 'branch.intent',
+        to: 'respond',
+        label: 'intent ∈ {how_to, billing}',
+        predicate: 'intent how_to or billing',
+      },
       { from: 'branch.intent', to: 'escalate', label: 'requires_human', predicate: 'requires_human' },
     ],
   },
-  'research': {
+  research: {
     nodes: [
       { id: 'input', label: 'Topic', kind: 'input', x: 60, y: 60 },
       { id: 'run-agent', label: 'Research (LLM)', kind: 'llm', x: 60, y: 160, label2: 'with tools' },
@@ -159,9 +168,7 @@ const GRAPHS = {
       { id: 'input', label: 'User message', kind: 'input', x: 60, y: 60 },
       { id: 'chat', label: 'Chat (LLM)', kind: 'llm', x: 60, y: 160, label2: 'with memory' },
     ],
-    edges: [
-      { from: 'input', to: 'chat' },
-    ],
+    edges: [{ from: 'input', to: 'chat' }],
   },
   'hitl-approval': {
     nodes: [
@@ -300,9 +307,15 @@ for (const [name, def] of Object.entries(GRAPHS)) {
 // ─── Thread state (multi-turn chat) ─────────────────────────────────────
 const THREAD_KEY = 'mastra-playground:threadId';
 const threadState = {
-  get() { return localStorage.getItem(THREAD_KEY) || ''; },
-  set(threadId) { localStorage.setItem(THREAD_KEY, threadId); },
-  clear() { localStorage.removeItem(THREAD_KEY); },
+  get() {
+    return localStorage.getItem(THREAD_KEY) || '';
+  },
+  set(threadId) {
+    localStorage.setItem(THREAD_KEY, threadId);
+  },
+  clear() {
+    localStorage.removeItem(THREAD_KEY);
+  },
 };
 
 function generateThreadId() {
@@ -354,7 +367,9 @@ const historyStore = {
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
       return raw ? JSON.parse(raw) : {};
-    } catch { return {}; }
+    } catch {
+      return {};
+    }
   },
   loadFor(example) {
     const all = this.loadAll();
@@ -366,15 +381,23 @@ const historyStore = {
     list.unshift(entry);
     if (list.length > HISTORY_CAP_PER_EXAMPLE) list.length = HISTORY_CAP_PER_EXAMPLE;
     all[example] = list;
-    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(all)); } catch (e) { console.warn('history save failed', e); }
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(all));
+    } catch (e) {
+      console.warn('history save failed', e);
+    }
   },
   clearAll() {
-    try { localStorage.removeItem(HISTORY_KEY); } catch {}
+    try {
+      localStorage.removeItem(HISTORY_KEY);
+    } catch {}
   },
   clearFor(example) {
     const all = this.loadAll();
     delete all[example];
-    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(all)); } catch {}
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(all));
+    } catch {}
   },
 };
 
@@ -476,7 +499,9 @@ function deleteEntry(example, ts) {
   if (all[example]) {
     all[example] = all[example].filter((e) => e.ts !== ts);
     if (all[example].length === 0) delete all[example];
-    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(all)); } catch {}
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(all));
+    } catch {}
   }
   renderRecentChips();
   openHistoryPanel(); // re-render
@@ -499,7 +524,14 @@ document.addEventListener('keydown', (e) => {
 });
 
 function formatTs(ts) {
-  return new Date(ts).toLocaleString('en-US', { hour12: false, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return new Date(ts).toLocaleString('en-US', {
+    hour12: false,
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 }
 
 renderRecentChips();
@@ -528,11 +560,13 @@ $$('form[data-form]').forEach((form) => {
       }
       requestBody = { ...requestBody, threadId, resourceId: 'web-user' };
       // Show loading bubble in chat
-      const thread = outputEl.querySelector('.chat-thread') || (() => {
-        outputEl.innerHTML = `<div class="output-actions"><button class="copy-md-btn" disabled>Copy as Markdown</button></div>
+      const thread =
+        outputEl.querySelector('.chat-thread') ||
+        (() => {
+          outputEl.innerHTML = `<div class="output-actions"><button class="copy-md-btn" disabled>Copy as Markdown</button></div>
           <div class="chat-thread" data-thread></div>`;
-        return outputEl.querySelector('.chat-thread');
-      })();
+          return outputEl.querySelector('.chat-thread');
+        })();
       const loading = document.createElement('div');
       loading.className = 'chat-loading';
       loading.innerHTML = '<div class="spinner"></div> Thinking…';
@@ -558,9 +592,15 @@ $$('form[data-form]').forEach((form) => {
 
     evtSource.onmessage = (e) => {
       let event;
-      try { event = JSON.parse(e.data); } catch { return; }
+      try {
+        event = JSON.parse(e.data);
+      } catch {
+        return;
+      }
       collectedEvents.push(event);
-      handleTraceEvent(name, event, eventsEl, outputEl, (r) => { result = r; });
+      handleTraceEvent(name, event, eventsEl, outputEl, (r) => {
+        result = r;
+      });
       if (event.type === 'done') {
         doneReceived = true;
         evtSource.close();
@@ -620,9 +660,7 @@ $$('form[data-form]').forEach((form) => {
 
 function saveRunToHistory(example, input, result, totalMs, events) {
   const summary = summarizeResult(example, result);
-  const stepsTaken = events
-    .filter((e) => e.type === 'step:start')
-    .map((e) => e.stepId);
+  const stepsTaken = events.filter((e) => e.type === 'step:start').map((e) => e.stepId);
   historyStore.saveEntry(example, {
     ts: Date.now(),
     input,
@@ -640,7 +678,12 @@ function summarizeResult(example, result) {
     return `${result.triage.intent} (${(result.triage.confidence * 100).toFixed(0)}%)`;
   }
   if (example === 'research' && result.formatted) {
-    return result.formatted.split('\n')[0].replace(/^#+\s*/, '').slice(0, 30) || 'ok';
+    return (
+      result.formatted
+        .split('\n')[0]
+        .replace(/^#+\s*/, '')
+        .slice(0, 30) || 'ok'
+    );
   }
   if (example === 'code-review') {
     return `${result.action} (${result.issueCount} issues)`;
@@ -665,18 +708,21 @@ function attachCopyAsMarkdownButton(name, outputEl, input, result, totalMs, even
   btn.disabled = false;
   btn.addEventListener('click', () => {
     const md = buildMarkdown(name, input, result, totalMs, events);
-    navigator.clipboard.writeText(md).then(() => {
-      const original = btn.textContent;
-      btn.textContent = 'Copied!';
-      btn.classList.add('copied');
-      setTimeout(() => {
-        btn.textContent = original;
-        btn.classList.remove('copied');
-      }, 1500);
-    }).catch((err) => {
-      btn.textContent = 'Copy failed';
-      console.error(err);
-    });
+    navigator.clipboard
+      .writeText(md)
+      .then(() => {
+        const original = btn.textContent;
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = original;
+          btn.classList.remove('copied');
+        }, 1500);
+      })
+      .catch((err) => {
+        btn.textContent = 'Copy failed';
+        console.error(err);
+      });
   });
 }
 
@@ -792,7 +838,14 @@ function handleTraceEvent(exampleName, event, eventsEl, _outputEl, setResult) {
         const targetEdge = findEdgeForBranch(exampleName, event.stepId, event.matched);
         if (targetEdge && edgeEls[targetEdge]) {
           edgeEls[targetEdge].classList.add('active');
-          const markerId = exampleName === 'support-triage' ? 'graph-support-triage' : exampleName === 'code-review' ? 'graph-code-review' : exampleName === 'parallel-research' ? 'graph-parallel-research' : 'graph-research';
+          const markerId =
+            exampleName === 'support-triage'
+              ? 'graph-support-triage'
+              : exampleName === 'code-review'
+                ? 'graph-code-review'
+                : exampleName === 'parallel-research'
+                  ? 'graph-parallel-research'
+                  : 'graph-research';
           edgeEls[targetEdge].setAttribute('marker-end', `url(#arrow-active-${markerId})`);
         }
         dimOtherEdges(exampleName, event.stepId, targetEdge);
@@ -832,7 +885,9 @@ function handleTraceEvent(exampleName, event, eventsEl, _outputEl, setResult) {
   }
 }
 
-function findEdgeForBranch(_exampleName, _branchId, _matched) { return null; }
+function findEdgeForBranch(_exampleName, _branchId, _matched) {
+  return null;
+}
 function dimOtherEdges(_exampleName, _branchId, _targetEdge) {}
 function markBranchSiblings(_exampleName, _branchId, _targetEdge) {}
 
@@ -1041,7 +1096,9 @@ function renderChat(el, r) {
     });
     // Add escalation badge to the last assistant message if escalated
     if (escalated) {
-      const lastAssistant = Array.from(thread.children).reverse().find((el) => el.classList.contains('assistant'));
+      const lastAssistant = Array.from(thread.children)
+        .reverse()
+        .find((el) => el.classList.contains('assistant'));
       if (lastAssistant) {
         lastAssistant.classList.add('escalated');
         const badge = document.createElement('div');
@@ -1166,7 +1223,12 @@ async function hitlDecide(token, decision) {
     });
     const json = await resp.json();
     if (json.ok) {
-      const runResult = { status: json.result.status, input: { token, decision }, output: json.result.output, error: json.result.error };
+      const runResult = {
+        status: json.result.status,
+        input: { token, decision },
+        output: json.result.output,
+        error: json.result.error,
+      };
       renderFinalResult('hitl-approval', outputEl, { ok: true, result: runResult });
     } else {
       outputEl.innerHTML = `<div class="output-section">

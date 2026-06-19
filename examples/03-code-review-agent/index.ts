@@ -138,7 +138,12 @@ function makeApproveStep(tracer: Tracer) {
     }),
     execute: async () => {
       stepStart(tracer, 'approve', {});
-      const out = { path: '', action: 'approved' as const, review: 'No issues found. LGTM ✅', issueCount: 0 };
+      const out = {
+        path: '',
+        action: 'approved' as const,
+        review: 'No issues found. LGTM ✅',
+        issueCount: 0,
+      };
       stepEnd(tracer, 'approve', out);
       return out;
     },
@@ -159,16 +164,22 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
     .then(makeFetchFileStep(tracer))
     .then(makeCheckFileStep(tracer))
     .branch([
-      [async ({ inputData }) => {
-        const matched = inputData.issues.length === 0;
-        branchEvaluate(tracer, 'branch.issues', matched, `issues.length === 0`);
-        return matched;
-      }, makeApproveStep(tracer)],
-      [async ({ inputData }) => {
-        const matched = inputData.issues.length > 0;
-        branchEvaluate(tracer, 'branch.issues', matched, `issues.length > 0`);
-        return matched;
-      }, makeGenerateReviewStep(tracer, useModel)],
+      [
+        async ({ inputData }) => {
+          const matched = inputData.issues.length === 0;
+          branchEvaluate(tracer, 'branch.issues', matched, `issues.length === 0`);
+          return matched;
+        },
+        makeApproveStep(tracer),
+      ],
+      [
+        async ({ inputData }) => {
+          const matched = inputData.issues.length > 0;
+          branchEvaluate(tracer, 'branch.issues', matched, `issues.length > 0`);
+          return matched;
+        },
+        makeGenerateReviewStep(tracer, useModel),
+      ],
     ])
     .commit();
 }
@@ -184,7 +195,14 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
   const useModel = input.model ? getModel(input.model) : defaultModel;
   const mastra = new Mastra({
-    agents: { reviewer: new Agent({ id: 'code-reviewer', name: 'Code Reviewer', instructions: 'review', model: useModel }) },
+    agents: {
+      reviewer: new Agent({
+        id: 'code-reviewer',
+        name: 'Code Reviewer',
+        instructions: 'review',
+        model: useModel,
+      }),
+    },
     workflows: { review: makeWorkflow(tracer, useModel) },
     logger,
   });
@@ -195,11 +213,12 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
   const output = result.status === 'success' ? unwrapWorkflowOutput(result.result) : null;
   // Normalize the failed result into something readable rather than [object Object].
-  const errMsg = result.status !== 'success' ? JSON.stringify(result) ?? String(result) : null;
+  const errMsg = result.status !== 'success' ? (JSON.stringify(result) ?? String(result)) : null;
   // Cast done-status to the tracer's narrower union (Mastra also emits 'tripwire' | 'paused' which we don't surface here).
-  const doneStatus = (result.status === 'success' || result.status === 'failed' || result.status === 'suspended')
-    ? result.status
-    : 'failed' as const;
+  const doneStatus =
+    result.status === 'success' || result.status === 'failed' || result.status === 'suspended'
+      ? result.status
+      : ('failed' as const);
   tracer.emit({ type: 'done', status: doneStatus, output, totalMs: Date.now() - t0 });
 
   return {

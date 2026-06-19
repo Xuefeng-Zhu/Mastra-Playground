@@ -106,7 +106,10 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
 
   // We capture the run + workflow + mastra in outer scope so the gate's
   // execute can register itself with the server's suspended-run store.
-  let capturedRun: { runId: string; resume: (params: { step: string; resumeData?: unknown }) => Promise<unknown> } | null = null;
+  let capturedRun: {
+    runId: string;
+    resume: (params: { step: string; resumeData?: unknown }) => Promise<unknown>;
+  } | null = null;
   let capturedWorkflow: string = 'hitl-approval';
   let capturedMastra: unknown = null;
 
@@ -116,7 +119,10 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
     inputSchema: InputSchema,
     outputSchema: ClassifiedSchema,
     execute: async ({ inputData }) => {
-      stepStart(tracer, 'classify', { actionType: inputData.actionType, actionLength: inputData.action.length });
+      stepStart(tracer, 'classify', {
+        actionType: inputData.actionType,
+        actionLength: inputData.action.length,
+      });
       const result = await agent.generate(
         `Classify this proposed action:\n\nType: ${inputData.actionType}\nAction: ${inputData.action}\n\nReturn JSON with: amount (number), urgency (low/medium/high/critical), reasoning (1-2 sentences).`,
         { structuredOutput: { schema: ClassifiedSchema } },
@@ -137,7 +143,11 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
     outputSchema: GateOutputSchema,
     resumeSchema: GateResumeSchema,
     execute: async ({ inputData, suspend, runId, resumeData }) => {
-      stepStart(tracer, 'gate', { urgency: inputData.urgency, amount: inputData.amount, hasResumeData: Boolean(resumeData) });
+      stepStart(tracer, 'gate', {
+        urgency: inputData.urgency,
+        amount: inputData.amount,
+        hasResumeData: Boolean(resumeData),
+      });
 
       const isRisky = inputData.urgency === 'critical' || inputData.amount > 100;
 
@@ -154,7 +164,9 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
         // Register the run with the server so it can be resumed
         if (capturedRun && capturedMastra) {
           registerSuspendedRun(runId, {
-            run: capturedRun as { resume: (params: { step: string; resumeData?: unknown }) => Promise<unknown> },
+            run: capturedRun as {
+              resume: (params: { step: string; resumeData?: unknown }) => Promise<unknown>;
+            },
             step: 'gate',
             workflow: capturedWorkflow,
             mastra: capturedMastra,
@@ -219,7 +231,10 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
   // caller (buildMastra → runOne) sets `capturedRun` after createRun().
   return {
     workflow,
-    captureRun: (run: { runId: string; resume: (params: { step: string; resumeData?: unknown }) => Promise<unknown> }) => {
+    captureRun: (run: {
+      runId: string;
+      resume: (params: { step: string; resumeData?: unknown }) => Promise<unknown>;
+    }) => {
       capturedRun = run;
     },
     captureMastra: (mastra: unknown) => {
@@ -265,7 +280,8 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
       status: 'failed',
       input,
       output: null,
-      error: 'Resume from CLI not supported — use the UI (POST /api/resume) or capture the Run object in the server.',
+      error:
+        'Resume from CLI not supported — use the UI (POST /api/resume) or capture the Run object in the server.',
     };
   }
 
@@ -273,7 +289,12 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   const built = buildMastra(tracer, useModel);
   const wf = built.mastra.getWorkflow('hitl-approval');
   const run = await wf.createRun();
-  built.captureRun(run as unknown as { runId: string; resume: (params: { step: string; resumeData?: unknown }) => Promise<unknown> });
+  built.captureRun(
+    run as unknown as {
+      runId: string;
+      resume: (params: { step: string; resumeData?: unknown }) => Promise<unknown>;
+    },
+  );
   built.captureMastra(built.mastra);
   const result = await run.start({ inputData: { action: input.action, actionType: input.actionType } });
 
@@ -290,7 +311,12 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
   if (wideResult.status === 'suspended') {
     const token = run.runId;
-    tracer.emit({ type: 'done', status: 'suspended', output: { token, suspendedStep: wideResult.suspendedStep, suspendedPayload: wideResult.suspendPayload }, totalMs: Date.now() - t0 });
+    tracer.emit({
+      type: 'done',
+      status: 'suspended',
+      output: { token, suspendedStep: wideResult.suspendedStep, suspendedPayload: wideResult.suspendPayload },
+      totalMs: Date.now() - t0,
+    });
     return {
       status: 'suspended',
       input,
@@ -301,7 +327,12 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
   const output = wideResult.status === 'success' ? unwrapWorkflowOutput(wideResult.result) : null;
   tracer.emit({ type: 'done', status: wideResult.status, output, totalMs: Date.now() - t0 });
-  return { status: wideResult.status, input, output, error: wideResult.status !== 'success' ? String(wideResult) : null };
+  return {
+    status: wideResult.status,
+    input,
+    output,
+    error: wideResult.status !== 'success' ? String(wideResult) : null,
+  };
 }
 
 // ─── CLI demo ────────────────────────────────────────────────────────────
@@ -324,7 +355,10 @@ async function main() {
   console.log('\nTest 2: large refund (should suspend)');
   // 2) High-risk action: suspends. We can't easily test the resume path from CLI,
   //    so we just confirm the suspension happens.
-  const r2 = await runOne({ action: 'Refund $500 to customer 12345 — they threatened to sue', actionType: 'refund' }, silentTracer);
+  const r2 = await runOne(
+    { action: 'Refund $500 to customer 12345 — they threatened to sue', actionType: 'refund' },
+    silentTracer,
+  );
   console.log(`  status: ${r2.status}`);
   const o2 = r2.output as { token?: string; suspendedStep?: { id?: string } } | null;
   if (r2.status === 'suspended' && o2) {

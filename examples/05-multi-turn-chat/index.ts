@@ -42,9 +42,7 @@ import { stepStart, stepEnd, toolCall, type StepSpec } from '../../shared/traced
 import { escalate, escalateDirect } from './tools/escalate.js';
 import { lookupOrder, lookupOrderDirect } from './tools/lookup_order.js';
 
-const STEPS: StepSpec[] = [
-  { id: 'chat', label: 'Chat (LLM + memory)', kind: 'llm' },
-];
+const STEPS: StepSpec[] = [{ id: 'chat', label: 'Chat (LLM + memory)', kind: 'llm' }];
 
 // ─── Build the agent with per-request model ───────────────────────────
 function makeAgent(useModel = defaultModel) {
@@ -101,7 +99,10 @@ function makeWorkflow(tracer: Tracer, useModel = defaultModel) {
         }),
         execute: async ({ inputData }) => {
           const t0 = Date.now();
-          stepStart(tracer, 'chat', { threadId: inputData.threadId, messageLength: inputData.message.length });
+          stepStart(tracer, 'chat', {
+            threadId: inputData.threadId,
+            messageLength: inputData.message.length,
+          });
 
           // 1. Load conversation history (Mastra's Memory would do this;
           //    we do it explicitly for transparency)
@@ -141,7 +142,13 @@ function makeWorkflow(tracer: Tracer, useModel = defaultModel) {
 
           // Emit a tool:call event if escalation happened (visual signal in the trace)
           if (escalated) {
-            toolCall(tracer, 'chat', 'escalate_to_human', { threadId: inputData.threadId, reason: escalationReason }, { escalated: true, reason: escalationReason });
+            toolCall(
+              tracer,
+              'chat',
+              'escalate_to_human',
+              { threadId: inputData.threadId, reason: escalationReason },
+              { escalated: true, reason: escalationReason },
+            );
           }
 
           const out = {
@@ -165,7 +172,7 @@ export interface RunOptions {
   threadId: string;
   resourceId: string;
   message: string;
-  action?: 'new' | 'clear' | 'send';  // 'new' generates a new threadId, 'clear' wipes, 'send' (default) processes
+  action?: 'new' | 'clear' | 'send'; // 'new' generates a new threadId, 'clear' wipes, 'send' (default) processes
   model?: string;
 }
 
@@ -211,15 +218,18 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
   const wf = mastra.getWorkflow('multi-turn-chat');
   const run = await wf.createRun();
-  const result = await run.start({ inputData: { threadId: input.threadId, resourceId: input.resourceId, message: input.message } });
+  const result = await run.start({
+    inputData: { threadId: input.threadId, resourceId: input.resourceId, message: input.message },
+  });
 
   const output = result.status === 'success' ? unwrapWorkflowOutput(result.result) : null;
   // Normalize the failed result into something readable rather than [object Object].
-  const errMsg = result.status !== 'success' ? JSON.stringify(result) ?? String(result) : null;
+  const errMsg = result.status !== 'success' ? (JSON.stringify(result) ?? String(result)) : null;
   // Cast done-status to the tracer's narrower union (Mastra also emits 'tripwire' | 'paused' which we don't surface here).
-  const doneStatus = (result.status === 'success' || result.status === 'failed' || result.status === 'suspended')
-    ? result.status
-    : 'failed' as const;
+  const doneStatus =
+    result.status === 'success' || result.status === 'failed' || result.status === 'suspended'
+      ? result.status
+      : ('failed' as const);
   tracer.emit({ type: 'done', status: doneStatus, output, totalMs: Date.now() - t0 });
 
   return {

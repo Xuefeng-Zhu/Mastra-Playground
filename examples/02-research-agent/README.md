@@ -25,12 +25,12 @@ The console shows the agent's text output, including the tool calls it made.
 
 - **`tools: { webSearch, arxivSearch }` on `new Agent({...})`** — register tools by key. The LLM sees the tool names + descriptions and decides when to call them.
 - **`createTool({ id, description, inputSchema, outputSchema, execute })`** — every tool is just a Zod-validated async function. No special framework.
-- **Sequential `.then(stepA).then(stepB)`** — deterministic order; data flows from one step's output to the next's input. The LLM is invoked *inside* a step (as `agent.generate(...)`), not as a graph node.
+- **Sequential `.then(stepA).then(stepB)`** — deterministic order; data flows from one step's output to the next's input. The LLM is invoked _inside_ a step (as `agent.generate(...)`), not as a graph node.
 - **Workflow as a "durable wrapper"** — `createRunAsync().start({ inputData })` returns a typed `Run` object you can `await`, query, and inspect. The `status` field tells you whether the run succeeded, failed, or is suspended.
 
 ## Agent vs Workflow: when to use which
 
-- **Agent** when the *order* of operations depends on what the LLM discovers. (e.g. "research this topic however you want, using whatever tools help".)
+- **Agent** when the _order_ of operations depends on what the LLM discovers. (e.g. "research this topic however you want, using whatever tools help".)
 - **Workflow** when you know the order. (e.g. "always: read file → lint → if issues, write review".)
 - **Mix** when one part is fixed and another is dynamic. (e.g. "always run the lint, then let the agent decide how to format the review".)
 
@@ -39,6 +39,7 @@ This example uses both: a workflow that always runs `agent.generate` (determinis
 ## What to look for
 
 After running:
+
 1. The `webSearch` and `arxivSearch` mock tools return canned data. Replace them with real API calls and see what changes.
 2. The agent's output is `String(result.text).slice(0, 500)` — we strip it because the agent's text is unstructured. To force a structured response, use the `output: SomeSchema` pattern from example 01.
 3. No memory — every run starts fresh. To add memory, pass `memory: new Memory({...})` to the agent and a `threadId`/`resourceId` to the call. (Skipped here to keep the example focused.)

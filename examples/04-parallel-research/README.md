@@ -46,16 +46,16 @@ step:end    synthesize
 done                          total: ~3.0s
 ```
 
-Notice that the 3 tool calls fire *concurrently* — the trace shows them in arrival order (whichever finishes first), not in source order. The total wall time for the `fanout` step is roughly the slowest single call, not the sum.
+Notice that the 3 tool calls fire _concurrently_ — the trace shows them in arrival order (whichever finishes first), not in source order. The total wall time for the `fanout` step is roughly the slowest single call, not the sum.
 
 ## Compare to Example 02
 
-| | Example 02 (Research) | Example 04 (Parallel Research) |
-|---|---|---|
-| Parallelism | None (sequential) | Fan-out via `Promise.all` |
-| Workflow shape | 2 steps: `run-agent` → `format` | 3 steps: `plan` → `fanout` → `synthesize` |
-| LLM drives tool calls? | Yes (agent picks tools) | No (step does) |
-| When to use | When the LLM needs to decide which tool is right | When you know exactly which tools to call and the calls are independent |
+|                        | Example 02 (Research)                            | Example 04 (Parallel Research)                                          |
+| ---------------------- | ------------------------------------------------ | ----------------------------------------------------------------------- |
+| Parallelism            | None (sequential)                                | Fan-out via `Promise.all`                                               |
+| Workflow shape         | 2 steps: `run-agent` → `format`                  | 3 steps: `plan` → `fanout` → `synthesize`                               |
+| LLM drives tool calls? | Yes (agent picks tools)                          | No (step does)                                                          |
+| When to use            | When the LLM needs to decide which tool is right | When you know exactly which tools to call and the calls are independent |
 
 Both patterns are valid. Example 02 is the "let the LLM figure it out" pattern; Example 04 is the "I know the steps, just execute them in parallel" pattern. InboxPilot's §8 would use both — agent-driven for ambiguous lookups, parallel step for known data assembly.
 
@@ -63,4 +63,4 @@ Both patterns are valid. Example 02 is the "let the LLM figure it out" pattern; 
 
 1. The `fanout` step's wall time is **< the sum of the 3 tool latencies**. With 100-300ms mock latencies per tool, you'd expect the sum to be ~600ms but the step completes in ~300ms.
 2. The `synthesize` step is the longest LLM call (it has the most input) — typically 1-2s.
-3. If you swap the mock tools for real ones (Tavily, Arxiv API, internal wiki), the *shape* of the trace doesn't change — only the latencies.
+3. If you swap the mock tools for real ones (Tavily, Arxiv API, internal wiki), the _shape_ of the trace doesn't change — only the latencies.

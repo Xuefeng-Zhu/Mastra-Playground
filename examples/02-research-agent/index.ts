@@ -78,15 +78,24 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   const formatStep = makeFormatStep(tracer);
 
   const mastra = new Mastra({
-    agents: { research: new Agent({ id: 'research-agent', name: 'Research Agent', instructions: 'research', model: useModel }) },
-    workflows: { research: createWorkflow({
-      id: 'research',
-      inputSchema: z.object({ topic: z.string() }),
-      outputSchema: z.object({ topic: z.string(), formatted: z.string() }),
-    })
-      .then(runAgentStep)
-      .then(formatStep)
-      .commit() },
+    agents: {
+      research: new Agent({
+        id: 'research-agent',
+        name: 'Research Agent',
+        instructions: 'research',
+        model: useModel,
+      }),
+    },
+    workflows: {
+      research: createWorkflow({
+        id: 'research',
+        inputSchema: z.object({ topic: z.string() }),
+        outputSchema: z.object({ topic: z.string(), formatted: z.string() }),
+      })
+        .then(runAgentStep)
+        .then(formatStep)
+        .commit(),
+    },
     logger,
   });
 
@@ -96,11 +105,12 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
   const output = result.status === 'success' ? unwrapWorkflowOutput(result.result) : null;
   // Normalize the failed result into something readable rather than [object Object].
-  const errMsg = result.status !== 'success' ? JSON.stringify(result) ?? String(result) : null;
+  const errMsg = result.status !== 'success' ? (JSON.stringify(result) ?? String(result)) : null;
   // Cast done-status to the tracer's narrower union (Mastra also emits 'tripwire' | 'paused' which we don't surface here).
-  const doneStatus = (result.status === 'success' || result.status === 'failed' || result.status === 'suspended')
-    ? result.status
-    : 'failed' as const;
+  const doneStatus =
+    result.status === 'success' || result.status === 'failed' || result.status === 'suspended'
+      ? result.status
+      : ('failed' as const);
   tracer.emit({ type: 'done', status: doneStatus, output, totalMs: Date.now() - t0 });
 
   return {
@@ -111,10 +121,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   };
 }
 
-const demoTopics = [
-  'Contextual Retrieval for RAG',
-  'hybrid search with BM25 and vector reranking',
-];
+const demoTopics = ['Contextual Retrieval for RAG', 'hybrid search with BM25 and vector reranking'];
 
 async function main() {
   const { Tracer } = await import('../../shared/tracer.js');

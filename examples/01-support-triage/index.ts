@@ -15,7 +15,13 @@ import { model as defaultModel, getModel } from '../../shared/llm.js';
 import { logger } from '../../shared/observability.js';
 import { unwrapWorkflowOutput } from '../../shared/workflow-helpers.js';
 import type { Tracer } from '../../shared/tracer.js';
-import { stepStart, stepEnd, llmStructured, branchEvaluate, type StepSpec } from '../../shared/traced-step.js';
+import {
+  stepStart,
+  stepEnd,
+  llmStructured,
+  branchEvaluate,
+  type StepSpec,
+} from '../../shared/traced-step.js';
 
 // ─── 1. The structured-output schema ────────────────────────────────────────
 const TriageSchema = z.object({
@@ -126,45 +132,58 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   const escalateStep = makeEscalateStep(tracer);
 
   const mastra = new Mastra({
-    agents: { triage: new Agent({
-      id: 'support-triage',
-      name: 'Support Triage',
-      instructions: [
-        'You are a customer support triage agent.',
-        'Read the customer message and classify it.',
-        'For "how_to" and "billing": write a concise, empathetic response in response_text.',
-        'For "complaint" and "account": set requires_human=true and leave response_text null.',
-        'For "other": set requires_human=true with a clarifying question in response_text.',
-        'Be honest about uncertainty — do not invent refund windows, warranties, or policy numbers.',
-      ].join('\n'),
-      model: useModel,
-    }) },
-    workflows: { triage: createWorkflow({
-      id: 'triage',
-      inputSchema: z.object({ message: z.string() }),
-      outputSchema: z.object({ action: z.string(), triage: TriageSchema }),
-    })
-      .then(classifyStep)
-      .branch([
-        [async ({ inputData }) => {
-          const matched = inputData.intent === 'how_to';
-          branchEvaluate(tracer, 'branch.intent', matched, `intent === 'how_to'`);
-          return matched;
-        }, respondStep],
-        [async ({ inputData }) => {
-          const matched = inputData.intent === 'billing';
-          branchEvaluate(tracer, 'branch.intent', matched, `intent === 'billing'`);
-          return matched;
-        }, respondStep],
-        [async ({ inputData }) => {
-          // Optional threshold from settings
-          const threshold = input.threshold ?? 0;
-          const matched = inputData.requires_human || inputData.confidence < threshold;
-          branchEvaluate(tracer, 'branch.intent', matched, `requires_human || confidence < ${threshold}`);
-          return matched;
-        }, escalateStep],
-      ])
-      .commit() },
+    agents: {
+      triage: new Agent({
+        id: 'support-triage',
+        name: 'Support Triage',
+        instructions: [
+          'You are a customer support triage agent.',
+          'Read the customer message and classify it.',
+          'For "how_to" and "billing": write a concise, empathetic response in response_text.',
+          'For "complaint" and "account": set requires_human=true and leave response_text null.',
+          'For "other": set requires_human=true with a clarifying question in response_text.',
+          'Be honest about uncertainty — do not invent refund windows, warranties, or policy numbers.',
+        ].join('\n'),
+        model: useModel,
+      }),
+    },
+    workflows: {
+      triage: createWorkflow({
+        id: 'triage',
+        inputSchema: z.object({ message: z.string() }),
+        outputSchema: z.object({ action: z.string(), triage: TriageSchema }),
+      })
+        .then(classifyStep)
+        .branch([
+          [
+            async ({ inputData }) => {
+              const matched = inputData.intent === 'how_to';
+              branchEvaluate(tracer, 'branch.intent', matched, `intent === 'how_to'`);
+              return matched;
+            },
+            respondStep,
+          ],
+          [
+            async ({ inputData }) => {
+              const matched = inputData.intent === 'billing';
+              branchEvaluate(tracer, 'branch.intent', matched, `intent === 'billing'`);
+              return matched;
+            },
+            respondStep,
+          ],
+          [
+            async ({ inputData }) => {
+              // Optional threshold from settings
+              const threshold = input.threshold ?? 0;
+              const matched = inputData.requires_human || inputData.confidence < threshold;
+              branchEvaluate(tracer, 'branch.intent', matched, `requires_human || confidence < ${threshold}`);
+              return matched;
+            },
+            escalateStep,
+          ],
+        ])
+        .commit(),
+    },
     logger,
   });
   const wf = mastra.getWorkflow('triage');
@@ -173,11 +192,12 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
   const output = result.status === 'success' ? unwrapWorkflowOutput(result.result) : null;
   // Normalize the failed result into something readable rather than [object Object].
-  const errMsg = result.status !== 'success' ? JSON.stringify(result) ?? String(result) : null;
+  const errMsg = result.status !== 'success' ? (JSON.stringify(result) ?? String(result)) : null;
   // Cast done-status to the tracer's narrower union (Mastra also emits 'tripwire' | 'paused' which we don't surface here).
-  const doneStatus = (result.status === 'success' || result.status === 'failed' || result.status === 'suspended')
-    ? result.status
-    : 'failed' as const;
+  const doneStatus =
+    result.status === 'success' || result.status === 'failed' || result.status === 'suspended'
+      ? result.status
+      : ('failed' as const);
   tracer.emit({ type: 'done', status: doneStatus, output, totalMs: Date.now() - t0 });
 
   return {

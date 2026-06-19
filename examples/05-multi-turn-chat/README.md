@@ -2,7 +2,7 @@
 
 **Mastra primitives exercised:** Agent with tools, **explicit conversation history in the prompt**, write-action tool that mutates state.
 
-**What it teaches:** how multi-turn conversation actually works under the hood. Mastra's `Memory` abstraction adds persistence and retrieval on top of this pattern, but the core idea is: *load the prior messages, prepend them to the new message, call the LLM, append the response*.
+**What it teaches:** how multi-turn conversation actually works under the hood. Mastra's `Memory` abstraction adds persistence and retrieval on top of this pattern, but the core idea is: _load the prior messages, prepend them to the new message, call the LLM, append the response_.
 
 **Why it matters for InboxPilot:** InboxPilot already passes `messages = await this.messageRepo.listByConversation(...)` to the LLM. This example shows the same pattern explicitly, plus what happens when a tool mutates persistent state (the `escalate_to_human` tool marks the thread as escalated — the UI then shows a badge).
 
@@ -42,16 +42,16 @@ The chat step has no branches and no internal sub-steps. The conversation state 
 
 ## Compare to InboxPilot's `AiAgentService`
 
-| InboxPilot step | This example |
-|---|---|
-| `loadSettings()` | (omitted — hardcoded) |
-| `loadConversationHistory()` | `memoryStore.getMessages(threadId)` |
-| `getKnowledgeChunks()` | (would be a `lookup_order` tool call inside the step) |
-| pre-LLM escalation chain | (omitted — see ex 01) |
-| LLM call with history | `agent.generate(promptMessages)` where promptMessages is history + new |
-| parse JSON decision | (omitted — free-form text here) |
-| audit log | `tracer.emit(...)` |
-| persist assistant message | `memoryStore.appendAssistantMessage(...)` |
+| InboxPilot step             | This example                                                           |
+| --------------------------- | ---------------------------------------------------------------------- |
+| `loadSettings()`            | (omitted — hardcoded)                                                  |
+| `loadConversationHistory()` | `memoryStore.getMessages(threadId)`                                    |
+| `getKnowledgeChunks()`      | (would be a `lookup_order` tool call inside the step)                  |
+| pre-LLM escalation chain    | (omitted — see ex 01)                                                  |
+| LLM call with history       | `agent.generate(promptMessages)` where promptMessages is history + new |
+| parse JSON decision         | (omitted — free-form text here)                                        |
+| audit log                   | `tracer.emit(...)`                                                     |
+| persist assistant message   | `memoryStore.appendAssistantMessage(...)`                              |
 
 ## What to look for
 
@@ -72,7 +72,7 @@ The same `Memory` interface could be a drop-in replacement: swap the `getMessage
 
 ## What to look for in the code
 
-- `tools/escalate.ts` — a *write* tool (mutates `memoryStore.markEscalated`). The agent's decision to escalate becomes a side effect.
-- `tools/lookup_order.ts` — a *read* tool (returns canned data). Demonstrates how a tool call looks inside the trace.
+- `tools/escalate.ts` — a _write_ tool (mutates `memoryStore.markEscalated`). The agent's decision to escalate becomes a side effect.
+- `tools/lookup_order.ts` — a _read_ tool (returns canned data). Demonstrates how a tool call looks inside the trace.
 - `runOne` — accepts a `threadId` and an `action` field (`'new'` | `'clear'` | `'send'`). `'new'` returns a fresh threadId; `'clear'` wipes history; the default processes a turn.
-- The trace emits `tool:call` only when `escalate_to_human` was called — a *visual* signal in the UI that the agent made an escalation decision.
+- The trace emits `tool:call` only when `escalate_to_human` was called — a _visual_ signal in the UI that the agent made an escalation decision.

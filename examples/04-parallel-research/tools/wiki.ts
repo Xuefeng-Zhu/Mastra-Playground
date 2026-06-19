@@ -19,8 +19,7 @@ const wikiResult = z.object({
 
 export const wiki = createTool({
   id: 'wiki',
-  description:
-    'Look up a topic in the internal wiki. Returns a summary paragraph and 1-2 reference links.',
+  description: 'Look up a topic in the internal wiki. Returns a summary paragraph and 1-2 reference links.',
   inputSchema: wikiParams,
   outputSchema: wikiResult,
   execute: async ({ topic }) => wikiDirect(topic),

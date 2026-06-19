@@ -17,6 +17,7 @@ _Add your observations after running `npm run example:03`._
 ## YYYY-MM-DD — Side-by-side with InboxPilot code
 
 Compare `examples/01-support-triage/index.ts` to `InboxPilot/packages/support-core/src/services/ai-agent-service.ts`. Note:
+
 - What Mastra's abstractions buy you.
 - What they cost you.
 - What InboxPilot does that Mastra's pattern can't easily express.

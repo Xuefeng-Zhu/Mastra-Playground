@@ -10,11 +10,22 @@
  */
 
 export type TraceEvent =
-  | { type: 'start'; workflow: string; input: unknown; steps: { id: string; label: string; kind: 'llm' | 'tool' | 'branch' | 'passthrough' | 'input' }[] }
+  | {
+      type: 'start';
+      workflow: string;
+      input: unknown;
+      steps: { id: string; label: string; kind: 'llm' | 'tool' | 'branch' | 'passthrough' | 'input' }[];
+    }
   | { type: 'step:start'; stepId: string; input?: unknown }
   | { type: 'step:end'; stepId: string; output?: unknown; durationMs?: number }
   | { type: 'branch:evaluate'; stepId: string; matched: boolean; predicate?: string }
-  | { type: 'llm:structured'; stepId: string; schema: string; data: unknown; tokens?: { prompt: number; completion: number } }
+  | {
+      type: 'llm:structured';
+      stepId: string;
+      schema: string;
+      data: unknown;
+      tokens?: { prompt: number; completion: number };
+    }
   | { type: 'tool:call'; stepId: string; tool: string; input: unknown; output: unknown }
   | { type: 'suspend'; token: string; payload: unknown }
   | { type: 'resume'; decision: string; payload: unknown }
