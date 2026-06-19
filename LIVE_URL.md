@@ -1,79 +1,102 @@
 # Mastra Playground — Live Public URL
 
 **Cloudflare Tunnel:** https://today-mining-hardware-calls.trycloudflare.com
-**Started:** 2026-06-18 19:04 UTC (URL still working as of last edit)
+**Started:** 2026-06-18 19:04 UTC
 **Local server:** http://localhost:8917
-**Last updated:** 2026-06-19 07:08 UTC (audit LOW fixes landed; ex-07 work still in progress)
+**Last updated:** 2026-06-19 23:21 UTC (0.4.0 release: a11y + UI smoke test + audit relocation)
 
-## What's new since last edit
+## ⚠️ Cloudflared quick-tunnel note (important)
 
-- **Audit LOW fixes landed (`fix/audit-low-findings` branch, commit 904b369)** — three small but real items closed, no behavior change for users:
-  - Stored cleanup `setInterval` handle and clear it in the existing `shutdown()` so the server can exit cleanly on SIGTERM/SIGINT (server.ts).
-  - Deleted the orphan `.pending-approval` CSS block (stale class names that no HTML used). Live block was already in the second location. 129 lines removed.
-  - Corrected a misleading comment on the new-conversation button (no server call exists; threads are localStorage-only).
-  - Bonus: smoke test no longer asserts a hard-coded example count, which had broken when example 07 was added.
-- **Example 04: Parallel Research** — plan sub-questions → fan out to 3 sources in parallel via `Promise.all` → synthesize. The pattern that maps directly to InboxPilot §8 (tool use).
-- **Persistent history** — last 10 runs per example saved in `localStorage`. Recent-runs chips appear above each form. "View all (N)" opens a slide-over panel with timestamps, durations, and a Replay button.
-- **Markdown export** — "Copy as Markdown" button on every result. Produces a Slack/PR-friendly summary with input, structured output, steps taken, and the response.
-- **Per-example settings** — model dropdown (gpt-4o-mini / claude-3-5-haiku / llama-3.1-8b / gemini-flash) on every example, confidence threshold slider on Ex 01. Persisted to `localStorage`. The server actually swaps the model per request, so the LLM behavior changes visibly in the trace timing.
+The quick-tunnel **buffers the entire SSE response** before forwarding it. This means
+the streaming-chat example (07) will appear to "snap" to the final answer when
+accessed via the public URL, even though the local server streams correctly. For
+the full streaming UX, run the server locally:
 
-## What you can do at the URL
+```bash
+cd /home/azureuser/workspace/mastra-playground
+./scripts/launch-with-hermes-key.sh    # auto-sources the OpenRouter key
+# then open http://localhost:8917 in a browser
+```
 
-| Tab                    | What it does                                                                                                                                                            |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 01 · Support Triage    | Classify → branch → respond or escalate. Try the model dropdown to see different LLMs in action. The threshold slider adds a `confidence < threshold` branch predicate. |
-| 02 · Research Agent    | Agent with 2 tools decides what to call, then formats output.                                                                                                           |
-| 03 · Code Review       | Read file → run lint → if issues, LLM writes review; else auto-approve (no LLM).                                                                                        |
-| 04 · Parallel Research | Decompose → fan out to web + arxiv + wiki in parallel → synthesize. The trace shows 3 tool calls firing concurrently.                                                   |
+For SSE through the public URL, set up a **named cloudflared tunnel** (config-file
+based) or use ngrok. The quick-tunnel cannot be configured to forward SSE
+progressively.
 
-All calls go through the OpenRouter key stored in `/home/azureuser/.hermes/.env`.
+## What's new in 0.4.0
 
-## Recent runs + Replay
+- **JSDOM-based UI smoke test** (`scripts/ui-smoke.test.ts`) — 7 new tests that
+  run the actual `public/app.js` in a JSDOM environment with a stub EventSource.
+  Catches DOM/event-handler bugs the API smoke test can't. This is the
+  highest-leverage follow-up from the previous session.
+- **A11y pass (G1 from brainstorm)**:
+  - Tab keyboard navigation per WAI-ARIA tabs pattern (ArrowLeft/Right,
+    Home/End, Enter/Space). Roving tabindex.
+  - `aria-controls` on every tab linking to its panel.
+  - History panel: `role="dialog"`, `aria-modal="true"`, focus trap, Escape
+    closes, focus restored on close.
+  - Streaming meta: `aria-live="polite"`.
+  - HITL Approve/Reject: explicit `aria-label`s.
+- **Audit relocation (B5)**: `.audit-findings.md` moved to
+  `docs/audit/2026-06-18-code-review.md`. Added `docs/audit/SUMMARY.md` (1-page
+  summary of the 16 findings, what was fixed, what was deferred).
 
-Run any example → a chip appears above the form with the input + result summary. Click it to replay (re-runs with the same input). The "View all (N)" button opens a slide-over with timestamps, durations, and individual Replay/Delete buttons. Cap: 10 entries per example.
+## What's new in 0.3.0
 
-## Settings (⚙ per example)
+- **Example 07 — Streaming Chat** — `Agent.stream()` with token-by-token events.
+  New `llm:start` / `llm:delta` / `llm:end` event types in `shared/tracer.ts`.
+  Streams correctly when the server is reached directly (the cloudflared
+  quick-tunnel buffers; see note above).
+- **Server-side trace logging** via `?trace=true` query param. Writes structured
+  JSON to stderr for `npm run serve | jq` workflows.
+- **vitest unit tests** for shared modules (30 tests).
+- **Multi-stage Dockerfile** + `.dockerignore` + `docker-compose.yml`.
+- **B1 fix**: removed redundant `newAgent` from ex 01's `Mastra` constructor.
+- **Render\* defensive guards**: `renderTriage`, `renderResearch`, `renderCodeReview`,
+  `renderParallel`, `renderChat` now handle unexpected output shapes gracefully
+  (no more TypeError when the workflow returns an error object).
 
-- **Model**: Dropdown of 4 common OpenRouter models. Server actually swaps the model — visible in trace timing and output quality.
-- **Confidence threshold** (Ex 01 only): Slider 0.0–1.0. When set, a `confidence < threshold` branch predicate forces escalation. Useful for testing the auto-escalation behavior.
+## What's new in 0.2.0
 
-Settings persist across page reloads (`localStorage`).
+- `GET /api/health` endpoint
+- Graceful shutdown handler (SIGTERM/SIGINT, 30s timeout, drain in-flight SSE)
+- Per-IP rate limiting (30 req/min) on `/api/run/*` and `/api/resume/*`
+- Request validation + input sanitization
+- Structured JSON logger (`shared/logger.ts`)
+- Secrets hardening (refuses to start without a real `OPENAI_API_KEY`)
+- `.editorconfig`, `.nvmrc`, `.prettierrc`
+- `LICENSE` (MIT), `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`
+- GitHub Actions CI (typecheck + format check + smoke test)
 
-## Endpoints verified
+## What's in 0.1.0
 
-| Endpoint                             | Status | Notes                            |
-| ------------------------------------ | ------ | -------------------------------- |
-| `GET /`                              | 200    | 4-tab UI with settings + history |
-| `GET /api/examples`                  | 200    | 4 examples listed                |
-| `POST /api/run/:example`             | 200    | One-shot JSON result             |
-| `GET /api/stream/:example?input=...` | 200    | SSE trace stream                 |
+- Six examples (support-triage, research, code-review, parallel-research,
+  multi-turn-chat, hitl-approval)
+- Vanilla HTML/CSS/JS UI with SSE trace streaming
+- Animated SVG workflow graphs
+- Local server on :8917
+- `notes/learning-log.md` and `notes/comparison-to-inboxpilot.md` (user deliverable)
 
-## Background processes
+## PIDs and processes
 
-| PID     | Process                                                 | Session             |
-| ------- | ------------------------------------------------------- | ------------------- |
-| 4124467 | `tsx server/server.ts` (the playground server on :8917) | `proc_2c60e345c2af` |
-| 4055591 | `cloudflared tunnel --url http://localhost:8917`        | original from 19:04 |
-
-The tunnel from the original start (19:04) survived the server restart — when I killed the old server and started a new one on the same port, the existing cloudflared picked up the new server and the URL stayed the same. **This won't always happen** — a cloudflared process restart WILL rotate the URL. Treat the URL as best-effort.
+- **Cloudflared tunnel:** PID 4055591 (started 2026-06-18 19:04 UTC, still running
+  after multiple server restarts — picks up new servers automatically)
+- **Local server:** `npx tsx server/server.ts` (PID varies per restart)
 
 ## Caveats
 
-- **`trycloudflare.com` URLs rotate on every cloudflared restart.** The current URL is the one that happened to survive.
-- **Account-less quick tunnel has no uptime guarantee.** Fine for dev/preview, not for production.
-- **If you restart cloudflared (or the VM), the URL changes.** A new file is needed.
-- **Model picker is real but model-specific prompt quality varies.** gpt-4o-mini works with the current prompts. claude-3-5-haiku returns non-conforming structured output (the framework catches it cleanly and surfaces the error). Lesson: structured outputs need prompt engineering per model family.
-- **The auto-approval path on Ex 03 `clean.ts` is genuinely ~10ms** — no LLM call, just the mock tool chain. Demonstrates the cost-saving claim.
-- **Ex 04's `fanout` step is genuinely parallel** — the trace shows 3 tool calls firing in quick succession, and the step's wall time is < the sum of the 3 latencies.
+- **Streaming via the public URL** is buffered by the cloudflared quick-tunnel
+  (see ⚠️ note above). Run locally for the real streaming UX.
+- **trycloudflare.com URL rotates on reconnect** — if the cloudflared process
+  restarts, the URL changes. The current URL has been stable since 2026-06-18.
+- **Mocked tools, not real APIs** — see `examples/*/tools/*` for the canned data.
+  Replace the `*Direct` functions to wire in real APIs.
+- **Not for production** — this is a learning playground. No real auth, no
+  rate-limit bypass, no production hardening beyond the Wave 2 work.
 
-## Wave 2 (2026-06-19): Production-readiness pass
+## See also
 
-The server now has light production hardening (Wave 2 of the plan in
-`.hermes/plans/2026-06-19_053800-production-readiness.md`):
-
-- `GET /api/health` endpoint (liveness probe)
-- Structured JSON logging (errors to stderr, rest to stdout)
-- Request validation per example (400s include the field name)
-- Per-IP rate limiting (30 req/min, 429 with Retry-After)
-- Graceful shutdown on SIGTERM/SIGINT (30s drain timeout)
-- Boot check refuses to start without a real OPENAI_API_KEY
+- [`README.md`](README.md) — project overview
+- [`docs/audit/SUMMARY.md`](docs/audit/SUMMARY.md) — code review summary
+- [`docs/audit/2026-06-18-code-review.md`](docs/audit/2026-06-18-code-review.md) — full audit
+- [`CHANGELOG.md`](CHANGELOG.md) — what changed in each version
+- [`SECURITY.md`](SECURITY.md) — what this project does and doesn't protect against
