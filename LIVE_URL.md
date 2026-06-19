@@ -60,3 +60,15 @@ The tunnel from the original start (19:04) survived the server restart — when 
 - **Model picker is real but model-specific prompt quality varies.** gpt-4o-mini works with the current prompts. claude-3-5-haiku returns non-conforming structured output (the framework catches it cleanly and surfaces the error). Lesson: structured outputs need prompt engineering per model family.
 - **The auto-approval path on Ex 03 `clean.ts` is genuinely ~10ms** — no LLM call, just the mock tool chain. Demonstrates the cost-saving claim.
 - **Ex 04's `fanout` step is genuinely parallel** — the trace shows 3 tool calls firing in quick succession, and the step's wall time is < the sum of the 3 latencies.
+
+## Wave 2 (2026-06-19): Production-readiness pass
+
+The server now has light production hardening (Wave 2 of the plan in
+`.hermes/plans/2026-06-19_053800-production-readiness.md`):
+
+- `GET /api/health` endpoint (liveness probe)
+- Structured JSON logging (errors to stderr, rest to stdout)
+- Request validation per example (400s include the field name)
+- Per-IP rate limiting (30 req/min, 429 with Retry-After)
+- Graceful shutdown on SIGTERM/SIGINT (30s drain timeout)
+- Boot check refuses to start without a real OPENAI_API_KEY
