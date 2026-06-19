@@ -389,7 +389,16 @@ function startSseStream(req: http.IncomingMessage, res: http.ServerResponse, nam
     Connection: 'keep-alive',
     'X-Accel-Buffering': 'no',
   });
+  // Disable Nagle's algorithm on the underlying socket so each `res.write`
+  // becomes its own TCP segment. Without this, Node's default buffering
+  // can coalesce the entire `for await` loop's writes into one packet,
+  // making the SSE events arrive at the browser all at once and breaking
+  // the "token-by-token" streaming UX.
+  if (res.socket && 'setNoDelay' in res.socket) {
+    (res.socket as { setNoDelay: (n: boolean) => void }).setNoDelay(true);
+  }
   res.write(': connected\n\n');
+  res.flushHeaders?.();
 
   const send = (event: TraceEvent) => {
     try {
