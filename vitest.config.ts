@@ -4,7 +4,9 @@ export default defineConfig({
   test: {
     include: ['shared/**/*.test.ts', 'scripts/**/*.test.ts'],
     exclude: ['node_modules', '**/node_modules/**', '**/dist/**'],
-    environment: 'node',
+    // The UI smoke test in scripts/ui-smoke.test.ts uses JSDOM. We mark it
+    // explicitly via `@vitest-environment jsdom` in the file. The default
+    // for other tests is 'node'.
     coverage: {
       provider: 'v8',
       include: ['shared/**/*.ts', '!shared/**/*.test.ts'],

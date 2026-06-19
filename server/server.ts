@@ -171,8 +171,8 @@ function validateExampleInput(name: string, body: unknown): Record<string, unkno
     case 'research':
     case 'parallel-research':
     case 'critic-loop': {
-      if ('topic' in body && typeof body.topic !== 'string') {
-        throw new ValidationError('Field "topic" must be a string', 'topic');
+      if (!('topic' in body) || typeof body.topic !== 'string' || body.topic.trim().length === 0) {
+        throw new ValidationError('Field "topic" must be a non-empty string', 'topic');
       }
       const out: Record<string, unknown> = { topic: sanitizeText(body.topic) };
       if ('threshold' in body) {

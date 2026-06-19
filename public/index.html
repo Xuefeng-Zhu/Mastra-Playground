@@ -19,25 +19,87 @@
       </p>
     </header>
 
-    <nav class="tabs" role="tablist">
-      <button class="tab active" data-tab="support-triage" role="tab" aria-selected="true">
+    <nav class="tabs" role="tablist" aria-label="Examples">
+      <button
+        class="tab active"
+        data-tab="support-triage"
+        role="tab"
+        aria-selected="true"
+        aria-controls="panel-support-triage"
+        tabindex="0"
+      >
         01 · Support Triage
       </button>
-      <button class="tab" data-tab="research" role="tab" aria-selected="false">02 · Research Agent</button>
-      <button class="tab" data-tab="code-review" role="tab" aria-selected="false">03 · Code Review</button>
-      <button class="tab" data-tab="parallel-research" role="tab" aria-selected="false">
+      <button
+        class="tab"
+        data-tab="research"
+        role="tab"
+        aria-selected="false"
+        aria-controls="panel-research"
+        tabindex="-1"
+      >
+        02 · Research Agent
+      </button>
+      <button
+        class="tab"
+        data-tab="code-review"
+        role="tab"
+        aria-selected="false"
+        aria-controls="panel-code-review"
+        tabindex="-1"
+      >
+        03 · Code Review
+      </button>
+      <button
+        class="tab"
+        data-tab="parallel-research"
+        role="tab"
+        aria-selected="false"
+        aria-controls="panel-parallel-research"
+        tabindex="-1"
+      >
         04 · Parallel Research
       </button>
-      <button class="tab" data-tab="multi-turn-chat" role="tab" aria-selected="false">
+      <button
+        class="tab"
+        data-tab="multi-turn-chat"
+        role="tab"
+        aria-selected="false"
+        aria-controls="panel-multi-turn-chat"
+        tabindex="-1"
+      >
         05 · Multi-turn Chat
       </button>
-      <button class="tab" data-tab="hitl-approval" role="tab" aria-selected="false">
+      <button
+        class="tab"
+        data-tab="hitl-approval"
+        role="tab"
+        aria-selected="false"
+        aria-controls="panel-hitl-approval"
+        tabindex="-1"
+      >
         06 · Human-in-the-Loop
       </button>
-      <button class="tab" data-tab="streaming-chat" role="tab" aria-selected="false">
+      <button
+        class="tab"
+        data-tab="streaming-chat"
+        role="tab"
+        aria-selected="false"
+        aria-controls="panel-streaming-chat"
+        tabindex="-1"
+      >
         07 · Streaming Chat
       </button>
-      <button class="tab" data-tab="critic-loop" role="tab" aria-selected="false">08 · Critic Loop</button>
+      <button
+        class="tab"
+        data-tab="critic-loop"
+        role="tab"
+        aria-selected="false"
+        aria-controls="panel-critic-loop"
+        tabindex="-1"
+      >
+        08 · Critic Loop
+      </button>
     </nav>
 
     <main>
@@ -706,11 +768,18 @@ What is the difference between an AI agent and an AI workflow?</textarea
     </main>
 
     <!-- History slide-over -->
-    <div class="history-panel" id="history-panel" hidden>
+    <div
+      class="history-panel"
+      id="history-panel"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="history-title"
+    >
       <div class="history-overlay" id="history-overlay"></div>
       <div class="history-sheet">
         <div class="history-header">
-          <h3>Run history</h3>
+          <h3 id="history-title">Run history</h3>
           <button
             class="history-close"
             id="history-close"

@@ -213,7 +213,7 @@ mastra-playground/
   notes/
     learning-log.md                 # user fills this in
     comparison-to-inboxpilot.md     # the verdict writeup
-  .audit-findings.md                # opencode code review
+  docs/audit/                     # code review artifacts (opencode)
 ```
 
 ## Adding a new example
@@ -336,4 +336,5 @@ disabling dev-only console output). Today it has no effect.
 - [SECURITY.md](SECURITY.md) — what this project does and doesn't protect against
 - [notes/learning-log.md](notes/learning-log.md) — user-filled observations
 - [notes/comparison-to-inboxpilot.md](notes/comparison-to-inboxpilot.md) — the verdict writeup
-- [.audit-findings.md](.audit-findings.md) — opencode code review (16 findings, 9 fixed)
+- [docs/audit/SUMMARY.md](docs/audit/SUMMARY.md) — 1-page code review summary (16 findings, 9 fixed)
+- [docs/audit/2026-06-18-code-review.md](docs/audit/2026-06-18-code-review.md) — full 313-line audit report

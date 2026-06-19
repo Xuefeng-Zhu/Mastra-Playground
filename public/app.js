@@ -13,19 +13,56 @@ const SETTINGS_KEY = 'mastra-playground:settings';
 const HISTORY_CAP_PER_EXAMPLE = 10;
 
 // ─── Tab switching ────────────────────────────────────────────────────────
-$$('.tab').forEach((tab) => {
-  tab.addEventListener('click', () => {
-    const target = tab.dataset.tab;
-    $$('.tab').forEach((t) => {
-      const active = t === tab;
-      t.classList.toggle('active', active);
-      t.setAttribute('aria-selected', String(active));
-    });
-    $$('.panel').forEach((p) => {
-      const active = p.id === `panel-${target}`;
-      p.classList.toggle('active', active);
-      p.hidden = !active;
-    });
+// Roving tabindex + keyboard navigation per the WAI-ARIA tabs pattern.
+// https://www.w3.org/WAI/ARIA/apg/patterns/tabs/
+function activateTab(target) {
+  const tabs = $$('.tab');
+  const targetTab = tabs.find((t) => t.dataset.tab === target);
+  if (!targetTab) return;
+  tabs.forEach((t) => {
+    const active = t === targetTab;
+    t.classList.toggle('active', active);
+    t.setAttribute('aria-selected', String(active));
+    // Roving tabindex: only the active tab is in the tab order
+    t.setAttribute('tabindex', active ? '0' : '-1');
+  });
+  $$('.panel').forEach((p) => {
+    const active = p.id === `panel-${target}`;
+    p.classList.toggle('active', active);
+    p.hidden = !active;
+  });
+  // Move focus to the newly-active tab (only when keyboard-driven, not click)
+  // Click handling sets focus implicitly via the click target, so we don't move
+  // it there. Keyboard handlers below call activateTabAndFocus.
+}
+
+$$('.tab').forEach((tab, i, tabs) => {
+  tab.addEventListener('click', () => activateTab(tab.dataset.tab));
+  tab.addEventListener('keydown', (e) => {
+    let nextIdx = -1;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      nextIdx = (i + 1) % tabs.length;
+      e.preventDefault();
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      nextIdx = (i - 1 + tabs.length) % tabs.length;
+      e.preventDefault();
+    } else if (e.key === 'Home') {
+      nextIdx = 0;
+      e.preventDefault();
+    } else if (e.key === 'End') {
+      nextIdx = tabs.length - 1;
+      e.preventDefault();
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      // Space/Enter on a tab already activates it (browsers do this for buttons),
+      // but we add explicit handling so screen readers announce the change.
+      activateTab(tab.dataset.tab);
+      e.preventDefault();
+    }
+    if (nextIdx >= 0) {
+      const nextTab = tabs[nextIdx];
+      activateTab(nextTab.dataset.tab);
+      nextTab.focus();
+    }
   });
 });
 
@@ -451,6 +488,49 @@ function replayEntry(example, entry) {
 }
 
 // ─── History panel ───────────────────────────────────────────────────────
+// Track the element that had focus when the panel opened so we can restore it
+// when the panel closes (a11y best practice for modal dialogs).
+let lastFocusedBeforeHistory = null;
+function trapFocusInDialog(panel, enable) {
+  if (enable) {
+    lastFocusedBeforeHistory = document.activeElement;
+    // Find the first focusable element in the panel and focus it
+    const focusable = panel.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    const first = focusable[0];
+    if (first) first.focus();
+
+    const trap = (e) => {
+      if (e.key !== 'Tab') return;
+      const focusableNow = panel.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusableNow.length === 0) return;
+      const firstNow = focusableNow[0];
+      const lastNow = focusableNow[focusableNow.length - 1];
+      if (e.shiftKey && document.activeElement === firstNow) {
+        e.preventDefault();
+        lastNow.focus();
+      } else if (!e.shiftKey && document.activeElement === lastNow) {
+        e.preventDefault();
+        firstNow.focus();
+      }
+    };
+    panel.addEventListener('keydown', trap);
+    panel._trapHandler = trap;
+  } else {
+    if (panel._trapHandler) {
+      panel.removeEventListener('keydown', panel._trapHandler);
+      delete panel._trapHandler;
+    }
+    if (lastFocusedBeforeHistory && lastFocusedBeforeHistory.focus) {
+      lastFocusedBeforeHistory.focus();
+    }
+    lastFocusedBeforeHistory = null;
+  }
+}
+
 function openHistoryPanel(example) {
   const panel = $('#history-panel');
   const list = $('#history-list');
@@ -497,11 +577,15 @@ function openHistoryPanel(example) {
   }
 
   panel.hidden = false;
+  trapFocusInDialog(panel, true);
 }
 
 function closeHistoryPanel() {
   const panel = $('#history-panel');
-  if (panel) panel.hidden = true;
+  if (panel) {
+    panel.hidden = true;
+    trapFocusInDialog(panel, false);
+  }
 }
 
 function deleteEntry(example, ts) {
@@ -519,6 +603,13 @@ function deleteEntry(example, ts) {
 
 $('#history-close')?.addEventListener('click', closeHistoryPanel);
 $('#history-overlay')?.addEventListener('click', closeHistoryPanel);
+// Escape key closes the history panel (a11y: standard modal pattern)
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const panel = $('#history-panel');
+    if (panel && !panel.hidden) closeHistoryPanel();
+  }
+});
 $('#history-clear')?.addEventListener('click', () => {
   historyStore.clearAll();
   renderRecentChips();
@@ -1191,7 +1282,7 @@ function ensureStreamingView(outputEl) {
       <div class="streaming-view">
         <div class="streaming-header">Streaming response</div>
         <div class="streaming-text" data-streaming-text></div>
-        <div class="streaming-meta" data-streaming-meta></div>
+        <div class="streaming-meta" data-streaming-meta aria-live="polite"></div>
       </div>`;
     view = outputEl.querySelector('.streaming-view');
   }
@@ -1269,8 +1360,8 @@ function renderHitlPending(el, o) {
         <span class="pad-label">Reasoning</span><span class="pad-value">${escapeHtml(c.reasoning ?? '')}</span>
       </div>
       <div class="pending-approval-actions">
-        <button class="btn-approve" data-decision="approved">✅ Approve</button>
-        <button class="btn-reject" data-decision="rejected">❌ Reject</button>
+        <button class="btn-approve" data-decision="approved" aria-label="Approve the proposed action">✅ Approve</button>
+        <button class="btn-reject" data-decision="rejected" aria-label="Reject the proposed action">❌ Reject</button>
       </div>
       <div class="pending-approval-token">Token: ${escapeHtml(token)}</div>
     </div>

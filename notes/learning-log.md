@@ -50,12 +50,18 @@ API. Older docs (and many tutorials) show `output: schema`. I had to look at the
 installed `.d.ts` files to confirm; the playground consistently uses the new form.
 For new code in 2026+, `structuredOutput` is the only correct option.
 
-**One real bug.** The query-string route (`GET /api/stream/:example?topic=…`)
-silently defaults `topic` to `""` when the query string is missing, and the
-example happily runs with an empty topic — producing nonsense. The server's
-input-validation block only checks the _type_ of `topic` if present, not whether
-it's empty. Easy fix: add a `topic.length > 0` check in the validator. **Not
-fixed in this PR** — flagging for the audit list.
+**One real bug (now fixed).** The query-string route (`GET /api/stream/:example?topic=…`)
+and the POST route silently defaulted `topic` to `""` when the field was missing
+or empty, and the example happily ran with an empty topic — producing nonsense.
+The server's input-validation block only checked the _type_ of `topic` if
+present, not whether it was empty.
+
+**Fix landed** (same edit in this PR): changed the validator for `research`,
+`parallel-research`, and `critic-loop` from `if ('topic' in body && typeof body.topic !== 'string')`
+to `if (!('topic' in body) || typeof body.topic !== 'string' || body.topic.trim().length === 0)`,
+throwing `ValidationError('Field "topic" must be a non-empty string', 'topic')`.
+Verified: empty string and whitespace-only string now return **HTTP 400 with
+`{error, field}`**, real topics still return 200. Smoke test still 5/5.
 
 **Question it raised.** The synthesis step reads ALL three sources into one
 prompt and asks for ~200 words. There's no per-source quality filter. If the
@@ -91,7 +97,7 @@ to the generate step. Options were:
    back to `generate` with feedback in inputData. Possible in v1.x but the trace
    gets noisy and the data shape becomes a moving target.
 
-**Status of this PR (honest version).**
+**Status of this PR (post-runtime-verification).**
 
 - ✅ Example file written (`examples/08-critic-loop/index.ts`, 286 lines).
 - ✅ Typechecks clean (`npm run typecheck` → 0 errors).
@@ -99,18 +105,18 @@ to the generate step. Options were:
   `topic`, `threshold`, `maxIterations`).
 - ✅ UI tab added (`public/index.html` — 8th tab, with threshold slider + max-iter
   input + sample topics + model picker).
-- ✅ Server starts, reports `exampleCount: 8`.
-- ❌ **End-to-end runtime not verified.** When I restarted the server to pick up
-  the new example, the OpenAI key wasn't in my session's environment — every LLM
-  call returned 401 "Missing Authentication header" from OpenRouter. The previous
-  server (which I started via `npm run smoke`) was running in a context with the
-  real key. My restart lost it.
-
-**The API call did happen with the right payload.** The 401 response includes the
-full request body — the system prompt, the topic, the structured-output schema are
-all correctly serialized. So the code path through Mastra → AI SDK → OpenRouter
-is wired; only the auth header is missing. Once the server is started with a
-real key, this example should run end-to-end.
+- ✅ **End-to-end runtime verified** with the OpenRouter key from `~/.hermes/.env`
+  loaded into the playground's env via `/tmp/launch-playground.sh` (a small
+  launcher that `grep`s the uncommented `OPENROUTER_API_KEY` line, parses it
+  without printing it, and `exec`s the server with `OPENAI_API_KEY` set).
+  - Test 1 (threshold=8, easy topic): iter 0 hit 8/10, loop broke after 1 iter.
+  - Test 2 (threshold=9, harder topic): 3 iterations ran, scores 8→8→7, hit
+    `maxIterations` and exited. Honest calibration — the critic got more
+    demanding, didn't rubber-stamp.
+  - SSE trace verified: 7 events in correct order — `start` → `step:start`
+    → 3× `llm:structured` → `step:end` → `done`.
+- ✅ Side bug fixed: empty/missing `topic` now returns HTTP 400 instead of
+  silently running with garbage.
 
 **What this example teaches (one liner).** The evaluator-optimizer pattern
 trades tokens for quality on a budget you control. A threshold of 7 with

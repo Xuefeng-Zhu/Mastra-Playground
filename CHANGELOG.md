@@ -4,7 +4,26 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+
+## [0.3.0] - 2026-06-19
+
+### Added
+- `examples/07-streaming-chat/` — Agent.stream() with token-by-token events
+- New `llm:start` / `llm:delta` / `llm:end` event types in `shared/tracer.ts`
+- 7th UI tab + GRAPHS entry + `appendStreamingText` / `finalizeStreamingText` helpers
+- Server-side trace logging via `?trace=true` (writes structured JSON to stderr)
+- `vitest` unit tests for shared modules (30 tests)
+- Multi-stage `Dockerfile` + `.dockerignore` + `docker-compose.yml`
+- `vitest.config.ts` with coverage config
+
+### Changed
+- Removed redundant `newAgent` from ex 01's `Mastra` constructor
+- Render functions (`renderTriage`, `renderResearch`, `renderCodeReview`, `renderParallel`, `renderChat`) now handle unexpected output shapes gracefully
+
+### Fixed
+- `Tracer.emit` was not catching subscriber errors (crashed production SSE handlers)
+
+## [0.4.0] - 2026-06-19
 
 ### Added
 
@@ -54,3 +73,6 @@ adheres to [Semantic Versioning](https://semver.org/).
 [Unreleased]: https://github.com/your-org/mastra-playground/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/your-org/mastra-playground/releases/tag/v0.1.0
 [0.2.0]: https://github.com/your-org/mastra-playground/compare/v0.1.0...v0.2.0
+
+[0.4.0]: https://github.com/your-org/mastra-playground/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/your-org/mastra-playground/compare/v0.2.0...v0.3.0
