@@ -14,6 +14,25 @@
  *
  *   For InboxPilot, this is the difference between "the bot is thinking" and
  *   "the bot is responding."
+ *
+ * SSE STREAMING CHECKLIST (for the curious):
+ *   The browser must receive each `llm:delta` event as a separate TCP segment
+ *   to render it progressively. Three things have to be in place:
+ *
+ *   1. `res.socket.setNoDelay(true)` in server/server.ts (disables Nagle)
+ *   2. `res.flushHeaders()` right after `res.writeHead` (forces headers)
+ *   3. <-- YOU ARE HERE: A `setImmediate` yield in the source loop.
+ *      Without this, a fast LLM emits all chunks within a single tick,
+ *      all writes coalesce into one TCP segment, and the browser sees
+ *      them as a single batch even if Nagle is disabled.
+ *
+ *   Without (3), the streaming example will work in the trace event log
+ *   but the result panel will appear to "snap" to the final answer
+ *   instead of filling in token-by-token.
+ *
+ *   Also note: the cloudflared quick-tunnel still buffers the response.
+ *   For SSE through the public URL, use a named cloudflared tunnel or
+ *   run the server locally.
  */
 
 import { z } from 'zod';
