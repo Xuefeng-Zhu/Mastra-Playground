@@ -34,6 +34,9 @@
       <button class="tab" data-tab="hitl-approval" role="tab" aria-selected="false">
         06 · Human-in-the-Loop
       </button>
+      <button class="tab" data-tab="streaming-chat" role="tab" aria-selected="false">
+        07 · Streaming Chat
+      </button>
     </nav>
 
     <main>
@@ -517,6 +520,90 @@ Refund $200 to customer #12345</textarea
           </div>
           <div class="col-output" data-output="hitl-approval">
             <div class="output-empty">Submit an action to see the workflow run.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 07 Streaming Chat ── -->
+      <section class="panel" id="panel-streaming-chat" role="tabpanel" hidden>
+        <h2>Streaming Chat</h2>
+        <p class="panel-desc">
+          Watch the LLM generate tokens one at a time. This is the same <code>Agent</code> as the other
+          examples, but uses <code>stream()</code> instead of <code>generate()</code>. The UI shows each token
+          as it arrives.
+        </p>
+        <div class="layout">
+          <div class="col-form">
+            <div class="recent-runs" data-recent="streaming-chat"></div>
+            <form data-form="streaming-chat">
+              <label for="stream-prompt">Prompt</label>
+              <textarea
+                id="stream-prompt"
+                name="prompt"
+                rows="3"
+                required
+                placeholder="Ask the LLM something short…"
+              >
+Explain server-sent events in one paragraph.</textarea
+              >
+              <div class="samples">
+                <button
+                  type="button"
+                  class="sample-btn"
+                  data-fill="stream-prompt"
+                  data-value="What is an LLM agent?"
+                >
+                  What is an LLM agent?
+                </button>
+                <button
+                  type="button"
+                  class="sample-btn"
+                  data-fill="stream-prompt"
+                  data-value="Explain the CAP theorem in 2 sentences."
+                >
+                  CAP theorem
+                </button>
+                <button
+                  type="button"
+                  class="sample-btn"
+                  data-fill="stream-prompt"
+                  data-value="Write a haiku about TypeScript."
+                >
+                  TS haiku
+                </button>
+                <button
+                  type="button"
+                  class="sample-btn"
+                  data-fill="stream-prompt"
+                  data-value="What's the difference between a thread and a process?"
+                >
+                  threads vs processes
+                </button>
+              </div>
+              <button type="submit" class="run-btn">Stream</button>
+              <button type="button" class="settings-toggle" data-toggle-settings="streaming-chat">
+                ⚙ Settings
+              </button>
+              <div class="settings-panel" data-settings="streaming-chat" hidden>
+                <label>
+                  Model
+                  <select data-setting="model" data-for="streaming-chat">
+                    <option value="openai/gpt-4o-mini">gpt-4o-mini (default)</option>
+                    <option value="anthropic/claude-3-5-haiku">claude-3-5-haiku</option>
+                    <option value="meta-llama/llama-3.1-8b-instruct">llama-3.1-8b-instruct</option>
+                    <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001</option>
+                  </select>
+                </label>
+              </div>
+            </form>
+          </div>
+          <div class="col-trace">
+            <div class="trace-header">Workflow trace</div>
+            <div class="trace-graph" id="graph-streaming-chat"></div>
+            <div class="trace-events" id="events-streaming-chat"></div>
+          </div>
+          <div class="col-output" data-output="streaming-chat">
+            <div class="output-empty">Submit a prompt to watch the LLM stream.</div>
           </div>
         </div>
       </section>

@@ -132,21 +132,6 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   const escalateStep = makeEscalateStep(tracer);
 
   const mastra = new Mastra({
-    agents: {
-      triage: new Agent({
-        id: 'support-triage',
-        name: 'Support Triage',
-        instructions: [
-          'You are a customer support triage agent.',
-          'Read the customer message and classify it.',
-          'For "how_to" and "billing": write a concise, empathetic response in response_text.',
-          'For "complaint" and "account": set requires_human=true and leave response_text null.',
-          'For "other": set requires_human=true with a clarifying question in response_text.',
-          'Be honest about uncertainty — do not invent refund windows, warranties, or policy numbers.',
-        ].join('\n'),
-        model: useModel,
-      }),
-    },
     workflows: {
       triage: createWorkflow({
         id: 'triage',

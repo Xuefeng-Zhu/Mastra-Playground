@@ -26,6 +26,9 @@ export type TraceEvent =
       data: unknown;
       tokens?: { prompt: number; completion: number };
     }
+  | { type: 'llm:delta'; stepId: string; text: string; index: number }
+  | { type: 'llm:start'; stepId: string; model?: string }
+  | { type: 'llm:end'; stepId: string; totalChars: number; durationMs: number }
   | { type: 'tool:call'; stepId: string; tool: string; input: unknown; output: unknown }
   | { type: 'suspend'; token: string; payload: unknown }
   | { type: 'resume'; decision: string; payload: unknown }

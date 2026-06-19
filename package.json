@@ -13,6 +13,7 @@
     "example:04": "tsx examples/04-parallel-research/index.ts",
     "example:05": "tsx examples/05-multi-turn-chat/index.ts",
     "example:06": "tsx examples/06-hitl-approval/index.ts",
+    "example:07": "tsx examples/07-streaming-chat/index.ts",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,js,css,html,md,json}\" --ignore-path .gitignore",
     "format:check": "prettier --check \"**/*.{ts,js,css,html,md,json}\" --ignore-path .gitignore",

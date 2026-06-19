@@ -3,10 +3,15 @@
 **Cloudflare Tunnel:** https://today-mining-hardware-calls.trycloudflare.com
 **Started:** 2026-06-18 19:04 UTC (URL still working as of last edit)
 **Local server:** http://localhost:8917
-**Last updated:** 2026-06-18 19:35 UTC (added Example 04, history, markdown export, settings)
+**Last updated:** 2026-06-19 07:08 UTC (audit LOW fixes landed; ex-07 work still in progress)
 
 ## What's new since last edit
 
+- **Audit LOW fixes landed (`fix/audit-low-findings` branch, commit 904b369)** — three small but real items closed, no behavior change for users:
+  - Stored cleanup `setInterval` handle and clear it in the existing `shutdown()` so the server can exit cleanly on SIGTERM/SIGINT (server.ts).
+  - Deleted the orphan `.pending-approval` CSS block (stale class names that no HTML used). Live block was already in the second location. 129 lines removed.
+  - Corrected a misleading comment on the new-conversation button (no server call exists; threads are localStorage-only).
+  - Bonus: smoke test no longer asserts a hard-coded example count, which had broken when example 07 was added.
 - **Example 04: Parallel Research** — plan sub-questions → fan out to 3 sources in parallel via `Promise.all` → synthesize. The pattern that maps directly to InboxPilot §8 (tool use).
 - **Persistent history** — last 10 runs per example saved in `localStorage`. Recent-runs chips appear above each form. "View all (N)" opens a slide-over panel with timestamps, durations, and a Replay button.
 - **Markdown export** — "Copy as Markdown" button on every result. Produces a Slack/PR-friendly summary with input, structured output, steps taken, and the response.

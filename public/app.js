@@ -875,16 +875,21 @@ function handleTraceEvent(exampleName, event, eventsEl, _outputEl, setResult) {
         kindLabel = 'llm';
         kind.classList.add('llm');
         msg = `delta #${event.index}: "${event.text}"`;
-        // Live-update the streaming text in the output panel
-        if (outputEl) appendStreamingText(outputEl, event.text);
+        // The outputEl parameter is intentionally underscored (unused) in this
+        // function — look up the streaming output panel from the DOM instead.
+        // (The HITL wrapper at the bottom of the file uses the same pattern.)
+        const streamingOut = document.querySelector('.col-output[data-output="streaming-chat"]');
+        if (streamingOut) appendStreamingText(streamingOut, event.text);
         break;
       }
-      case 'llm:end':
+      case 'llm:end': {
         kindLabel = 'llm';
         kind.classList.add('llm');
         msg = `LLM done: ${event.totalChars} chars in ${event.durationMs}ms`;
-        if (outputEl) finalizeStreamingText(outputEl, event.totalChars, event.durationMs);
+        const streamingOut = document.querySelector('.col-output[data-output="streaming-chat"]');
+        if (streamingOut) finalizeStreamingText(streamingOut, event.totalChars, event.durationMs);
         break;
+      }
       case 'tool:call':
         kindLabel = 'tool';
         kind.classList.add('tool');
@@ -961,6 +966,15 @@ function renderTriage(el, r) {
     </div>`;
     return;
   }
+  if (!r.output.triage || !r.output.action) {
+    // Output arrived but doesn't have the expected schema (e.g. workflow
+    // failed after the LLM call but before the branch). Show what we got.
+    el.innerHTML = `<div class="output-section">
+      <h3>Workflow ${r.status} (unexpected output shape)</h3>
+      <pre class="json-pre">${jsonHighlight(r.output)}</pre>
+    </div>`;
+    return;
+  }
   const t = r.output.triage;
   const action = r.output.action;
   el.innerHTML += `
@@ -1018,6 +1032,13 @@ function renderResearch(el, r) {
     </div>`;
     return;
   }
+  if (typeof r.output.formatted !== 'string') {
+    el.innerHTML = `<div class="output-section">
+      <h3>Workflow ${r.status} (unexpected output shape)</h3>
+      <pre class="json-pre">${jsonHighlight(r.output)}</pre>
+    </div>`;
+    return;
+  }
   el.innerHTML += `
     <div class="output-section">
       <h3>Topic</h3>
@@ -1042,6 +1063,13 @@ function renderCodeReview(el, r) {
     el.innerHTML = `<div class="output-section">
       <h3>Workflow ${r.status}</h3>
       <div class="output-error">${escapeHtml(r.error ?? 'no output')}</div>
+    </div>`;
+    return;
+  }
+  if (!r.output.action || !r.output.path) {
+    el.innerHTML = `<div class="output-section">
+      <h3>Workflow ${r.status} (unexpected output shape)</h3>
+      <pre class="json-pre">${jsonHighlight(r.output)}</pre>
     </div>`;
     return;
   }
@@ -1077,6 +1105,13 @@ function renderParallel(el, r) {
     el.innerHTML = `<div class="output-section">
       <h3>Workflow ${r.status}</h3>
       <div class="output-error">${escapeHtml(r.error ?? 'no output')}</div>
+    </div>`;
+    return;
+  }
+  if (typeof r.output.synthesis !== 'string') {
+    el.innerHTML = `<div class="output-section">
+      <h3>Workflow ${r.status} (unexpected output shape)</h3>
+      <pre class="json-pre">${jsonHighlight(r.output)}</pre>
     </div>`;
     return;
   }
