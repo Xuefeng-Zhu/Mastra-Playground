@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.local
+.mastra/
+*.log
+dist/
+.DS_Store
+.tsbuildinfo
+
+# Opencode dispatch brief (one-off, not part of the project)
+.review-brief.md

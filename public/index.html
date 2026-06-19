@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mastra Playground</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header>
+    <h1>Mastra Playground</h1>
+    <p class="subtitle">Four small examples exercising Agent, Workflow, Tool, parallel execution, structured output, and live tracing.</p>
+    <p class="setup-hint">
+      Setup: <code>cp .env.example .env</code>, add <code>OPENAI_API_KEY</code>, then <code>npm run serve</code>.
+      Open this page at <code>http://localhost:8917</code>.
+    </p>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="support-triage" role="tab" aria-selected="true">
+      01 · Support Triage
+    </button>
+    <button class="tab" data-tab="research" role="tab" aria-selected="false">
+      02 · Research Agent
+    </button>
+    <button class="tab" data-tab="code-review" role="tab" aria-selected="false">
+      03 · Code Review
+    </button>
+    <button class="tab" data-tab="parallel-research" role="tab" aria-selected="false">
+      04 · Parallel Research
+    </button>
+    <button class="tab" data-tab="multi-turn-chat" role="tab" aria-selected="false">
+      05 · Multi-turn Chat
+    </button>
+    <button class="tab" data-tab="hitl-approval" role="tab" aria-selected="false">
+      06 · Human-in-the-Loop
+    </button>
+  </nav>
+
+  <main>
+    <!-- ── 01 Support Triage ── -->
+    <section class="panel active" id="panel-support-triage" role="tabpanel">
+      <h2>Support Triage</h2>
+      <p class="panel-desc">
+        Classify a customer message, then branch by intent. Watch the LLM call fire <code>classify</code>,
+        then the framework test each branch predicate in order until one matches.
+      </p>
+      <div class="layout">
+        <div class="col-form">
+          <div class="recent-runs" data-recent="support-triage"></div>
+          <form data-form="support-triage">
+            <label for="triage-input">Customer message</label>
+            <textarea id="triage-input" name="message" rows="3" required>I want a refund — I was charged twice for the same order.</textarea>
+            <div class="samples">
+              <button type="button" class="sample-btn" data-fill="triage-input" data-value="How do I reset my password?">how-to</button>
+              <button type="button" class="sample-btn" data-fill="triage-input" data-value="I was charged twice this month, please refund me.">billing</button>
+              <button type="button" class="sample-btn" data-fill="triage-input" data-value="Your product is broken and I want a manager to call me.">complaint</button>
+              <button type="button" class="sample-btn" data-fill="triage-input" data-value="My account is locked and I cannot log in for my work meeting in 30 minutes.">urgent account</button>
+            </div>
+            <button type="submit" class="run-btn">Run</button>
+            <button type="button" class="settings-toggle" data-toggle-settings="support-triage">⚙ Settings</button>
+            <div class="settings-panel" data-settings="support-triage" hidden>
+              <label>
+                Model
+                <select data-setting="model" data-for="support-triage">
+                  <option value="openai/gpt-4o-mini">gpt-4o-mini (default)</option>
+                  <option value="anthropic/claude-3-5-haiku">claude-3-5-haiku</option>
+                  <option value="meta-llama/llama-3.1-8b-instruct">llama-3.1-8b-instruct</option>
+                  <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001</option>
+                </select>
+              </label>
+              <label>
+                Confidence threshold
+                <span class="slider-value" data-display-for="support-triage">0.75</span>
+                <input type="range" data-setting="threshold" data-for="support-triage"
+                       min="0" max="1" step="0.05" value="0.75" />
+              </label>
+            </div>
+          </form>
+        </div>
+        <div class="col-trace">
+          <div class="trace-header">Workflow trace</div>
+          <div class="trace-graph" id="graph-support-triage"></div>
+          <div class="trace-events" id="events-support-triage"></div>
+        </div>
+        <div class="col-output" data-output="support-triage">
+          <div class="output-empty">Submit to see the result.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 02 Research ── -->
+    <section class="panel" id="panel-research" role="tabpanel" hidden>
+      <h2>Research Agent</h2>
+      <p class="panel-desc">
+        The agent has two tools (<code>web-search</code>, <code>arxiv-search</code>) and decides when to use them.
+      </p>
+      <div class="layout">
+        <div class="col-form">
+          <div class="recent-runs" data-recent="research"></div>
+          <form data-form="research">
+            <label for="research-input">Topic to research</label>
+            <textarea id="research-input" name="topic" rows="2" required>Contextual Retrieval for RAG</textarea>
+            <div class="samples">
+              <button type="button" class="sample-btn" data-fill="research-input" data-value="Contextual Retrieval for RAG">RAG</button>
+              <button type="button" class="sample-btn" data-fill="research-input" data-value="hybrid search with BM25 and vector reranking">hybrid search</button>
+              <button type="button" class="sample-btn" data-fill="research-input" data-value="LLM observability with traces and spans">observability</button>
+            </div>
+            <button type="submit" class="run-btn">Run</button>
+            <button type="button" class="settings-toggle" data-toggle-settings="research">⚙ Settings</button>
+            <div class="settings-panel" data-settings="research" hidden>
+              <label>
+                Model
+                <select data-setting="model" data-for="research">
+                  <option value="openai/gpt-4o-mini">gpt-4o-mini (default)</option>
+                  <option value="anthropic/claude-3-5-haiku">claude-3-5-haiku</option>
+                  <option value="meta-llama/llama-3.1-8b-instruct">llama-3.1-8b-instruct</option>
+                  <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001</option>
+                </select>
+              </label>
+            </div>
+          </form>
+        </div>
+        <div class="col-trace">
+          <div class="trace-header">Workflow trace</div>
+          <div class="trace-graph" id="graph-research"></div>
+          <div class="trace-events" id="events-research"></div>
+        </div>
+        <div class="col-output" data-output="research">
+          <div class="output-empty">Submit to see the result.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 03 Code Review ── -->
+    <section class="panel" id="panel-code-review" role="tabpanel" hidden>
+      <h2>Code Review</h2>
+      <p class="panel-desc">
+        Deterministic pipeline: read file → run lint → if issues, the LLM writes a review; otherwise the file is auto-approved.
+      </p>
+      <div class="layout">
+        <div class="col-form">
+          <div class="recent-runs" data-recent="code-review"></div>
+          <form data-form="code-review">
+            <label for="review-input">File to review (one of: auth.ts, utils.ts, clean.ts)</label>
+            <input id="review-input" name="path" type="text" value="auth.ts" required />
+            <div class="samples">
+              <button type="button" class="sample-btn" data-fill="review-input" data-value="auth.ts">auth.ts (has hardcoded secret)</button>
+              <button type="button" class="sample-btn" data-fill="review-input" data-value="utils.ts">utils.ts (unwrapped fetch)</button>
+              <button type="button" class="sample-btn" data-fill="review-input" data-value="clean.ts">clean.ts (no issues)</button>
+            </div>
+            <button type="submit" class="run-btn">Run</button>
+            <button type="button" class="settings-toggle" data-toggle-settings="code-review">⚙ Settings</button>
+            <div class="settings-panel" data-settings="code-review" hidden>
+              <label>
+                Model
+                <select data-setting="model" data-for="code-review">
+                  <option value="openai/gpt-4o-mini">gpt-4o-mini (default)</option>
+                  <option value="anthropic/claude-3-5-haiku">claude-3-5-haiku</option>
+                  <option value="meta-llama/llama-3.1-8b-instruct">llama-3.1-8b-instruct</option>
+                  <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001</option>
+                </select>
+              </label>
+            </div>
+          </form>
+        </div>
+        <div class="col-trace">
+          <div class="trace-header">Workflow trace</div>
+          <div class="trace-graph" id="graph-code-review"></div>
+          <div class="trace-events" id="events-code-review"></div>
+        </div>
+        <div class="col-output" data-output="code-review">
+          <div class="output-empty">Submit to see the result.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 04 Parallel Research ── -->
+    <section class="panel" id="panel-parallel-research" role="tabpanel" hidden>
+      <h2>Parallel Research</h2>
+      <p class="panel-desc">
+        One step fans out to 3 sources in parallel via <code>Promise.all</code>, then an LLM synthesizes the results.
+        The trace shows ONE <code>step:start</code> → 3 <code>tool:call</code> events in quick succession → ONE <code>step:end</code>.
+      </p>
+      <div class="layout">
+        <div class="col-form">
+          <div class="recent-runs" data-recent="parallel-research"></div>
+          <form data-form="parallel-research">
+            <label for="parallel-input">Research topic</label>
+            <textarea id="parallel-input" name="topic" rows="2" required>hybrid search with BM25 and vector reranking</textarea>
+            <div class="samples">
+              <button type="button" class="sample-btn" data-fill="parallel-input" data-value="hybrid search with BM25 and vector reranking">hybrid search</button>
+              <button type="button" class="sample-btn" data-fill="parallel-input" data-value="prompt caching for LLM APIs">prompt caching</button>
+              <button type="button" class="sample-btn" data-fill="parallel-input" data-value="RAG evaluation metrics">RAG eval</button>
+            </div>
+            <button type="submit" class="run-btn">Run</button>
+            <button type="button" class="settings-toggle" data-toggle-settings="parallel-research">⚙ Settings</button>
+            <div class="settings-panel" data-settings="parallel-research" hidden>
+              <label>
+                Model
+                <select data-setting="model" data-for="parallel-research">
+                  <option value="openai/gpt-4o-mini">gpt-4o-mini (default)</option>
+                  <option value="anthropic/claude-3-5-haiku">claude-3-5-haiku</option>
+                  <option value="meta-llama/llama-3.1-8b-instruct">llama-3.1-8b-instruct</option>
+                  <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001</option>
+                </select>
+              </label>
+            </div>
+          </form>
+        </div>
+        <div class="col-trace">
+          <div class="trace-header">Workflow trace</div>
+          <div class="trace-graph" id="graph-parallel-research"></div>
+          <div class="trace-events" id="events-parallel-research"></div>
+        </div>
+        <div class="col-output" data-output="parallel-research">
+          <div class="output-empty">Submit to see the result.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 05 Multi-turn Chat ── -->
+    <section class="panel" id="panel-multi-turn-chat" role="tabpanel" hidden>
+      <h2>Multi-turn Chat</h2>
+      <p class="panel-desc">
+        Send multiple messages on the same <code>threadId</code> — the agent sees prior context. Try
+        mentioning an order ID, then ask about it later. Or say "I want a manager" to trigger the
+        <code>escalate_to_human</code> tool.
+      </p>
+      <div class="layout layout-chat">
+        <div class="col-form">
+          <div class="recent-runs" data-recent="multi-turn-chat"></div>
+          <form data-form="multi-turn-chat">
+            <div class="thread-controls">
+              <div class="thread-id-display">
+                <span class="label">Thread</span>
+                <code id="thread-id-display">—</code>
+              </div>
+              <div class="thread-buttons">
+                <button type="button" class="thread-btn" id="new-conversation-btn" title="Start a new thread (clears current)">New</button>
+                <button type="button" class="thread-btn" id="clear-thread-btn" title="Clear messages in this thread (keeps thread ID)">Clear</button>
+              </div>
+            </div>
+            <label for="chat-input">Message</label>
+            <textarea id="chat-input" name="message" rows="3" required placeholder="Type a message and hit Send…">Hi, I want to check the status of order 12345</textarea>
+            <div class="samples">
+              <button type="button" class="sample-btn" data-fill="chat-input" data-value="Hi, I want to check the status of order 12345">order 12345</button>
+              <button type="button" class="sample-btn" data-fill="chat-input" data-value="When will it arrive?">when it arrives</button>
+              <button type="button" class="sample-btn" data-fill="chat-input" data-value="Actually I am really upset, I want a manager">escalate me</button>
+              <button type="button" class="sample-btn" data-fill="chat-input" data-value="What's the difference between #12345 and #67890?">compare orders</button>
+            </div>
+            <button type="submit" class="run-btn">Send</button>
+            <button type="button" class="settings-toggle" data-toggle-settings="multi-turn-chat">⚙ Settings</button>
+            <div class="settings-panel" data-settings="multi-turn-chat" hidden>
+              <label>
+                Model
+                <select data-setting="model" data-for="multi-turn-chat">
+                  <option value="openai/gpt-4o-mini">gpt-4o-mini (default)</option>
+                  <option value="anthropic/claude-3-5-haiku">claude-3-5-haiku</option>
+                  <option value="meta-llama/llama-3.1-8b-instruct">llama-3.1-8b-instruct</option>
+                  <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001</option>
+                </select>
+              </label>
+            </div>
+          </form>
+        </div>
+        <div class="col-trace">
+          <div class="trace-header">Workflow trace</div>
+          <div class="trace-graph" id="graph-multi-turn-chat"></div>
+          <div class="trace-events" id="events-multi-turn-chat"></div>
+        </div>
+        <div class="col-output col-chat" data-output="multi-turn-chat">
+          <div class="output-empty">Send a message to start a conversation.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 06 Human-in-the-Loop Approval ── -->
+    <section class="panel" id="panel-hitl-approval" role="tabpanel" hidden>
+      <h2>Human-in-the-Loop Approval</h2>
+      <p class="panel-desc">
+        Submit a proposed action. The workflow classifies it with an LLM, then the gate
+        step decides whether to <strong>auto-approve</strong> (low risk) or <strong>suspend</strong>
+        for human review. High-urgency or large-amount actions always suspend. Click
+        Approve or Reject to resume the workflow.
+      </p>
+      <div class="layout">
+        <div class="col-form">
+          <div class="recent-runs" data-recent="hitl-approval"></div>
+          <form data-form="hitl-approval">
+            <label for="hitl-action">Proposed action</label>
+            <textarea id="hitl-action" name="action" rows="3" required>Refund $200 to customer #12345</textarea>
+
+            <label for="hitl-action-type">Action type</label>
+            <select id="hitl-action-type" name="actionType">
+              <option value="refund">refund</option>
+              <option value="send">bulk send</option>
+              <option value="delete">delete records</option>
+            </select>
+
+            <div class="samples">
+              <button type="button" class="sample-btn" data-fill="hitl-action" data-value="Refund $20 for a duplicate charge">small refund</button>
+              <button type="button" class="sample-btn" data-fill="hitl-action" data-value="Refund $500 — customer threatened to sue">large refund</button>
+              <button type="button" class="sample-btn" data-fill="hitl-action" data-value="Bulk send announcement to 5000 customers">bulk send 5k</button>
+              <button type="button" class="sample-btn" data-fill="hitl-action" data-value="Bulk send announcement to 50000 customers">bulk send 50k</button>
+              <button type="button" class="sample-btn" data-fill="hitl-action" data-value="Delete all customer records older than 2 years">mass delete</button>
+            </div>
+            <button type="submit" class="run-btn">Submit</button>
+            <button type="button" class="settings-toggle" data-toggle-settings="hitl-approval">⚙ Settings</button>
+            <div class="settings-panel" data-settings="hitl-approval" hidden>
+              <label>
+                Model
+                <select data-setting="model" data-for="hitl-approval">
+                  <option value="openai/gpt-4o-mini">gpt-4o-mini (default)</option>
+                  <option value="anthropic/claude-3-5-haiku">claude-3-5-haiku</option>
+                  <option value="meta-llama/llama-3.1-8b-instruct">llama-3.1-8b-instruct</option>
+                  <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001</option>
+                </select>
+              </label>
+            </div>
+          </form>
+        </div>
+        <div class="col-trace">
+          <div class="trace-header">Workflow trace</div>
+          <div class="trace-graph" id="graph-hitl-approval"></div>
+          <div class="trace-events" id="events-hitl-approval"></div>
+        </div>
+        <div class="col-output" data-output="hitl-approval">
+          <div class="output-empty">Submit an action to see the workflow run.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- History slide-over -->
+  <div class="history-panel" id="history-panel" hidden>
+    <div class="history-overlay" id="history-overlay"></div>
+    <div class="history-sheet">
+      <div class="history-header">
+        <h3>Run history</h3>
+        <button class="history-close" id="history-close" aria-label="Close history panel" title="Close (Esc)">×</button>
+      </div>
+      <div class="history-list" id="history-list"></div>
+      <div class="history-footer">
+        <button class="history-clear" id="history-clear">Clear all history</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>
+      See <code>notes/comparison-to-inboxpilot.md</code> for the verdict on whether InboxPilot should adopt Mastra.
+    </p>
+  </footer>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>

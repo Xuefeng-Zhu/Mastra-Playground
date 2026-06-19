@@ -1,0 +1,31 @@
+{
+  "name": "mastra-playground",
+  "version": "1.0.0",
+  "description": "Small isolated repo to learn Mastra by example. Not for production. Not part of InboxPilot.",
+  "type": "module",
+  "scripts": {
+    "example:01": "tsx examples/01-support-triage/index.ts",
+    "example:02": "tsx examples/02-research-agent/index.ts",
+    "example:03": "tsx examples/03-code-review-agent/index.ts",
+    "example:04": "tsx examples/04-parallel-research/index.ts",
+    "example:05": "tsx examples/05-multi-turn-chat/index.ts",
+    "example:06": "tsx examples/06-hitl-approval/index.ts",
+    "typecheck": "tsc --noEmit",
+    "serve": "tsx server/server.ts"
+  },
+  "keywords": ["mastra", "learning", "playground"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.85",
+    "@ai-sdk/openai": "^3.0.73",
+    "@mastra/core": "^1.43.0",
+    "mastra": "^1.14.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}
