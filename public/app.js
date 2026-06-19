@@ -227,6 +227,17 @@ const GRAPHS = {
     ],
     edges: [{ from: 'input', to: 'stream' }],
   },
+  'multi-agent-handoff': {
+    nodes: [
+      { id: 'input', label: 'Customer message', kind: 'input', x: 60, y: 60 },
+      { id: 'primary', label: 'Triage agent', kind: 'llm', x: 60, y: 180, label2: 'routes' },
+      { id: 'specialist', label: 'Billing specialist', kind: 'llm', x: 200, y: 320, label2: 'on delegate only' },
+    ],
+    edges: [
+      { from: 'input', to: 'primary' },
+      { from: 'primary', to: 'specialist', label: 'handoff', when: { kind: 'delegated' } },
+    ],
+  },
 };
 
 function renderGraph(containerId, def) {
@@ -800,6 +811,9 @@ function summarizeResult(example, result) {
     if (result.executed === false) return 'blocked';
     return 'pending';
   }
+  if (example === 'multi-agent-handoff' && result) {
+    return result.delegated ? 'delegated' : 'answered directly';
+  }
   return 'ok';
 }
 
@@ -1053,6 +1067,7 @@ function renderFinalResult(name, el, json) {
   if (name === 'parallel-research') return renderParallel(el, r);
   if (name === 'multi-turn-chat') return renderChat(el, r);
   if (name === 'hitl-approval') return renderHitl(el, r);
+  if (name === 'multi-agent-handoff') return renderMultiAgentHandoff(el, r);
 }
 
 function renderTriage(el, r) {
@@ -1452,3 +1467,51 @@ window.handleTraceEvent = function (name, event, eventsEl, outputEl, onResult) {
     if (execNode) execNode.classList.add('active');
   }
 };
+
+// ─── Multi-agent handoff render (example 09) ───────────────────────────
+function renderMultiAgentHandoff(el, r) {
+  if (!r.output) {
+    el.innerHTML = `<div class="output-section">
+      <h3>Workflow ${r.status}</h3>
+      <div class="output-error">${escapeHtml(r.error ?? 'no output')}</div>
+    </div>`;
+    return;
+  }
+  if (typeof r.output.message !== 'string') {
+    el.innerHTML = `<div class="output-section">
+      <h3>Workflow ${r.status} (unexpected output shape)</h3>
+      <pre class="json-pre">${jsonHighlight(r.output)}</pre>
+    </div>`;
+    return;
+  }
+  const o = r.output;
+  const path = (o.agentPath || []).join(' → ');
+  const delegated = !!o.delegated;
+  el.innerHTML = `
+    <div class="output-section">
+      <h3>Agent path</h3>
+      <div class="agent-path">
+        ${(o.agentPath || []).map((a, i) =>
+          `<span class="agent-tag">${escapeHtml(a)}</span>${i < o.agentPath.length - 1 ? '<span class="agent-arrow">→</span>' : ''}`
+        ).join('')}
+      </div>
+    </div>
+    <div class="output-section">
+      <h3>Delegation</h3>
+      <div class="summary-item">
+        <div class="label">Delegated to specialist?</div>
+        <div class="value">${delegated ? '✅ yes' : '❌ no'}</div>
+      </div>
+    </div>
+    ${o.specialistResponse ? `
+    <div class="output-section">
+      <h3>Specialist response</h3>
+      <div class="review-text">${escapeHtml(o.specialistResponse)}</div>
+    </div>
+    ` : ''}
+    <div class="output-section">
+      <h3>Final answer to customer</h3>
+      <div class="review-text">${escapeHtml(o.message)}</div>
+    </div>
+  `;
+}

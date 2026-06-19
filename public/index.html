@@ -100,6 +100,16 @@
       >
         08 · Critic Loop
       </button>
+      <button
+        class="tab"
+        data-tab="multi-agent-handoff"
+        role="tab"
+        aria-selected="false"
+        aria-controls="panel-multi-agent-handoff"
+        tabindex="-1"
+      >
+        09 · Multi-Agent Handoff
+      </button>
     </nav>
 
     <main>
@@ -762,6 +772,61 @@ What is the difference between an AI agent and an AI workflow?</textarea
           </div>
           <div class="col-output" data-output="critic-loop">
             <div class="output-empty">Submit a topic to run the generator-critic loop.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 09 Multi-Agent Handoff ── -->
+      <section class="panel" id="panel-multi-agent-handoff" role="tabpanel" hidden>
+        <h2>Multi-Agent Handoff</h2>
+        <p class="panel-desc">
+          A <strong>triage agent</strong> handles the customer's first message. If the question
+          is about billing, it calls a tool that <strong>hands off</strong> to a specialist
+          agent with a narrower prompt and focused tools. Watch the trace for the
+          <code>specialist</code> step firing only when delegation occurs.
+        </p>
+        <div class="layout">
+          <div class="col-form">
+            <div class="recent-runs" data-recent="multi-agent-handoff"></div>
+            <form data-form="multi-agent-handoff">
+              <label for="handoff-message">Customer message</label>
+              <textarea
+                id="handoff-message"
+                name="message"
+                rows="3"
+                required
+                placeholder="Ask a support question…"
+              >Where is my refund for order-1234?</textarea>
+              <div class="samples">
+                <button type="button" class="sample-btn" data-fill="handoff-message" data-value="Where is my refund for order-1234?">refund (delegates)</button>
+                <button type="button" class="sample-btn" data-fill="handoff-message" data-value="What's the status of order-5678?">order status (delegates)</button>
+                <button type="button" class="sample-btn" data-fill="handoff-message" data-value="How do I reset my password?">password (no delegate)</button>
+                <button type="button" class="sample-btn" data-fill="handoff-message" data-value="What time does support close?">hours (no delegate)</button>
+              </div>
+              <button type="submit" class="run-btn">Send to triage</button>
+              <button type="button" class="settings-toggle" data-toggle-settings="multi-agent-handoff">
+                ⚙ Settings
+              </button>
+              <div class="settings-panel" data-settings="multi-agent-handoff" hidden>
+                <label>
+                  Model
+                  <select data-setting="model" data-for="multi-agent-handoff">
+                    <option value="openai/gpt-4o-mini">gpt-4o-mini (default)</option>
+                    <option value="anthropic/claude-3-5-haiku">claude-3-5-haiku</option>
+                    <option value="meta-llama/llama-3.1-8b-instruct">llama-3.1-8b-instruct</option>
+                    <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001</option>
+                  </select>
+                </label>
+              </div>
+            </form>
+          </div>
+          <div class="col-trace">
+            <div class="trace-header">Workflow trace</div>
+            <div class="trace-graph" id="graph-multi-agent-handoff"></div>
+            <div class="trace-events" id="events-multi-agent-handoff"></div>
+          </div>
+          <div class="col-output" data-output="multi-agent-handoff">
+            <div class="output-empty">Send a message to see the triage agent in action.</div>
           </div>
         </div>
       </section>

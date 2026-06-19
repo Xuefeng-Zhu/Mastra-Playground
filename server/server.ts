@@ -138,6 +138,12 @@ const EXAMPLES: Record<string, { file: string; exportName: string; description: 
     description:
       'Evaluator-optimizer: generate → critique → regenerate using the feedback until the score meets the threshold or the iteration budget runs out.',
   },
+  'multi-agent-handoff': {
+    file: 'examples/09-multi-agent-handoff/index.ts',
+    exportName: 'runOne',
+    description:
+      'Multi-agent handoff: primary triage agent delegates billing questions to a specialist agent with a narrower tool set.',
+  },
 };
 
 type RunFn = (input: unknown, tracer: Tracer) => Promise<unknown>;
@@ -231,6 +237,15 @@ function validateExampleInput(name: string, body: unknown): Record<string, unkno
       return {
         action: sanitizeText(body.action),
         ...(typeof body.actionType === 'string' ? { actionType: body.actionType } : {}),
+        ...(typeof body.model === 'string' ? { model: body.model } : {}),
+      };
+    }
+    case 'multi-agent-handoff': {
+      if (!('message' in body) || typeof body.message !== 'string' || body.message.trim().length === 0) {
+        throw new ValidationError('Field "message" must be a non-empty string', 'message');
+      }
+      return {
+        message: sanitizeText(body.message),
         ...(typeof body.model === 'string' ? { model: body.model } : {}),
       };
     }
