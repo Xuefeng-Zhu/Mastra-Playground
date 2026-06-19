@@ -1,0 +1,46 @@
+# Docker Compose for the Mastra playground.
+#
+# Usage:
+#   cp .env.example .env
+#   # edit .env to set OPENAI_API_KEY (or OpenRouter key)
+#   docker compose up --build
+#
+# Then open http://localhost:8917
+
+services:
+  playground:
+    build: .
+    image: mastra-playground:latest
+    container_name: mastra-playground
+    restart: unless-stopped
+    ports:
+      - '8917:8917'
+    env_file:
+      - .env
+    environment:
+      # Sensible defaults; .env overrides
+      NODE_ENV: production
+      PORT: 8917
+      LOG_LEVEL: info
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:8917/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    # The server uses dynamic imports of the example modules. We don't need
+    # to mount the source as a volume in dev mode — the build copies it in.
+    # For live-reload, uncomment the volumes block and the command override.
+    #
+    # volumes:
+    #   - ./shared:/app/shared:ro
+    #   - ./examples:/app/examples:ro
+    #   - ./server:/app/server:ro
+    #   - ./public:/app/public:ro
+    # command: ['npx', 'tsx', 'watch', 'server/server.ts']

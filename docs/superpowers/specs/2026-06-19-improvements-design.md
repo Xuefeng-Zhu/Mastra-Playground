@@ -10,17 +10,17 @@ This spec covers 8 ideas across 3 waves.
 
 **In scope (8 ideas):**
 
-| ID | Idea | Wave | Effort | Files |
-|---|---|---|---|---|
-| A1 | Unit tests for shared modules | A | M | shared/*.test.ts (new), package.json |
-| C1 | Dockerfile | A | M | Dockerfile (new), package.json |
-| C2 | .dockerignore | A | S | .dockerignore (new) |
-| C4 | Docker healthcheck | A | S | Dockerfile |
-| D1 | Server-side trace logging (?trace=true) | B | S | server/server.ts |
-| E1 | Example 07: Streaming tokens | B | M | examples/07-streaming-chat/, shared/tracer.ts, public/, server/ |
-| B1 | Redundant `newAgent` fix | B | S | examples/01-support-triage/index.ts |
-| G1 | A11y on tabs + HITL + forms | C | M | public/index.html, public/app.js, public/style.css |
-| B5 | Audit summary doc | C | S | docs/audit/SUMMARY.md (new), docs/audit/2026-06-18-code-review.md (moved from .audit-findings.md) |
+| ID  | Idea                                    | Wave | Effort | Files                                                                                             |
+| --- | --------------------------------------- | ---- | ------ | ------------------------------------------------------------------------------------------------- |
+| A1  | Unit tests for shared modules           | A    | M      | shared/\*.test.ts (new), package.json                                                             |
+| C1  | Dockerfile                              | A    | M      | Dockerfile (new), package.json                                                                    |
+| C2  | .dockerignore                           | A    | S      | .dockerignore (new)                                                                               |
+| C4  | Docker healthcheck                      | A    | S      | Dockerfile                                                                                        |
+| D1  | Server-side trace logging (?trace=true) | B    | S      | server/server.ts                                                                                  |
+| E1  | Example 07: Streaming tokens            | B    | M      | examples/07-streaming-chat/, shared/tracer.ts, public/, server/                                   |
+| B1  | Redundant `newAgent` fix                | B    | S      | examples/01-support-triage/index.ts                                                               |
+| G1  | A11y on tabs + HITL + forms             | C    | M      | public/index.html, public/app.js, public/style.css                                                |
+| B5  | Audit summary doc                       | C    | S      | docs/audit/SUMMARY.md (new), docs/audit/2026-06-18-code-review.md (moved from .audit-findings.md) |
 
 **Out of scope (deferred):**
 
@@ -33,6 +33,7 @@ This spec covers 8 ideas across 3 waves.
 ### A1: Unit tests with vitest
 
 **Stack choice:** vitest. Rationale:
+
 - Fast (parallel test runner, watch mode)
 - TS-native (no babel/jest config)
 - Jest-compatible API (anyone who's used Jest can write vitest)
@@ -47,6 +48,7 @@ This spec covers 8 ideas across 3 waves.
 ### C1 + C2 + C4: Docker
 
 **Dockerfile structure** (multi-stage):
+
 ```dockerfile
 # Stage 1: deps — install only what we need
 FROM node:22-bookworm-slim AS deps
@@ -99,6 +101,7 @@ CMD ["npx", "tsx", "server/server.ts"]
 **What it teaches:** `Agent.stream()` for token-by-token generation, the `llm:delta` event type, the streaming UI pattern (typing indicator → final answer).
 
 **Shape:**
+
 - Input: `{ prompt: string, model?: string }`
 - Workflow: one step that calls `agent.stream({ prompt })` and yields each text delta
 - Trace events: `llm:start` → `llm:delta` × N → `llm:end` (with final text and token count)
@@ -115,6 +118,7 @@ In `examples/01-support-triage/index.ts:130`, the `Mastra` constructor receives 
 ### G1: A11y pass
 
 **Tabs (`<button class="tab">`):**
+
 - Add `role="tab"`, `aria-selected`, `aria-controls` linking to panel IDs
 - Add `role="tablist"` to the parent `<nav>`
 - Add `role="tabpanel"` to each section
@@ -122,17 +126,20 @@ In `examples/01-support-triage/index.ts:130`, the `Mastra` constructor receives 
 - Only the active tab is in the tab order (others have `tabindex="-1"`)
 
 **History panel (`<div class="history-panel">`):**
+
 - `role="dialog"`, `aria-modal="true"`, `aria-labelledby="history-title"`
 - Focus trap: Tab cycles within the panel
 - Escape closes the panel
 - Focus returns to the trigger button on close
 
 **HITL approval panel:**
+
 - Add `aria-label` to the Approve and Reject buttons
 - Add `role="alert"` to the panel itself (it's announcing a pending decision)
 - Add `aria-live="polite"` so screen readers announce the new pending state
 
 **Forms:**
+
 - Verify every `<label for="...">` matches the input's `id` (some are already correct, some need adding)
 - Add `aria-describedby` linking to help text where it exists
 
@@ -141,6 +148,7 @@ In `examples/01-support-triage/index.ts:130`, the `Mastra` constructor receives 
 **Move:** `.audit-findings.md` → `docs/audit/2026-06-18-code-review.md`
 
 **Add:** `docs/audit/SUMMARY.md` (1 page) listing:
+
 - 16 findings total
 - 9 applied as code fixes (with one-line descriptions + commit references)
 - 4 INFO items deferred (with rationale)
@@ -159,18 +167,19 @@ No changes. Existing error handling is already sound after Wave 2.
 
 ## Testing
 
-| What | How | Where |
-|---|---|---|
-| Shared modules | vitest, unit tests | shared/*.test.ts |
-| Smoke test | existing | scripts/smoke.ts |
-| Docker | manual: `docker build && docker compose up && curl /api/health` | host |
-| UI changes | manual: open browser, tab through | host |
+| What           | How                                                             | Where             |
+| -------------- | --------------------------------------------------------------- | ----------------- |
+| Shared modules | vitest, unit tests                                              | shared/\*.test.ts |
+| Smoke test     | existing                                                        | scripts/smoke.ts  |
+| Docker         | manual: `docker build && docker compose up && curl /api/health` | host              |
+| UI changes     | manual: open browser, tab through                               | host              |
 
 CI updates: add `npm test` job to the quality workflow in addition to typecheck + format check.
 
 ## Rollout
 
 3 commits, one per wave. Each wave:
+
 1. Build
 2. Verify (typecheck + smoke test + manual check of changed surface)
 3. Commit with conventional-commit prefix

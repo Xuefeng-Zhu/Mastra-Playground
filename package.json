@@ -19,7 +19,10 @@
     "serve": "tsx server/server.ts",
     "start:prod": "NODE_ENV=production tsx server/server.ts",
     "health": "curl -s http://localhost:8917/api/health | head -c 500",
-    "smoke": "tsx scripts/smoke.ts"
+    "smoke": "tsx scripts/smoke.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "mastra",
@@ -39,8 +42,10 @@
   },
   "devDependencies": {
     "@types/node": "^25.9.3",
+    "@vitest/coverage-v8": "^4.1.9",
     "prettier": "^3.8.4",
     "tsx": "^4.22.4",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
   }
 }

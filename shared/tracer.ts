@@ -31,11 +31,23 @@ export type TraceEvent =
   | { type: 'resume'; decision: string; payload: unknown }
   | { type: 'done'; status: 'success' | 'failed' | 'suspended'; output: unknown; totalMs: number };
 
+import { logger } from './logger.js';
+
 export class Tracer {
   private listeners: Array<(e: TraceEvent) => void> = [];
 
   emit(event: TraceEvent): void {
-    for (const l of this.listeners) l(event);
+    for (const l of this.listeners) {
+      try {
+        l(event);
+      } catch (err) {
+        // Never let a misbehaving subscriber kill the workflow. Log and move on.
+        logger.warn('tracer_subscriber_threw', {
+          eventType: event.type,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
   }
 
   subscribe(fn: (e: TraceEvent) => void): () => void {
