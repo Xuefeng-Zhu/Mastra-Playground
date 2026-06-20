@@ -12,6 +12,9 @@
     "example:03": "tsx examples/03-code-review-agent/index.ts",
     "example:04": "tsx examples/04-parallel-research/index.ts",
     "example:05": "tsx examples/05-multi-turn-chat/index.ts",
+    "example:09": "tsx examples/09-multi-agent-handoff/index.ts",
+    "example:10": "tsx examples/10-mastra-memory/index.ts",
+    "example:11": "tsx examples/11-content-pipeline/index.ts",
     "example:06": "tsx examples/06-hitl-approval/index.ts",
     "example:07": "tsx examples/07-streaming-chat/index.ts",
     "example:08": "tsx examples/08-critic-loop/index.ts",
@@ -41,6 +44,7 @@
     "@ai-sdk/anthropic": "^3.0.85",
     "@ai-sdk/openai": "^3.0.73",
     "@mastra/core": "^1.43.0",
+    "@mastra/memory": "^1.21.0",
     "mastra": "^1.14.0",
     "zod": "^4.4.3"
   },

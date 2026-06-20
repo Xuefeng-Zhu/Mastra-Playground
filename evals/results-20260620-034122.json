@@ -1,0 +1,989 @@
+{
+  "startedAt": "2026-06-20T03:41:22Z",
+  "base": "http://localhost:8917",
+  "threshold": 8,
+  "maxIterations": 3,
+  "examples": [
+    "support-triage",
+    "research",
+    "code-review",
+    "parallel-research",
+    "multi-turn-chat",
+    "hitl-approval",
+    "streaming-chat",
+    "critic-loop",
+    "multi-agent-handoff",
+    "mastra-memory",
+    "content-pipeline"
+  ],
+  "topics": [
+    "What is the difference between RAG and fine-tuning?",
+    "How do I evaluate whether a small LLM is good enough for my use case?",
+    "Explain the Model Context Protocol to a backend engineer in 150 words.",
+    "What are the best practices for prompt caching in production LLM APIs?",
+    "When should I use a multi-agent system vs a single agent with tools?"
+  ],
+  "runs": [
+    {
+      "n": 1,
+      "example": "support-triage",
+      "topic": "What is the difference between RAG and fine-tuning?",
+      "topicShort": "What is the difference between RAG and fine-tuning?",
+      "httpCode": 200,
+      "durationMs": 1306.7,
+      "inputPayload": {
+        "message": "What is the difference between RAG and fine-tuning?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 51,
+      "triageIntent": "other",
+      "triageConfidence": 0.6,
+      "triageRequiresHuman": true
+    },
+    {
+      "n": 2,
+      "example": "support-triage",
+      "topic": "How do I evaluate whether a small LLM is good enough for my use case?",
+      "topicShort": "How do I evaluate whether a small LLM is good enough for my ",
+      "httpCode": 200,
+      "durationMs": 1394.1,
+      "inputPayload": {
+        "message": "How do I evaluate whether a small LLM is good enough for my use case?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 77,
+      "triageIntent": "how_to",
+      "triageConfidence": 0.85,
+      "triageRequiresHuman": false
+    },
+    {
+      "n": 3,
+      "example": "support-triage",
+      "topic": "Explain the Model Context Protocol to a backend engineer in 150 words.",
+      "topicShort": "Explain the Model Context Protocol to a backend engineer in ",
+      "httpCode": 200,
+      "durationMs": 1184.9,
+      "inputPayload": {
+        "message": "Explain the Model Context Protocol to a backend engineer in 150 words."
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 50,
+      "triageIntent": "other",
+      "triageConfidence": 0.6,
+      "triageRequiresHuman": true
+    },
+    {
+      "n": 4,
+      "example": "support-triage",
+      "topic": "What are the best practices for prompt caching in production LLM APIs?",
+      "topicShort": "What are the best practices for prompt caching in production",
+      "httpCode": 200,
+      "durationMs": 1986.6,
+      "inputPayload": {
+        "message": "What are the best practices for prompt caching in production LLM APIs?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 85,
+      "triageIntent": "other",
+      "triageConfidence": 0.7,
+      "triageRequiresHuman": true
+    },
+    {
+      "n": 5,
+      "example": "support-triage",
+      "topic": "When should I use a multi-agent system vs a single agent with tools?",
+      "topicShort": "When should I use a multi-agent system vs a single agent wit",
+      "httpCode": 200,
+      "durationMs": 1161.3,
+      "inputPayload": {
+        "message": "When should I use a multi-agent system vs a single agent with tools?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 47,
+      "triageIntent": "other",
+      "triageConfidence": 0.7,
+      "triageRequiresHuman": true
+    },
+    {
+      "n": 6,
+      "example": "research",
+      "topic": "What is the difference between RAG and fine-tuning?",
+      "topicShort": "What is the difference between RAG and fine-tuning?",
+      "httpCode": 200,
+      "durationMs": 4138.2,
+      "inputPayload": {
+        "topic": "What is the difference between RAG and fine-tuning?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 876,
+      "formattedLen": 876
+    },
+    {
+      "n": 7,
+      "example": "research",
+      "topic": "How do I evaluate whether a small LLM is good enough for my use case?",
+      "topicShort": "How do I evaluate whether a small LLM is good enough for my ",
+      "httpCode": 200,
+      "durationMs": 3868.0,
+      "inputPayload": {
+        "topic": "How do I evaluate whether a small LLM is good enough for my use case?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 994,
+      "formattedLen": 994
+    },
+    {
+      "n": 8,
+      "example": "research",
+      "topic": "Explain the Model Context Protocol to a backend engineer in 150 words.",
+      "topicShort": "Explain the Model Context Protocol to a backend engineer in ",
+      "httpCode": 200,
+      "durationMs": 2816.6,
+      "inputPayload": {
+        "topic": "Explain the Model Context Protocol to a backend engineer in 150 words."
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 748,
+      "formattedLen": 748
+    },
+    {
+      "n": 9,
+      "example": "research",
+      "topic": "What are the best practices for prompt caching in production LLM APIs?",
+      "topicShort": "What are the best practices for prompt caching in production",
+      "httpCode": 200,
+      "durationMs": 3302.3,
+      "inputPayload": {
+        "topic": "What are the best practices for prompt caching in production LLM APIs?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 844,
+      "formattedLen": 844
+    },
+    {
+      "n": 10,
+      "example": "research",
+      "topic": "When should I use a multi-agent system vs a single agent with tools?",
+      "topicShort": "When should I use a multi-agent system vs a single agent wit",
+      "httpCode": 200,
+      "durationMs": 3203.7,
+      "inputPayload": {
+        "topic": "When should I use a multi-agent system vs a single agent with tools?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 915,
+      "formattedLen": 915
+    },
+    {
+      "n": 11,
+      "example": "code-review",
+      "topic": "What is the difference between RAG and fine-tuning?",
+      "topicShort": "What is the difference between RAG and fine-tuning?",
+      "httpCode": 200,
+      "durationMs": 1153.3,
+      "inputPayload": {
+        "path": "examples/01-support-triage/index.ts"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 272,
+      "reviewLen": 272,
+      "issueCount": 1,
+      "action": "reviewed"
+    },
+    {
+      "n": 12,
+      "example": "code-review",
+      "topic": "How do I evaluate whether a small LLM is good enough for my use case?",
+      "topicShort": "How do I evaluate whether a small LLM is good enough for my ",
+      "httpCode": 200,
+      "durationMs": 2021.4,
+      "inputPayload": {
+        "path": "examples/02-research-agent/index.ts"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 269,
+      "reviewLen": 269,
+      "issueCount": 1,
+      "action": "reviewed"
+    },
+    {
+      "n": 13,
+      "example": "code-review",
+      "topic": "Explain the Model Context Protocol to a backend engineer in 150 words.",
+      "topicShort": "Explain the Model Context Protocol to a backend engineer in ",
+      "httpCode": 200,
+      "durationMs": 1076.4,
+      "inputPayload": {
+        "path": "examples/04-parallel-research/index.ts"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 317,
+      "reviewLen": 317,
+      "issueCount": 1,
+      "action": "reviewed"
+    },
+    {
+      "n": 14,
+      "example": "code-review",
+      "topic": "What are the best practices for prompt caching in production LLM APIs?",
+      "topicShort": "What are the best practices for prompt caching in production",
+      "httpCode": 200,
+      "durationMs": 831.9,
+      "inputPayload": {
+        "path": "examples/08-critic-loop/index.ts"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 226,
+      "reviewLen": 226,
+      "issueCount": 1,
+      "action": "reviewed"
+    },
+    {
+      "n": 15,
+      "example": "code-review",
+      "topic": "When should I use a multi-agent system vs a single agent with tools?",
+      "topicShort": "When should I use a multi-agent system vs a single agent wit",
+      "httpCode": 200,
+      "durationMs": 1265.2,
+      "inputPayload": {
+        "path": "examples/10-content-pipeline/index.ts"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 371,
+      "reviewLen": 371,
+      "issueCount": 1,
+      "action": "reviewed"
+    },
+    {
+      "n": 16,
+      "example": "parallel-research",
+      "topic": "What is the difference between RAG and fine-tuning?",
+      "topicShort": "What is the difference between RAG and fine-tuning?",
+      "httpCode": 200,
+      "durationMs": 4726.5,
+      "inputPayload": {
+        "topic": "What is the difference between RAG and fine-tuning?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 1418,
+      "synthesisLen": 1418
+    },
+    {
+      "n": 17,
+      "example": "parallel-research",
+      "topic": "How do I evaluate whether a small LLM is good enough for my use case?",
+      "topicShort": "How do I evaluate whether a small LLM is good enough for my ",
+      "httpCode": 200,
+      "durationMs": 4778.8,
+      "inputPayload": {
+        "topic": "How do I evaluate whether a small LLM is good enough for my use case?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 1238,
+      "synthesisLen": 1238
+    },
+    {
+      "n": 18,
+      "example": "parallel-research",
+      "topic": "Explain the Model Context Protocol to a backend engineer in 150 words.",
+      "topicShort": "Explain the Model Context Protocol to a backend engineer in ",
+      "httpCode": 200,
+      "durationMs": 4981.4,
+      "inputPayload": {
+        "topic": "Explain the Model Context Protocol to a backend engineer in 150 words."
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 1382,
+      "synthesisLen": 1382
+    },
+    {
+      "n": 19,
+      "example": "parallel-research",
+      "topic": "What are the best practices for prompt caching in production LLM APIs?",
+      "topicShort": "What are the best practices for prompt caching in production",
+      "httpCode": 200,
+      "durationMs": 4361.2,
+      "inputPayload": {
+        "topic": "What are the best practices for prompt caching in production LLM APIs?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 1315,
+      "synthesisLen": 1315
+    },
+    {
+      "n": 20,
+      "example": "parallel-research",
+      "topic": "When should I use a multi-agent system vs a single agent with tools?",
+      "topicShort": "When should I use a multi-agent system vs a single agent wit",
+      "httpCode": 200,
+      "durationMs": 7080.8,
+      "inputPayload": {
+        "topic": "When should I use a multi-agent system vs a single agent with tools?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 1365,
+      "synthesisLen": 1365
+    },
+    {
+      "n": 21,
+      "example": "multi-turn-chat",
+      "topic": "What is the difference between RAG and fine-tuning?",
+      "topicShort": "What is the difference between RAG and fine-tuning?",
+      "httpCode": 200,
+      "durationMs": 1423.7,
+      "inputPayload": {
+        "threadId": "eval-thread",
+        "resourceId": "eval-user",
+        "message": "What is the difference between RAG and fine-tuning?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 434,
+      "assistantMsgLen": 434,
+      "escalated": false
+    },
+    {
+      "n": 22,
+      "example": "multi-turn-chat",
+      "topic": "How do I evaluate whether a small LLM is good enough for my use case?",
+      "topicShort": "How do I evaluate whether a small LLM is good enough for my ",
+      "httpCode": 200,
+      "durationMs": 1200.1,
+      "inputPayload": {
+        "threadId": "eval-thread",
+        "resourceId": "eval-user",
+        "message": "How do I evaluate whether a small LLM is good enough for my use case?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 392,
+      "assistantMsgLen": 392,
+      "escalated": false
+    },
+    {
+      "n": 23,
+      "example": "multi-turn-chat",
+      "topic": "Explain the Model Context Protocol to a backend engineer in 150 words.",
+      "topicShort": "Explain the Model Context Protocol to a backend engineer in ",
+      "httpCode": 200,
+      "durationMs": 2046.4,
+      "inputPayload": {
+        "threadId": "eval-thread",
+        "resourceId": "eval-user",
+        "message": "Explain the Model Context Protocol to a backend engineer in 150 words."
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 512,
+      "assistantMsgLen": 512,
+      "escalated": false
+    },
+    {
+      "n": 24,
+      "example": "multi-turn-chat",
+      "topic": "What are the best practices for prompt caching in production LLM APIs?",
+      "topicShort": "What are the best practices for prompt caching in production",
+      "httpCode": 200,
+      "durationMs": 1228.8,
+      "inputPayload": {
+        "threadId": "eval-thread",
+        "resourceId": "eval-user",
+        "message": "What are the best practices for prompt caching in production LLM APIs?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 417,
+      "assistantMsgLen": 417,
+      "escalated": false
+    },
+    {
+      "n": 25,
+      "example": "multi-turn-chat",
+      "topic": "When should I use a multi-agent system vs a single agent with tools?",
+      "topicShort": "When should I use a multi-agent system vs a single agent wit",
+      "httpCode": 200,
+      "durationMs": 1061.1,
+      "inputPayload": {
+        "threadId": "eval-thread",
+        "resourceId": "eval-user",
+        "message": "When should I use a multi-agent system vs a single agent with tools?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 341,
+      "assistantMsgLen": 341,
+      "escalated": false
+    },
+    {
+      "n": 26,
+      "example": "hitl-approval",
+      "topic": "What is the difference between RAG and fine-tuning?",
+      "topicShort": "What is the difference between RAG and fine-tuning?",
+      "httpCode": 200,
+      "durationMs": 1028.4,
+      "inputPayload": {
+        "action": "test refund for What is the difference between RAG and f",
+        "actionType": "refund"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 39,
+      "messageLen": 39,
+      "decision": "approved",
+      "escalated": false
+    },
+    {
+      "n": 27,
+      "example": "hitl-approval",
+      "topic": "How do I evaluate whether a small LLM is good enough for my use case?",
+      "topicShort": "How do I evaluate whether a small LLM is good enough for my ",
+      "httpCode": 200,
+      "durationMs": 1230.0,
+      "inputPayload": {
+        "action": "test send for How do I evaluate whether a small LLM is",
+        "actionType": "send"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 39,
+      "messageLen": 39,
+      "decision": "approved",
+      "escalated": false
+    },
+    {
+      "n": 28,
+      "example": "hitl-approval",
+      "topic": "Explain the Model Context Protocol to a backend engineer in 150 words.",
+      "topicShort": "Explain the Model Context Protocol to a backend engineer in ",
+      "httpCode": 200,
+      "durationMs": 859.7,
+      "inputPayload": {
+        "action": "test delete for Explain the Model Context Protocol to a ",
+        "actionType": "delete"
+      },
+      "workflowStatus": "suspended",
+      "errorPresent": false,
+      "primaryChars": 0,
+      "decision": null,
+      "escalated": false
+    },
+    {
+      "n": 29,
+      "example": "hitl-approval",
+      "topic": "What are the best practices for prompt caching in production LLM APIs?",
+      "topicShort": "What are the best practices for prompt caching in production",
+      "httpCode": 200,
+      "durationMs": 1736.7,
+      "inputPayload": {
+        "action": "test refund for What are the best practices for prompt c",
+        "actionType": "refund"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 39,
+      "messageLen": 39,
+      "decision": "approved",
+      "escalated": false
+    },
+    {
+      "n": 30,
+      "example": "hitl-approval",
+      "topic": "When should I use a multi-agent system vs a single agent with tools?",
+      "topicShort": "When should I use a multi-agent system vs a single agent wit",
+      "httpCode": 200,
+      "durationMs": 1103.4,
+      "inputPayload": {
+        "action": "test send for When should I use a multi-agent system v",
+        "actionType": "send"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 39,
+      "messageLen": 39,
+      "decision": "approved",
+      "escalated": false
+    },
+    {
+      "n": 31,
+      "example": "streaming-chat",
+      "topic": "What is the difference between RAG and fine-tuning?",
+      "topicShort": "What is the difference between RAG and fine-tuning?",
+      "httpCode": 200,
+      "durationMs": 813.2,
+      "inputPayload": {
+        "prompt": "What is the difference between RAG and fine-tuning?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 306,
+      "finalTextLen": 306,
+      "deltaCount": 57
+    },
+    {
+      "n": 32,
+      "example": "streaming-chat",
+      "topic": "How do I evaluate whether a small LLM is good enough for my use case?",
+      "topicShort": "How do I evaluate whether a small LLM is good enough for my ",
+      "httpCode": 200,
+      "durationMs": 960.8,
+      "inputPayload": {
+        "prompt": "How do I evaluate whether a small LLM is good enough for my use case?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 308,
+      "finalTextLen": 308,
+      "deltaCount": 55
+    },
+    {
+      "n": 33,
+      "example": "streaming-chat",
+      "topic": "Explain the Model Context Protocol to a backend engineer in 150 words.",
+      "topicShort": "Explain the Model Context Protocol to a backend engineer in ",
+      "httpCode": 200,
+      "durationMs": 2492.8,
+      "inputPayload": {
+        "prompt": "Explain the Model Context Protocol to a backend engineer in 150 words."
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 962,
+      "finalTextLen": 962,
+      "deltaCount": 156
+    },
+    {
+      "n": 34,
+      "example": "streaming-chat",
+      "topic": "What are the best practices for prompt caching in production LLM APIs?",
+      "topicShort": "What are the best practices for prompt caching in production",
+      "httpCode": 200,
+      "durationMs": 1078.3,
+      "inputPayload": {
+        "prompt": "What are the best practices for prompt caching in production LLM APIs?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 344,
+      "finalTextLen": 344,
+      "deltaCount": 54
+    },
+    {
+      "n": 35,
+      "example": "streaming-chat",
+      "topic": "When should I use a multi-agent system vs a single agent with tools?",
+      "topicShort": "When should I use a multi-agent system vs a single agent wit",
+      "httpCode": 200,
+      "durationMs": 979.0,
+      "inputPayload": {
+        "prompt": "When should I use a multi-agent system vs a single agent with tools?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 377,
+      "finalTextLen": 377,
+      "deltaCount": 64
+    },
+    {
+      "n": 36,
+      "example": "critic-loop",
+      "topic": "What is the difference between RAG and fine-tuning?",
+      "topicShort": "What is the difference between RAG and fine-tuning?",
+      "httpCode": 200,
+      "durationMs": 3730.0,
+      "inputPayload": {
+        "topic": "What is the difference between RAG and fine-tuning?",
+        "threshold": 8,
+        "maxIterations": 3
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "score": 8,
+      "iterations": 1,
+      "threshold": 8,
+      "primaryChars": 1063,
+      "draftLen": 1063,
+      "historyScores": [8],
+      "scoreMin": 8,
+      "scoreMax": 8
+    },
+    {
+      "n": 37,
+      "example": "critic-loop",
+      "topic": "How do I evaluate whether a small LLM is good enough for my use case?",
+      "topicShort": "How do I evaluate whether a small LLM is good enough for my ",
+      "httpCode": 200,
+      "durationMs": 8970.9,
+      "inputPayload": {
+        "topic": "How do I evaluate whether a small LLM is good enough for my use case?",
+        "threshold": 8,
+        "maxIterations": 3
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "score": 8,
+      "iterations": 3,
+      "threshold": 8,
+      "primaryChars": 1033,
+      "draftLen": 1033,
+      "historyScores": [7, 7, 8],
+      "scoreMin": 7,
+      "scoreMax": 8
+    },
+    {
+      "n": 38,
+      "example": "critic-loop",
+      "topic": "Explain the Model Context Protocol to a backend engineer in 150 words.",
+      "topicShort": "Explain the Model Context Protocol to a backend engineer in ",
+      "httpCode": 200,
+      "durationMs": 2648.8,
+      "inputPayload": {
+        "topic": "Explain the Model Context Protocol to a backend engineer in 150 words.",
+        "threshold": 8,
+        "maxIterations": 3
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "score": 8,
+      "iterations": 1,
+      "threshold": 8,
+      "primaryChars": 1006,
+      "draftLen": 1006,
+      "historyScores": [8],
+      "scoreMin": 8,
+      "scoreMax": 8
+    },
+    {
+      "n": 39,
+      "example": "critic-loop",
+      "topic": "What are the best practices for prompt caching in production LLM APIs?",
+      "topicShort": "What are the best practices for prompt caching in production",
+      "httpCode": 200,
+      "durationMs": 5843.9,
+      "inputPayload": {
+        "topic": "What are the best practices for prompt caching in production LLM APIs?",
+        "threshold": 8,
+        "maxIterations": 3
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "score": 8,
+      "iterations": 1,
+      "threshold": 8,
+      "primaryChars": 1152,
+      "draftLen": 1152,
+      "historyScores": [8],
+      "scoreMin": 8,
+      "scoreMax": 8
+    },
+    {
+      "n": 40,
+      "example": "critic-loop",
+      "topic": "When should I use a multi-agent system vs a single agent with tools?",
+      "topicShort": "When should I use a multi-agent system vs a single agent wit",
+      "httpCode": 200,
+      "durationMs": 7129.6,
+      "inputPayload": {
+        "topic": "When should I use a multi-agent system vs a single agent with tools?",
+        "threshold": 8,
+        "maxIterations": 3
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "score": 8,
+      "iterations": 2,
+      "threshold": 8,
+      "primaryChars": 990,
+      "draftLen": 990,
+      "historyScores": [7, 8],
+      "scoreMin": 7,
+      "scoreMax": 8
+    },
+    {
+      "n": 41,
+      "example": "multi-agent-handoff",
+      "topic": "What is the difference between RAG and fine-tuning?",
+      "topicShort": "What is the difference between RAG and fine-tuning?",
+      "httpCode": 200,
+      "durationMs": 3225.2,
+      "inputPayload": {
+        "message": "Where is my refund for order-1234?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 78,
+      "messageLen": 78,
+      "specialistResponseLen": 78,
+      "delegated": true,
+      "agentPath": ["primary", "specialist"]
+    },
+    {
+      "n": 42,
+      "example": "multi-agent-handoff",
+      "topic": "How do I evaluate whether a small LLM is good enough for my use case?",
+      "topicShort": "How do I evaluate whether a small LLM is good enough for my ",
+      "httpCode": 200,
+      "durationMs": 929.5,
+      "inputPayload": {
+        "message": "What is the status of order-5678?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 0,
+      "messageLen": 130,
+      "delegated": false,
+      "agentPath": ["primary"]
+    },
+    {
+      "n": 43,
+      "example": "multi-agent-handoff",
+      "topic": "Explain the Model Context Protocol to a backend engineer in 150 words.",
+      "topicShort": "Explain the Model Context Protocol to a backend engineer in ",
+      "httpCode": 200,
+      "durationMs": 964.1,
+      "inputPayload": {
+        "message": "How do I reset my password?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 0,
+      "messageLen": 132,
+      "delegated": false,
+      "agentPath": ["primary"]
+    },
+    {
+      "n": 44,
+      "example": "multi-agent-handoff",
+      "topic": "What are the best practices for prompt caching in production LLM APIs?",
+      "topicShort": "What are the best practices for prompt caching in production",
+      "httpCode": 200,
+      "durationMs": 798.9,
+      "inputPayload": {
+        "message": "What time does support close?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 0,
+      "messageLen": 75,
+      "delegated": false,
+      "agentPath": ["primary"]
+    },
+    {
+      "n": 45,
+      "example": "multi-agent-handoff",
+      "topic": "When should I use a multi-agent system vs a single agent with tools?",
+      "topicShort": "When should I use a multi-agent system vs a single agent wit",
+      "httpCode": 200,
+      "durationMs": 3325.5,
+      "inputPayload": {
+        "message": "Where is my refund for order-9999?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 118,
+      "messageLen": 134,
+      "specialistResponseLen": 118,
+      "delegated": true,
+      "agentPath": ["primary", "specialist"]
+    },
+    {
+      "n": 46,
+      "example": "mastra-memory",
+      "topic": "What is the difference between RAG and fine-tuning?",
+      "topicShort": "What is the difference between RAG and fine-tuning?",
+      "httpCode": 200,
+      "durationMs": 2286.5,
+      "inputPayload": {
+        "threadId": "eval-thread-0",
+        "resourceId": "eval-user",
+        "turn1": "My favorite programming language is Rust.",
+        "turn2": "What programming language did I say is my favorite?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 57,
+      "recalled": true,
+      "historyLength": 4
+    },
+    {
+      "n": 47,
+      "example": "mastra-memory",
+      "topic": "How do I evaluate whether a small LLM is good enough for my use case?",
+      "topicShort": "How do I evaluate whether a small LLM is good enough for my ",
+      "httpCode": 200,
+      "durationMs": 1697.1,
+      "inputPayload": {
+        "threadId": "eval-thread-1",
+        "resourceId": "eval-user",
+        "turn1": "My favorite programming language is TypeScript.",
+        "turn2": "What programming language did I say is my favorite?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 58,
+      "recalled": true,
+      "historyLength": 4
+    },
+    {
+      "n": 48,
+      "example": "mastra-memory",
+      "topic": "Explain the Model Context Protocol to a backend engineer in 150 words.",
+      "topicShort": "Explain the Model Context Protocol to a backend engineer in ",
+      "httpCode": 200,
+      "durationMs": 1515.2,
+      "inputPayload": {
+        "threadId": "eval-thread-2",
+        "resourceId": "eval-user",
+        "turn1": "My favorite programming language is Python.",
+        "turn2": "What programming language did I say is my favorite?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 54,
+      "recalled": true,
+      "historyLength": 4
+    },
+    {
+      "n": 49,
+      "example": "mastra-memory",
+      "topic": "What are the best practices for prompt caching in production LLM APIs?",
+      "topicShort": "What are the best practices for prompt caching in production",
+      "httpCode": 200,
+      "durationMs": 1575.2,
+      "inputPayload": {
+        "threadId": "eval-thread-3",
+        "resourceId": "eval-user",
+        "turn1": "My favorite programming language is Go.",
+        "turn2": "What programming language did I say is my favorite?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 50,
+      "recalled": true,
+      "historyLength": 4
+    },
+    {
+      "n": 50,
+      "example": "mastra-memory",
+      "topic": "When should I use a multi-agent system vs a single agent with tools?",
+      "topicShort": "When should I use a multi-agent system vs a single agent wit",
+      "httpCode": 200,
+      "durationMs": 1327.7,
+      "inputPayload": {
+        "threadId": "eval-thread-4",
+        "resourceId": "eval-user",
+        "turn1": "My favorite programming language is Elixir.",
+        "turn2": "What programming language did I say is my favorite?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "primaryChars": 54,
+      "recalled": true,
+      "historyLength": 4
+    },
+    {
+      "n": 51,
+      "example": "content-pipeline",
+      "topic": "What is the difference between RAG and fine-tuning?",
+      "topicShort": "What is the difference between RAG and fine-tuning?",
+      "httpCode": 200,
+      "durationMs": 10264.7,
+      "inputPayload": {
+        "topic": "What is the difference between RAG and fine-tuning?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "score": 8,
+      "primaryChars": 1066,
+      "draftLen": 1115,
+      "editedLen": 1066
+    },
+    {
+      "n": 52,
+      "example": "content-pipeline",
+      "topic": "How do I evaluate whether a small LLM is good enough for my use case?",
+      "topicShort": "How do I evaluate whether a small LLM is good enough for my ",
+      "httpCode": 200,
+      "durationMs": 11677.4,
+      "inputPayload": {
+        "topic": "How do I evaluate whether a small LLM is good enough for my use case?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "score": 9,
+      "primaryChars": 1120,
+      "draftLen": 1110,
+      "editedLen": 1120
+    },
+    {
+      "n": 53,
+      "example": "content-pipeline",
+      "topic": "Explain the Model Context Protocol to a backend engineer in 150 words.",
+      "topicShort": "Explain the Model Context Protocol to a backend engineer in ",
+      "httpCode": 200,
+      "durationMs": 9880.0,
+      "inputPayload": {
+        "topic": "Explain the Model Context Protocol to a backend engineer in 150 words."
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "score": 9,
+      "primaryChars": 943,
+      "draftLen": 1137,
+      "editedLen": 943
+    },
+    {
+      "n": 54,
+      "example": "content-pipeline",
+      "topic": "What are the best practices for prompt caching in production LLM APIs?",
+      "topicShort": "What are the best practices for prompt caching in production",
+      "httpCode": 200,
+      "durationMs": 9053.0,
+      "inputPayload": {
+        "topic": "What are the best practices for prompt caching in production LLM APIs?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "score": 9,
+      "primaryChars": 1158,
+      "draftLen": 1156,
+      "editedLen": 1158
+    },
+    {
+      "n": 55,
+      "example": "content-pipeline",
+      "topic": "When should I use a multi-agent system vs a single agent with tools?",
+      "topicShort": "When should I use a multi-agent system vs a single agent wit",
+      "httpCode": 200,
+      "durationMs": 9047.6,
+      "inputPayload": {
+        "topic": "When should I use a multi-agent system vs a single agent with tools?"
+      },
+      "workflowStatus": "success",
+      "errorPresent": false,
+      "score": 9,
+      "primaryChars": 1165,
+      "draftLen": 1255,
+      "editedLen": 1165
+    }
+  ]
+}

@@ -6,113 +6,196 @@
     <title>Mastra Playground</title>
     <link rel="stylesheet" href="/style.css" />
   </head>
-  <body>
-    <header>
-      <h1>Mastra Playground</h1>
-      <p class="subtitle">
-        Four small examples exercising Agent, Workflow, Tool, parallel execution, structured output, and live
-        tracing.
-      </p>
-      <p class="setup-hint">
-        Setup: <code>cp .env.example .env</code>, add <code>OPENAI_API_KEY</code>, then
-        <code>npm run serve</code>. Open this page at <code>http://localhost:8917</code>.
-      </p>
+  <body class="v2" data-active-example="parallel-research">
+    <!-- ── v2 top bar ── -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">◆</span>
+        <span class="brand-name">Mastra Playground</span>
+        <span class="brand-tag">v2 · wave 1</span>
+      </div>
+      <div class="topbar-center">
+        <button class="cmd-k" id="cmd-k" title="Search examples (⌘K)">
+          <span class="cmd-k-icon">⌕</span>
+          <span class="cmd-k-text">Search examples…</span>
+          <span class="cmd-k-keys"><kbd>⌘</kbd><kbd>K</kbd></span>
+        </button>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" title="Toggle theme" aria-label="Toggle theme">◐</button>
+        <button class="icon-btn" title="Open in new tab" aria-label="Open in new tab">↗</button>
+      </div>
     </header>
 
-    <nav class="tabs" role="tablist" aria-label="Examples">
-      <button
-        class="tab active"
-        data-tab="support-triage"
-        role="tab"
-        aria-selected="true"
-        aria-controls="panel-support-triage"
-        tabindex="0"
-      >
-        01 · Support Triage
-      </button>
-      <button
-        class="tab"
-        data-tab="research"
-        role="tab"
-        aria-selected="false"
-        aria-controls="panel-research"
-        tabindex="-1"
-      >
-        02 · Research Agent
-      </button>
-      <button
-        class="tab"
-        data-tab="code-review"
-        role="tab"
-        aria-selected="false"
-        aria-controls="panel-code-review"
-        tabindex="-1"
-      >
-        03 · Code Review
-      </button>
-      <button
-        class="tab"
-        data-tab="parallel-research"
-        role="tab"
-        aria-selected="false"
-        aria-controls="panel-parallel-research"
-        tabindex="-1"
-      >
-        04 · Parallel Research
-      </button>
-      <button
-        class="tab"
-        data-tab="multi-turn-chat"
-        role="tab"
-        aria-selected="false"
-        aria-controls="panel-multi-turn-chat"
-        tabindex="-1"
-      >
-        05 · Multi-turn Chat
-      </button>
-      <button
-        class="tab"
-        data-tab="hitl-approval"
-        role="tab"
-        aria-selected="false"
-        aria-controls="panel-hitl-approval"
-        tabindex="-1"
-      >
-        06 · Human-in-the-Loop
-      </button>
-      <button
-        class="tab"
-        data-tab="streaming-chat"
-        role="tab"
-        aria-selected="false"
-        aria-controls="panel-streaming-chat"
-        tabindex="-1"
-      >
-        07 · Streaming Chat
-      </button>
-      <button
-        class="tab"
-        data-tab="critic-loop"
-        role="tab"
-        aria-selected="false"
-        aria-controls="panel-critic-loop"
-        tabindex="-1"
-      >
-        08 · Critic Loop
-      </button>
-      <button
-        class="tab"
-        data-tab="multi-agent-handoff"
-        role="tab"
-        aria-selected="false"
-        aria-controls="panel-multi-agent-handoff"
-        tabindex="-1"
-      >
-        09 · Multi-Agent Handoff
-      </button>
-    </nav>
+    <div class="v2-layout">
+      <!-- ── v2 left rail ── -->
+      <aside class="rail" aria-label="Examples">
+        <div class="rail-section">
+          <div class="rail-heading">Primitives</div>
+          <ul class="rail-list rail-primitives">
+            <li><span class="prim-dot prim-agent"></span>Agent <span class="rail-count">4</span></li>
+            <li><span class="prim-dot prim-workflow"></span>Workflow <span class="rail-count">5</span></li>
+            <li><span class="prim-dot prim-tool"></span>Tool <span class="rail-count">3</span></li>
+            <li><span class="prim-dot prim-memory"></span>Memory <span class="rail-count">2</span></li>
+            <li><span class="prim-dot prim-hitl"></span>HITL <span class="rail-count">1</span></li>
+            <li><span class="prim-dot prim-stream"></span>Streaming <span class="rail-count">1</span></li>
+          </ul>
+        </div>
 
-    <main>
+        <div class="rail-section">
+          <div class="rail-heading">Examples <span class="rail-count rail-count-muted">11</span></div>
+          <ul class="rail-list rail-examples" id="rail-examples">
+            <li><button type="button" class="rail-ex" data-example="support-triage">
+              <span class="rail-ex-num">01</span><span class="rail-ex-name">Support Triage</span>
+              <span class="prim-tag prim-tag-branch">branch</span>
+            </button></li>
+            <li><button type="button" class="rail-ex" data-example="research">
+              <span class="rail-ex-num">02</span><span class="rail-ex-name">Research Agent</span>
+              <span class="prim-tag prim-tag-agent">agent</span>
+            </button></li>
+            <li><button type="button" class="rail-ex" data-example="code-review">
+              <span class="rail-ex-num">03</span><span class="rail-ex-name">Code Review</span>
+              <span class="prim-tag prim-tag-workflow">workflow</span>
+            </button></li>
+            <li><button type="button" class="rail-ex rail-ex-active" data-example="parallel-research" aria-current="page">
+              <span class="rail-ex-num">04</span><span class="rail-ex-name">Parallel Research</span>
+              <span class="prim-tag prim-tag-tool">parallel</span>
+            </button></li>
+            <li><button type="button" class="rail-ex" data-example="multi-turn-chat">
+              <span class="rail-ex-num">05</span><span class="rail-ex-name">Multi-turn Chat</span>
+              <span class="prim-tag prim-tag-agent">agent</span>
+            </button></li>
+            <li><button type="button" class="rail-ex" data-example="hitl-approval">
+              <span class="rail-ex-num">06</span><span class="rail-ex-name">HITL Approval</span>
+              <span class="prim-tag prim-tag-hitl">hitl</span>
+            </button></li>
+            <li><button type="button" class="rail-ex" data-example="streaming-chat">
+              <span class="rail-ex-num">07</span><span class="rail-ex-name">Streaming Chat</span>
+              <span class="prim-tag prim-tag-stream">stream</span>
+            </button></li>
+            <li><button type="button" class="rail-ex" data-example="critic-loop">
+              <span class="rail-ex-num">08</span><span class="rail-ex-name">Critic Loop</span>
+              <span class="prim-tag prim-tag-loop">loop</span>
+            </button></li>
+            <li><button type="button" class="rail-ex" data-example="multi-agent-handoff">
+              <span class="rail-ex-num">09</span><span class="rail-ex-name">Multi-Agent Handoff</span>
+              <span class="prim-tag prim-tag-agent">agent</span>
+            </button></li>
+            <li><button type="button" class="rail-ex" data-example="mastra-memory">
+              <span class="rail-ex-num">10</span><span class="rail-ex-name">Mastra Memory</span>
+              <span class="prim-tag prim-tag-memory">memory</span>
+            </button></li>
+            <li><button type="button" class="rail-ex" data-example="content-pipeline">
+              <span class="rail-ex-num">11</span><span class="rail-ex-name">Content Pipeline</span>
+              <span class="prim-tag prim-tag-workflow">workflow</span>
+            </button></li>
+          </ul>
+        </div>
+      </aside>
+
+      <!-- ── workspace ── -->
+      <main>
+        <!-- v2 workspace: shown only when example is parallel-research (Wave 1) -->
+        <article class="workspace-v2" id="workspace-v2-04" data-shell="v2" data-example="parallel-research">
+          <div class="ex-header">
+            <div class="ex-header-titles">
+              <div class="ex-kicker">Example 04</div>
+              <h1 class="ex-title">Parallel Research</h1>
+              <p class="ex-desc">
+                One step fans out to <strong>3 sources in parallel</strong> via <code>Promise.all</code>,
+                then an LLM synthesizes the results. Watch the trace light up
+                <em>one</em> <code>step:start</code> → <em>three</em> <code>tool:call</code>
+                events in quick succession → <em>one</em> <code>step:end</code>.
+              </p>
+            </div>
+            <div class="ex-header-controls">
+              <label class="model-picker">
+                <span class="model-label">Model</span>
+                <select id="v2-model-select">
+                  <option value="openai/gpt-4o-mini">gpt-4o-mini · default</option>
+                  <option value="anthropic/claude-3-5-haiku">claude-3-5-haiku</option>
+                  <option value="meta-llama/llama-3.1-8b-instruct">llama-3.1-8b-instruct</option>
+                  <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001</option>
+                </select>
+              </label>
+              <button class="icon-btn" title="Settings" aria-label="Settings">⚙</button>
+            </div>
+          </div>
+
+          <div class="v2-grid">
+            <!-- input rail -->
+            <aside class="input-rail">
+              <form id="v2-form" data-form-v2="parallel-research">
+                <details class="input-section" open>
+                  <summary>Topic</summary>
+                  <textarea id="v2-input" name="topic" rows="3" required>hybrid search with BM25 and vector reranking</textarea>
+                </details>
+                <details class="input-section">
+                  <summary>Samples</summary>
+                  <div class="chips">
+                    <button type="button" class="chip" data-fill-v2="v2-input" data-value="hybrid search with BM25 and vector reranking">hybrid search</button>
+                    <button type="button" class="chip" data-fill-v2="v2-input" data-value="prompt caching for LLM APIs">prompt caching</button>
+                    <button type="button" class="chip" data-fill-v2="v2-input" data-value="RAG evaluation metrics">RAG eval</button>
+                  </div>
+                </details>
+                <details class="input-section">
+                  <summary>Recent runs <span class="muted" id="v2-recent-count">(0)</span></summary>
+                  <div class="recent" id="v2-recent-list"></div>
+                </details>
+                <button type="submit" class="run-btn">
+                  <span class="run-icon">▶</span>
+                  Run
+                  <span class="run-shortcut">⌘↵</span>
+                </button>
+              </form>
+            </aside>
+
+            <!-- fused trace pane -->
+            <section class="trace-v2" aria-label="Trace">
+              <div class="trace-tabs">
+                <button type="button" class="trace-tab trace-tab-active" data-v2-tab="trace">Trace</button>
+                <button type="button" class="trace-tab" data-v2-tab="graph">Graph</button>
+                <button type="button" class="trace-tab" data-v2-tab="events">Events</button>
+                <div class="trace-tabs-right">
+                  <span class="trace-stat"><span class="dot dot-green"></span><span id="v2-stat-done">0 done</span></span>
+                  <span class="trace-stat"><span class="dot dot-blue"></span><span id="v2-stat-active">idle</span></span>
+                  <span class="trace-stat trace-stat-time" id="v2-stat-time">— · —</span>
+                </div>
+              </div>
+              <div class="trace-graph" id="v2-graph"></div>
+              <div class="trace-timeline" id="v2-timeline">
+                <div class="tl-row" data-step="">
+                  <span class="tl-ts">—</span>
+                  <span class="tl-kind tl-kind-step">step</span>
+                  <span class="tl-msg">Submit a topic to start the workflow.</span>
+                  <span class="tl-step">idle</span>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <!-- output panel -->
+          <section class="output-v2" aria-label="Output">
+            <div class="output-tabs">
+              <button type="button" class="output-tab output-tab-active" data-v2-output-tab="result">Result</button>
+              <button type="button" class="output-tab" data-v2-output-tab="sources">Sources (<span id="v2-source-count">0</span>)</button>
+              <button type="button" class="output-tab" data-v2-output-tab="json">Raw JSON</button>
+              <button type="button" class="output-tab" data-v2-output-tab="compare">Compare with prior</button>
+              <div class="output-tabs-right">
+                <button type="button" class="icon-btn" id="v2-copy-btn" title="Copy as Markdown" aria-label="Copy as Markdown">⧉</button>
+              </div>
+            </div>
+            <div class="output-body">
+              <article class="prose" id="v2-output-body">
+                <p class="muted">Run the workflow to see the synthesized answer.</p>
+              </article>
+            </div>
+          </section>
+        </article>
+
+        <!-- v1 workspace: hosts the existing 11 panels (one visible at a time) -->
+        <div class="workspace-v1" id="workspace-v1" data-shell="v1">
+          <!-- hidden by default; JS toggles .workspace-v1-active to show -->
       <!-- ── 01 Support Triage ── -->
       <section class="panel active" id="panel-support-triage" role="tabpanel">
         <h2>Support Triage</h2>
@@ -780,10 +863,10 @@ What is the difference between an AI agent and an AI workflow?</textarea
       <section class="panel" id="panel-multi-agent-handoff" role="tabpanel" hidden>
         <h2>Multi-Agent Handoff</h2>
         <p class="panel-desc">
-          A <strong>triage agent</strong> handles the customer's first message. If the question
-          is about billing, it calls a tool that <strong>hands off</strong> to a specialist
-          agent with a narrower prompt and focused tools. Watch the trace for the
-          <code>specialist</code> step firing only when delegation occurs.
+          A <strong>triage agent</strong> handles the customer's first message. If the question is about
+          billing, it calls a tool that <strong>hands off</strong> to a specialist agent with a narrower
+          prompt and focused tools. Watch the trace for the <code>specialist</code> step firing only when
+          delegation occurs.
         </p>
         <div class="layout">
           <div class="col-form">
@@ -796,12 +879,42 @@ What is the difference between an AI agent and an AI workflow?</textarea
                 rows="3"
                 required
                 placeholder="Ask a support question…"
-              >Where is my refund for order-1234?</textarea>
+              >
+Where is my refund for order-1234?</textarea
+              >
               <div class="samples">
-                <button type="button" class="sample-btn" data-fill="handoff-message" data-value="Where is my refund for order-1234?">refund (delegates)</button>
-                <button type="button" class="sample-btn" data-fill="handoff-message" data-value="What's the status of order-5678?">order status (delegates)</button>
-                <button type="button" class="sample-btn" data-fill="handoff-message" data-value="How do I reset my password?">password (no delegate)</button>
-                <button type="button" class="sample-btn" data-fill="handoff-message" data-value="What time does support close?">hours (no delegate)</button>
+                <button
+                  type="button"
+                  class="sample-btn"
+                  data-fill="handoff-message"
+                  data-value="Where is my refund for order-1234?"
+                >
+                  refund (delegates)
+                </button>
+                <button
+                  type="button"
+                  class="sample-btn"
+                  data-fill="handoff-message"
+                  data-value="What's the status of order-5678?"
+                >
+                  order status (delegates)
+                </button>
+                <button
+                  type="button"
+                  class="sample-btn"
+                  data-fill="handoff-message"
+                  data-value="How do I reset my password?"
+                >
+                  password (no delegate)
+                </button>
+                <button
+                  type="button"
+                  class="sample-btn"
+                  data-fill="handoff-message"
+                  data-value="What time does support close?"
+                >
+                  hours (no delegate)
+                </button>
               </div>
               <button type="submit" class="run-btn">Send to triage</button>
               <button type="button" class="settings-toggle" data-toggle-settings="multi-agent-handoff">
@@ -830,7 +943,150 @@ What is the difference between an AI agent and an AI workflow?</textarea
           </div>
         </div>
       </section>
-    </main>
+
+      <!-- ── 10 Mastra Memory ── -->
+      <section class="panel" id="panel-mastra-memory" role="tabpanel" hidden>
+        <h2>Mastra Memory</h2>
+        <p class="panel-desc">
+          Uses the real <code>@mastra/memory</code> <code>Memory</code> class with
+          <code>@mastra/core/storage</code>'s <code>InMemoryStore</code>. The same
+          <code>threadId</code> across two turns → second turn recalls what was said in the first. A different
+          <code>threadId</code> → fresh conversation.
+        </p>
+        <div class="layout">
+          <div class="col-form">
+            <div class="recent-runs" data-recent="mastra-memory"></div>
+            <form data-form="mastra-memory">
+              <label for="mem-threadId">Thread ID</label>
+              <input type="text" id="mem-threadId" name="threadId" required value="thread-demo-1" />
+              <label for="mem-resourceId">Resource ID (user/tenant)</label>
+              <input type="text" id="mem-resourceId" name="resourceId" value="user-1" />
+              <label for="mem-turn1">Turn 1 (set context)</label>
+              <textarea id="mem-turn1" name="turn1" rows="2">
+My name is Ada and my favorite color is teal.</textarea
+              >
+              <label for="mem-turn2">Turn 2 (recall)</label>
+              <textarea id="mem-turn2" name="turn2" rows="2">
+What is my name and what is my favorite color?</textarea
+              >
+              <button type="submit" class="run-btn">Run 2-turn demo</button>
+              <button type="button" class="settings-toggle" data-toggle-settings="mastra-memory">
+                ⚙ Settings
+              </button>
+              <div class="settings-panel" data-settings="mastra-memory" hidden>
+                <label>
+                  Model
+                  <select data-setting="model" data-for="mastra-memory">
+                    <option value="openai/gpt-4o-mini">gpt-4o-mini (default)</option>
+                    <option value="anthropic/claude-3-5-haiku">claude-3-5-haiku</option>
+                    <option value="meta-llama/llama-3.1-8b-instruct">llama-3.1-8b-instruct</option>
+                    <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001</option>
+                  </select>
+                </label>
+              </div>
+            </form>
+          </div>
+          <div class="col-trace">
+            <div class="trace-header">Workflow trace</div>
+            <div class="trace-graph" id="graph-mastra-memory"></div>
+            <div class="trace-events" id="events-mastra-memory"></div>
+          </div>
+          <div class="col-output" data-output="mastra-memory">
+            <div class="output-empty">Run the 2-turn demo to see memory in action.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 11 Content Pipeline ── -->
+      <section class="panel" id="panel-content-pipeline" role="tabpanel" hidden>
+        <h2>Content Pipeline</h2>
+        <p class="panel-desc">
+          Three agents run in sequence as separate workflow steps:
+          <strong>researcher</strong> gathers facts and sources, <strong>writer</strong> drafts ~150 words,
+          and <strong>editor</strong> polishes and scores 0-10. Each agent has a narrow role prompt instead of
+          one generalist doing everything. Compare to <code>02-research-agent</code> where one agent does it
+          all.
+        </p>
+        <div class="layout">
+          <div class="col-form">
+            <div class="recent-runs" data-recent="content-pipeline"></div>
+            <form data-form="content-pipeline">
+              <label for="pipeline-topic">Topic</label>
+              <textarea
+                id="pipeline-topic"
+                name="topic"
+                rows="3"
+                required
+                placeholder="A topic to research, write, and edit…"
+              >
+Why is prompt caching essential for production LLM APIs?</textarea
+              >
+
+              <label for="pipeline-audience">Audience (optional)</label>
+              <input
+                type="text"
+                id="pipeline-audience"
+                name="audience"
+                placeholder="technical readers"
+                value="technical readers"
+              />
+
+              <div class="samples">
+                <button
+                  type="button"
+                  class="sample-btn"
+                  data-fill="pipeline-topic"
+                  data-value="Why is prompt caching essential for production LLM APIs?"
+                >
+                  prompt caching
+                </button>
+                <button
+                  type="button"
+                  class="sample-btn"
+                  data-fill="pipeline-topic"
+                  data-value="How do I evaluate whether a small LLM is good enough for my use case?"
+                >
+                  eval small LLM
+                </button>
+                <button
+                  type="button"
+                  class="sample-btn"
+                  data-fill="pipeline-topic"
+                  data-value="When should I use a multi-agent system vs a single agent with tools?"
+                >
+                  multi vs single agent
+                </button>
+              </div>
+              <button type="submit" class="run-btn">Run pipeline</button>
+              <button type="button" class="settings-toggle" data-toggle-settings="content-pipeline">
+                ⚙ Settings
+              </button>
+              <div class="settings-panel" data-settings="content-pipeline" hidden>
+                <label>
+                  Model
+                  <select data-setting="model" data-for="content-pipeline">
+                    <option value="openai/gpt-4o-mini">gpt-4o-mini (default)</option>
+                    <option value="anthropic/claude-3-5-haiku">claude-3-5-haiku</option>
+                    <option value="meta-llama/llama-3.1-8b-instruct">llama-3.1-8b-instruct</option>
+                    <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001</option>
+                  </select>
+                </label>
+              </div>
+            </form>
+          </div>
+          <div class="col-trace">
+            <div class="trace-header">Workflow trace</div>
+            <div class="trace-graph" id="graph-content-pipeline"></div>
+            <div class="trace-events" id="events-content-pipeline"></div>
+          </div>
+          <div class="col-output" data-output="content-pipeline">
+            <div class="output-empty">Run the pipeline to see research, draft, and edited output.</div>
+          </div>
+        </div>
+      </section>
+        </div><!-- /.workspace-v1 -->
+      </main>
+    </div><!-- /.v2-layout -->
 
     <!-- History slide-over -->
     <div

@@ -231,11 +231,42 @@ const GRAPHS = {
     nodes: [
       { id: 'input', label: 'Customer message', kind: 'input', x: 60, y: 60 },
       { id: 'primary', label: 'Triage agent', kind: 'llm', x: 60, y: 180, label2: 'routes' },
-      { id: 'specialist', label: 'Billing specialist', kind: 'llm', x: 200, y: 320, label2: 'on delegate only' },
+      {
+        id: 'specialist',
+        label: 'Billing specialist',
+        kind: 'llm',
+        x: 200,
+        y: 320,
+        label2: 'on delegate only',
+      },
     ],
     edges: [
       { from: 'input', to: 'primary' },
       { from: 'primary', to: 'specialist', label: 'handoff', when: { kind: 'delegated' } },
+    ],
+  },
+  'mastra-memory': {
+    nodes: [
+      { id: 'input', label: 'Thread + turns', kind: 'input', x: 60, y: 60 },
+      { id: 'turn1', label: 'Turn 1 (set context)', kind: 'llm', x: 60, y: 180 },
+      { id: 'turn2', label: 'Turn 2 (recall)', kind: 'llm', x: 60, y: 320, label2: 'same threadId' },
+    ],
+    edges: [
+      { from: 'input', to: 'turn1' },
+      { from: 'turn1', to: 'turn2', label: 'memory loaded' },
+    ],
+  },
+  'content-pipeline': {
+    nodes: [
+      { id: 'input', label: 'Topic', kind: 'input', x: 60, y: 60 },
+      { id: 'research', label: 'Researcher', kind: 'llm', x: 60, y: 180, label2: 'facts + sources' },
+      { id: 'write', label: 'Writer', kind: 'llm', x: 60, y: 320, label2: '~150 words' },
+      { id: 'edit', label: 'Editor', kind: 'llm', x: 60, y: 460, label2: 'score 0-10' },
+    ],
+    edges: [
+      { from: 'input', to: 'research' },
+      { from: 'research', to: 'write' },
+      { from: 'write', to: 'edit' },
     ],
   },
 };
@@ -814,6 +845,12 @@ function summarizeResult(example, result) {
   if (example === 'multi-agent-handoff' && result) {
     return result.delegated ? 'delegated' : 'answered directly';
   }
+  if (example === 'mastra-memory' && result) {
+    return result.recalled ? 'recalled' : 'forgot';
+  }
+  if (example === 'content-pipeline' && result) {
+    return typeof result.score === 'number' ? `${result.score}/10` : 'ok';
+  }
   return 'ok';
 }
 
@@ -1068,6 +1105,8 @@ function renderFinalResult(name, el, json) {
   if (name === 'multi-turn-chat') return renderChat(el, r);
   if (name === 'hitl-approval') return renderHitl(el, r);
   if (name === 'multi-agent-handoff') return renderMultiAgentHandoff(el, r);
+  if (name === 'mastra-memory') return renderMastraMemory(el, r);
+  if (name === 'content-pipeline') return renderContentPipeline(el, r);
 }
 
 function renderTriage(el, r) {
@@ -1491,9 +1530,12 @@ function renderMultiAgentHandoff(el, r) {
     <div class="output-section">
       <h3>Agent path</h3>
       <div class="agent-path">
-        ${(o.agentPath || []).map((a, i) =>
-          `<span class="agent-tag">${escapeHtml(a)}</span>${i < o.agentPath.length - 1 ? '<span class="agent-arrow">→</span>' : ''}`
-        ).join('')}
+        ${(o.agentPath || [])
+          .map(
+            (a, i) =>
+              `<span class="agent-tag">${escapeHtml(a)}</span>${i < o.agentPath.length - 1 ? '<span class="agent-arrow">→</span>' : ''}`,
+          )
+          .join('')}
       </div>
     </div>
     <div class="output-section">
@@ -1503,15 +1545,285 @@ function renderMultiAgentHandoff(el, r) {
         <div class="value">${delegated ? '✅ yes' : '❌ no'}</div>
       </div>
     </div>
-    ${o.specialistResponse ? `
+    ${
+      o.specialistResponse
+        ? `
     <div class="output-section">
       <h3>Specialist response</h3>
       <div class="review-text">${escapeHtml(o.specialistResponse)}</div>
     </div>
-    ` : ''}
+    `
+        : ''
+    }
     <div class="output-section">
       <h3>Final answer to customer</h3>
       <div class="review-text">${escapeHtml(o.message)}</div>
     </div>
   `;
 }
+
+// ============================================================
+// v2 SHELL — Wave 1 (example 04 only)
+// ============================================================
+
+(function () {
+  const body = document.body;
+  const v1Workspace = $('#workspace-v1');
+  const v2Workspace = $('#workspace-v2-04');
+  const v2GraphEl = $('#v2-graph');
+  const v2TimelineEl = $('#v2-timeline');
+  const v2Form = $('#v2-form');
+  const v2Input = $('#v2-input');
+  const v2ModelSelect = $('#v2-model-select');
+  const v2OutputBody = $('#v2-output-body');
+  const v2StatDone = $('#v2-stat-done');
+  const v2StatActive = $('#v2-stat-active');
+  const v2StatTime = $('#v2-stat-time');
+  const v2SourceCount = $('#v2-source-count');
+
+  // ── 1. Render the example 04 graph into the v2 trace pane on load.
+  // We can reuse the existing GRAPHS['parallel-research'] definition and the
+  // existing renderGraph() helper — they're already in this file's closure.
+  const v2GraphRef = (typeof GRAPHS !== 'undefined' && GRAPHS['parallel-research'])
+    ? GRAPHS['parallel-research']
+    : null;
+  if (v2GraphEl && v2GraphRef) {
+    renderGraph('v2-graph', v2GraphRef);
+  }
+
+  function v2ResetGraph() {
+    if (!v2GraphRef) return;
+    for (const node of v2GraphRef.nodes) {
+      const g = document.querySelector(`#v2-graph [data-node="${node.id}"]`);
+      if (!g) continue;
+      g.classList.remove('active', 'done', 'skipped');
+    }
+    v2StatDone.textContent = '0 done';
+    v2StatActive.textContent = 'idle';
+    v2StatTime.textContent = '— · —';
+  }
+
+  function v2MarkNode(nodeId, cls) {
+    const g = document.querySelector(`#v2-graph [data-node="${nodeId}"]`);
+    if (!g) return;
+    g.classList.remove('active', 'done', 'skipped');
+    g.classList.add(cls);
+  }
+
+  function v2CountDone() {
+    if (!v2GraphRef) return 0;
+    return v2GraphRef.nodes.filter((n) => {
+      const g = document.querySelector(`#v2-graph [data-node="${n.id}"]`);
+      return g && g.classList.contains('done');
+    }).length;
+  }
+
+  // ── 2. Append a row to the timeline.
+  function v2AppendTimeline({ kind, ts, msg, step, active }) {
+    const row = document.createElement('div');
+    row.className = 'tl-row';
+    if (active) row.classList.add('tl-active');
+    if (step) row.setAttribute('data-step', step);
+    row.innerHTML = `
+      <span class="tl-ts">${escapeHtml(formatSec(ts))}</span>
+      <span class="tl-kind tl-kind-${escapeHtml(kind)}">${escapeHtml(kind)}</span>
+      <span class="tl-msg">${escapeHtml(msg)}</span>
+      <span class="tl-step">${escapeHtml(step || '')}</span>
+    `;
+    v2TimelineEl.appendChild(row);
+    v2TimelineEl.scrollTop = v2TimelineEl.scrollHeight;
+  }
+
+  function formatSec(ms) {
+    if (ms == null || Number.isNaN(ms)) return '—';
+    return (ms / 1000).toFixed(2) + 's';
+  }
+
+  // ── 3. Output rendering (Result tab). Sources/JSON/Compare are stubs
+  // for Wave 1 — the panels exist but show a "coming soon" note.
+  function v2RenderOutput(result, totalMs) {
+    v2StatTime.textContent = `${formatSec(totalMs)} · done`;
+    const answer = result?.output?.answer
+      || result?.answer
+      || result?.output?.message
+      || '';
+    const sources = result?.output?.sources || [];
+    if (sources.length) {
+      v2SourceCount.textContent = String(sources.length);
+    }
+    const safe = escapeHtml(answer || '(no answer field in output)');
+    v2OutputBody.innerHTML = answer
+      ? `<p>${safe.replace(/\n\n/g, '</p><p>')}</p>
+         <p class="muted">Streamed in ${formatSec(totalMs)} · ${escapeHtml(String(sources.length))} sources synthesized.</p>`
+      : `<p class="muted">(No output shape matched. See Raw JSON tab — Wave 1 only renders the Result prose.)</p>`;
+  }
+
+  function v2RenderError(err) {
+    v2OutputBody.innerHTML = `<p class="muted">⚠ ${escapeHtml(String(err || 'Unknown error'))}</p>`;
+    v2StatTime.textContent = 'failed';
+  }
+
+  // ── 4. Sample-chip and keyboard handlers for the v2 form.
+  $$('button[data-fill-v2]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const target = document.getElementById(btn.dataset.fillV2);
+      if (target) target.value = btn.dataset.value;
+    });
+  });
+
+  // ── 5. Form submit: open SSE stream, render trace + output.
+  if (v2Form) {
+    v2Form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const submitBtn = v2Form.querySelector('.run-btn');
+      if (submitBtn) submitBtn.disabled = true;
+      v2TimelineEl.innerHTML = '';
+      v2OutputBody.innerHTML = '<p class="muted">Running…</p>';
+      v2ResetGraph();
+
+      const topic = v2Input.value.trim();
+      const settings = { model: v2ModelSelect.value };
+      const requestBody = { topic, ...settings };
+
+      const start = performance.now();
+      const url = `/api/stream/parallel-research?input=${encodeURIComponent(JSON.stringify(requestBody))}`;
+      let result = null;
+      let totalMs = 0;
+
+      const evtSource = new EventSource(url);
+      const collected = [];
+
+      evtSource.onmessage = (e) => {
+        let ev2;
+        try { ev2 = JSON.parse(e.data); } catch { return; }
+        collected.push(ev2);
+
+        // Mark node active on step:start, done on step:end
+        const stepId = ev2.stepId || ev2.step;
+        if (ev2.type === 'step:start' && stepId) {
+          v2MarkNode(stepId, 'active');
+          v2StatActive.textContent = stepId;
+          v2AppendTimeline({ kind: 'step', ts: performance.now() - start, msg: `${stepId} started`, step: stepId, active: true });
+        } else if (ev2.type === 'step:end' && stepId) {
+          v2MarkNode(stepId, 'done');
+          v2StatActive.textContent = 'idle';
+          v2StatDone.textContent = `${v2CountDone()} done`;
+          v2AppendTimeline({ kind: 'step', ts: performance.now() - start, msg: `${stepId} done`, step: stepId });
+        } else if (ev2.type === 'tool:call') {
+          v2AppendTimeline({ kind: 'tool', ts: performance.now() - start, msg: `↳ ${ev2.tool || 'tool'} ${ev2.summary || ''}`, step: stepId });
+        } else if (ev2.type === 'llm:start' && stepId) {
+          v2MarkNode(stepId, 'active');
+          v2StatActive.textContent = stepId;
+          v2AppendTimeline({ kind: 'llm', ts: performance.now() - start, msg: `${stepId} (LLM) started`, step: stepId, active: true });
+        } else if (ev2.type === 'llm:end' && stepId) {
+          v2MarkNode(stepId, 'done');
+          v2StatActive.textContent = 'idle';
+          v2StatDone.textContent = `${v2CountDone()} done`;
+          v2AppendTimeline({ kind: 'llm', ts: performance.now() - start, msg: `${stepId} (LLM) done`, step: stepId });
+        }
+
+        if (ev2.type === 'done') {
+          totalMs = ev2.totalMs || (performance.now() - start);
+          result = ev2.result ?? ev2.output ?? null;
+          evtSource.close();
+          if (submitBtn) submitBtn.disabled = false;
+          if (ev2.status === 'success') {
+            v2RenderOutput({ output: result }, totalMs);
+          } else {
+            v2RenderError(ev2.error || result?.error || 'workflow failed');
+          }
+        }
+      };
+
+      evtSource.onerror = () => {
+        evtSource.close();
+        if (submitBtn) submitBtn.disabled = false;
+        if (!result) {
+          v2RenderError('SSE stream disconnected before workflow completed.');
+        }
+      };
+    });
+  }
+
+  // ── 6. Rail navigation: clicking an example in the v1 list activates
+  // that v1 panel. Clicking the v2 example (parallel-research) shows the
+  // v2 workspace. Other examples hide both, then show v1 with the
+  // matching panel active.
+  const railEls = $$('#rail-examples .rail-ex');
+  railEls.forEach((el) => {
+    el.addEventListener('click', () => {
+      const example = el.dataset.example;
+      // Update rail active state
+      railEls.forEach((r) => r.classList.remove('rail-ex-active'));
+      el.classList.add('rail-ex-active');
+      body.dataset.activeExample = example;
+
+      if (example === 'parallel-research') {
+        // Show v2 workspace
+        v1Workspace.classList.remove('workspace-v1-active');
+        v2Workspace.classList.add('workspace-v2-active');
+        // Hide all v1 panels
+        $$('.workspace-v1 .panel').forEach((p) => {
+          p.classList.remove('active');
+          p.hidden = true;
+        });
+        return;
+      }
+
+      // Show v1 workspace with the matching panel active
+      v2Workspace.classList.remove('workspace-v2-active');
+      v1Workspace.classList.add('workspace-v1-active');
+      $$('.workspace-v1 .panel').forEach((p) => {
+        const matches = p.id === `panel-${example}`;
+        p.classList.toggle('active', matches);
+        p.hidden = !matches;
+      });
+
+      // Defer to the existing tab activation so settings, etc. initialize
+      if (typeof activateTab === 'function') {
+        try { activateTab(example); } catch { /* best-effort */ }
+      }
+    });
+  });
+
+  // ── 7. ⌘K flashes the search bar; ⌘↵ triggers Run on the v2 form.
+  document.addEventListener('keydown', (ev) => {
+    const isMod = ev.metaKey || ev.ctrlKey;
+    if (isMod && ev.key.toLowerCase() === 'k') {
+      ev.preventDefault();
+      const cmd = $('#cmd-k');
+      if (cmd) {
+        cmd.style.borderColor = 'var(--accent)';
+        cmd.style.boxShadow = '0 0 0 3px rgba(88,166,255,0.18)';
+        setTimeout(() => { cmd.style.borderColor = ''; cmd.style.boxShadow = ''; }, 600);
+      }
+    }
+    if (isMod && ev.key === 'Enter') {
+      // Only trigger when v2 is active
+      if (v2Workspace.classList.contains('workspace-v2-active') && v2Form) {
+        ev.preventDefault();
+        v2Form.requestSubmit();
+      }
+    }
+  });
+
+  // ── 8. On load: make v2 visible by default (parallel-research is
+  // pre-selected in the rail). Hide every v1 panel so they don't peek
+  // through. Mark v1 as the workspace for any non-v2 example.
+  $$('.workspace-v1 .panel').forEach((p) => {
+    p.classList.remove('active');
+    p.hidden = true;
+  });
+  v2Workspace.classList.add('workspace-v2-active');
+
+  // Output tabs are stubs in Wave 1 — Result is the only wired tab.
+  $$('button[data-v2-output-tab]').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const which = tab.dataset.v2OutputTab;
+      $$('button[data-v2-output-tab]').forEach((t) => t.classList.remove('output-tab-active'));
+      tab.classList.add('output-tab-active');
+      if (which === 'result') return;
+      v2OutputBody.innerHTML = `<p class="muted">${escapeHtml(which)} tab — coming in Wave 2. Result is wired for Wave 1.</p>`;
+    });
+  });
+})();

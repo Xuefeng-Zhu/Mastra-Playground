@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mastra Playground — Mockup · Example 04 Parallel Research</title>
+    <link rel="stylesheet" href="mockup.css" />
+  </head>
+  <body>
+    <!-- ── Top bar ── -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">◆</span>
+        <span class="brand-name">Mastra Playground</span>
+        <span class="brand-tag">v2 preview · example 04</span>
+      </div>
+      <div class="topbar-center">
+        <button class="cmd-k" title="Search examples (⌘K)">
+          <span class="cmd-k-icon">⌕</span>
+          <span class="cmd-k-text">Search examples…</span>
+          <span class="cmd-k-keys"><kbd>⌘</kbd><kbd>K</kbd></span>
+        </button>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" title="Toggle theme">◐</button>
+        <button class="icon-btn" title="Open playground">↗</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- ── Left rail ── -->
+      <aside class="rail" aria-label="Examples">
+        <div class="rail-section">
+          <div class="rail-heading">Primitives</div>
+          <ul class="rail-list rail-primitives">
+            <li><span class="prim-dot prim-agent"></span>Agent <span class="rail-count">4</span></li>
+            <li><span class="prim-dot prim-workflow"></span>Workflow <span class="rail-count">5</span></li>
+            <li><span class="prim-dot prim-tool"></span>Tool <span class="rail-count">3</span></li>
+            <li><span class="prim-dot prim-memory"></span>Memory <span class="rail-count">2</span></li>
+            <li><span class="prim-dot prim-hitl"></span>HITL <span class="rail-count">1</span></li>
+            <li><span class="prim-dot prim-stream"></span>Streaming <span class="rail-count">1</span></li>
+          </ul>
+        </div>
+
+        <div class="rail-section">
+          <div class="rail-heading">Examples <span class="rail-count rail-count-muted">11</span></div>
+          <ul class="rail-list rail-examples">
+            <li class="rail-ex">
+              <span class="rail-ex-num">01</span>
+              <span class="rail-ex-name">Support Triage</span>
+              <span class="prim-tag prim-tag-branch">branch</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">02</span>
+              <span class="rail-ex-name">Research Agent</span>
+              <span class="prim-tag prim-tag-agent">agent</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">03</span>
+              <span class="rail-ex-name">Code Review</span>
+              <span class="prim-tag prim-tag-workflow">workflow</span>
+            </li>
+            <li class="rail-ex rail-ex-active" aria-current="page">
+              <span class="rail-ex-num">04</span>
+              <span class="rail-ex-name">Parallel Research</span>
+              <span class="prim-tag prim-tag-tool">parallel</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">05</span>
+              <span class="rail-ex-name">Multi-turn Chat</span>
+              <span class="prim-tag prim-tag-agent">agent</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">06</span>
+              <span class="rail-ex-name">HITL Approval</span>
+              <span class="prim-tag prim-tag-hitl">hitl</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">07</span>
+              <span class="rail-ex-name">Streaming Chat</span>
+              <span class="prim-tag prim-tag-stream">stream</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">08</span>
+              <span class="rail-ex-name">Critic Loop</span>
+              <span class="prim-tag prim-tag-workflow">loop</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">09</span>
+              <span class="rail-ex-name">Multi-Agent Handoff</span>
+              <span class="prim-tag prim-tag-agent">agent</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">10</span>
+              <span class="rail-ex-name">Mastra Memory</span>
+              <span class="prim-tag prim-tag-memory">memory</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">11</span>
+              <span class="rail-ex-name">Content Pipeline</span>
+              <span class="prim-tag prim-tag-workflow">workflow</span>
+            </li>
+          </ul>
+        </div>
+      </aside>
+
+      <!-- ── Workspace ── -->
+      <main class="workspace">
+        <!-- Example header -->
+        <div class="ex-header">
+          <div class="ex-header-titles">
+            <div class="ex-kicker">Example 04</div>
+            <h1 class="ex-title">Parallel Research</h1>
+            <p class="ex-desc">
+              One step fans out to <strong>3 sources in parallel</strong> via <code>Promise.all</code>,
+              then an LLM synthesizes the results. Watch the trace light up
+              <em>one</em> <code>step:start</code> → <em>three</em> <code>tool:call</code>
+              events in quick succession → <em>one</em> <code>step:end</code>.
+            </p>
+          </div>
+          <div class="ex-header-controls">
+            <label class="model-picker">
+              <span class="model-label">Model</span>
+              <select>
+                <option>gpt-4o-mini · default</option>
+                <option>claude-3-5-haiku</option>
+                <option>llama-3.1-8b-instruct</option>
+                <option>gemini-2.0-flash-001</option>
+              </select>
+            </label>
+            <button class="icon-btn" title="Settings">⚙</button>
+          </div>
+        </div>
+
+        <!-- The fused workspace -->
+        <div class="grid">
+          <!-- Input rail (collapsed by default) -->
+          <aside class="input-rail">
+            <details class="input-section" open>
+              <summary>Topic</summary>
+              <textarea rows="3">hybrid search with BM25 and vector reranking</textarea>
+            </details>
+            <details class="input-section">
+              <summary>Samples</summary>
+              <div class="chips">
+                <button class="chip">hybrid search</button>
+                <button class="chip">prompt caching</button>
+                <button class="chip">RAG eval</button>
+              </div>
+            </details>
+            <details class="input-section">
+              <summary>Recent runs <span class="muted">(3)</span></summary>
+              <div class="recent">
+                <button class="recent-row">
+                  <span class="recent-ts">2m</span>
+                  <span class="recent-text">prompt caching for LLM APIs</span>
+                  <span class="recent-result">2.1s</span>
+                </button>
+                <button class="recent-row">
+                  <span class="recent-ts">8m</span>
+                  <span class="recent-text">RAG evaluation metrics</span>
+                  <span class="recent-result">3.4s</span>
+                </button>
+                <button class="recent-row">
+                  <span class="recent-ts">1h</span>
+                  <span class="recent-text">hybrid search with BM25…</span>
+                  <span class="recent-result">2.8s</span>
+                </button>
+              </div>
+            </details>
+            <button class="run-btn">
+              <span class="run-icon">▶</span>
+              Run
+              <span class="run-shortcut">⌘↵</span>
+            </button>
+          </aside>
+
+          <!-- Fused trace pane -->
+          <section class="trace" aria-label="Trace">
+            <div class="trace-tabs">
+              <button class="trace-tab trace-tab-active">Trace</button>
+              <button class="trace-tab">Graph</button>
+              <button class="trace-tab">Events</button>
+              <div class="trace-tabs-right">
+                <span class="trace-stat"><span class="dot dot-green"></span>3 done</span>
+                <span class="trace-stat"><span class="dot dot-blue"></span>1 active</span>
+                <span class="trace-stat trace-stat-time">2.31s · $0.0023</span>
+              </div>
+            </div>
+
+            <!-- The graph -->
+            <div class="trace-graph" id="graph">
+              <svg viewBox="0 0 720 220" width="100%" height="220">
+                <defs>
+                  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--c-workflow-edge-done)" />
+                  </marker>
+                  <marker id="arrow-active" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--c-accent)" />
+                  </marker>
+                </defs>
+
+                <!-- edges from plan to 3 parallel -->
+                <path class="edge edge-done" d="M 200 60 C 260 60, 260 110, 320 110" marker-end="url(#arrow)" />
+                <path class="edge edge-done" d="M 200 60 C 260 60, 260 110, 440 110" marker-end="url(#arrow)" />
+                <path class="edge edge-done" d="M 200 60 C 260 60, 260 110, 560 110" marker-end="url(#arrow)" />
+
+                <!-- edges from 3 parallel down to synthesize -->
+                <path class="edge edge-done" d="M 320 140 C 320 180, 420 180, 420 195" marker-end="url(#arrow)" />
+                <path class="edge edge-done" d="M 440 140 C 440 180, 420 180, 420 195" marker-end="url(#arrow)" />
+                <path class="edge edge-done" d="M 560 140 C 560 180, 460 180, 460 195" marker-end="url(#arrow)" />
+
+                <!-- node: plan (LLM, done) -->
+                <g class="node node-done node-llm" tabindex="0">
+                  <rect x="40" y="30" width="160" height="60" rx="8" />
+                  <text class="node-id" x="56" y="50">plan</text>
+                  <text class="node-label" x="56" y="70">Plan (LLM)</text>
+                  <text class="node-kind" x="184" y="50" text-anchor="end">llm</text>
+                </g>
+
+                <!-- node: web (tool, done) -->
+                <g class="node node-done node-tool" tabindex="0">
+                  <rect x="240" y="80" width="160" height="60" rx="8" />
+                  <text class="node-id" x="256" y="100">web</text>
+                  <text class="node-label" x="256" y="120">web-search</text>
+                  <text class="node-kind" x="384" y="100" text-anchor="end">tool</text>
+                </g>
+
+                <!-- node: arxiv (tool, done) -->
+                <g class="node node-done node-tool" tabindex="0">
+                  <rect x="360" y="80" width="160" height="60" rx="8" />
+                  <text class="node-id" x="376" y="100">arxiv</text>
+                  <text class="node-label" x="376" y="120">arxiv-search</text>
+                  <text class="node-kind" x="504" y="100" text-anchor="end">tool</text>
+                </g>
+
+                <!-- node: wiki (tool, active) -->
+                <g class="node node-done node-tool" tabindex="0">
+                  <rect x="480" y="80" width="160" height="60" rx="8" />
+                  <text class="node-id" x="496" y="100">wiki</text>
+                  <text class="node-label" x="496" y="120">wiki</text>
+                  <text class="node-kind" x="624" y="100" text-anchor="end">tool</text>
+                </g>
+
+                <!-- node: synthesize (LLM, active) -->
+                <g class="node node-active node-llm" tabindex="0">
+                  <rect x="360" y="155" width="160" height="60" rx="8" />
+                  <text class="node-id" x="376" y="175">synthesize</text>
+                  <text class="node-label" x="376" y="195">Synthesize (LLM)</text>
+                  <text class="node-kind" x="504" y="175" text-anchor="end">llm</text>
+                  <circle class="node-pulse" cx="440" cy="185" r="6" />
+                </g>
+              </svg>
+            </div>
+
+            <!-- The timeline (fused into same panel) -->
+            <div class="trace-timeline" id="timeline">
+              <div class="tl-row tl-row-done" data-step="plan">
+                <span class="tl-ts">0.00s</span>
+                <span class="tl-kind tl-kind-llm">llm</span>
+                <span class="tl-msg"><strong>plan</strong> started · topic="hybrid search with BM25…"</span>
+                <span class="tl-step">step:start</span>
+              </div>
+              <div class="tl-row tl-row-done" data-step="plan">
+                <span class="tl-ts">0.41s</span>
+                <span class="tl-kind tl-kind-llm">llm</span>
+                <span class="tl-msg"><strong>plan</strong> ok · 3 sub-questions generated</span>
+                <span class="tl-step">step:end</span>
+              </div>
+              <div class="tl-row tl-row-active" data-step="fanout">
+                <span class="tl-ts">0.45s</span>
+                <span class="tl-kind tl-kind-tool">tool</span>
+                <span class="tl-msg"><strong>fanout</strong> started · parallel: web + arxiv + wiki</span>
+                <span class="tl-step">step:start</span>
+              </div>
+              <div class="tl-row tl-row-done" data-step="fanout">
+                <span class="tl-ts">0.71s</span>
+                <span class="tl-kind tl-kind-tool">tool</span>
+                <span class="tl-msg">↳ web-search ok · 1247 chars · 0.26s</span>
+                <span class="tl-step">tool:call</span>
+              </div>
+              <div class="tl-row tl-row-done" data-step="fanout">
+                <span class="tl-ts">0.83s</span>
+                <span class="tl-kind tl-kind-tool">tool</span>
+                <span class="tl-msg">↳ arxiv-search ok · 3 papers · 0.38s</span>
+                <span class="tl-step">tool:call</span>
+              </div>
+              <div class="tl-row tl-row-done" data-step="fanout">
+                <span class="tl-ts">0.94s</span>
+                <span class="tl-kind tl-kind-tool">tool</span>
+                <span class="tl-msg">↳ wiki ok · 2 sections · 0.49s</span>
+                <span class="tl-step">tool:call</span>
+              </div>
+              <div class="tl-row tl-row-active" data-step="synthesize">
+                <span class="tl-ts">1.12s</span>
+                <span class="tl-kind tl-kind-llm">llm</span>
+                <span class="tl-msg"><strong>synthesize</strong> started · prompt=4.2k tokens</span>
+                <span class="tl-step">step:start</span>
+              </div>
+              <div class="tl-row tl-row-active tl-row-streaming">
+                <span class="tl-ts">1.31s</span>
+                <span class="tl-kind tl-kind-llm">llm</span>
+                <span class="tl-msg">
+                  Hybrid search combines BM25's lexical matching with vector reranking. BM25 scores
+                  documents by term frequency saturation and document length normalization…<span class="cursor">▌</span>
+                </span>
+                <span class="tl-step">llm:delta</span>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Output, full width, below -->
+        <section class="output" aria-label="Output">
+          <div class="output-tabs">
+            <button class="output-tab output-tab-active">Result</button>
+            <button class="output-tab">Sources (3)</button>
+            <button class="output-tab">Raw JSON</button>
+            <button class="output-tab">Compare with prior</button>
+            <div class="output-tabs-right">
+              <button class="icon-btn-sm" title="Copy">⧉</button>
+            </div>
+          </div>
+          <div class="output-body">
+            <article class="prose">
+              <p>
+                <strong>Hybrid search</strong> combines BM25's lexical matching with a vector
+                reranking stage. BM25 handles rare-term recall and exact-match intent; the cross-encoder
+                reranker then re-scores the top-K candidates for semantic relevance. The trick is in
+                the candidate set — BM25 over the full corpus, then the reranker narrows to 20-50
+                chunks the LLM actually reads.
+              </p>
+              <p class="muted">
+                Sources synthesized from <code>web-search</code>, <code>arxiv-search</code>, and
+                <code>wiki</code>. Streamed in 0.18s · 412 output tokens.
+              </p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="mockup.js"></script>
+  </body>
+</html>

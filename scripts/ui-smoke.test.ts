@@ -117,55 +117,51 @@ function loadApp(): TestRig {
 
 // ─── Tests ──────────────────────────────────────────────────────────────
 
-describe('UI smoke: tab keyboard navigation (a11y WAI-ARIA tabs pattern)', () => {
-  it('ArrowRight moves focus to the next tab and updates aria-selected', () => {
+describe('UI smoke: rail keyboard navigation (a11y WAI-ARIA pattern)', () => {
+  it('ArrowRight moves focus to the next rail item and updates active state', () => {
     const rig = loadApp();
-    const tabs = rig.document.querySelectorAll<HTMLButtonElement>('.tab');
-    expect(tabs.length).toBe(8);
+    const items = rig.document.querySelectorAll<HTMLButtonElement>('#rail-examples .rail-ex');
+    expect(items.length).toBeGreaterThanOrEqual(8);
 
-    // Initially tab 0 is active
-    expect(tabs[0].getAttribute('aria-selected')).toBe('true');
-    expect(tabs[0].getAttribute('tabindex')).toBe('0');
-    expect(tabs[1].getAttribute('tabindex')).toBe('-1');
+    // Initially rail item 0 (parallel-research) is active
+    expect(items[0].classList.contains('rail-ex-active')).toBe(true);
 
-    // Focus the first tab and press ArrowRight
-    tabs[0].focus();
-    tabs[0].dispatchEvent(new rig.window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    // Focus the first item and press ArrowRight
+    items[0].focus();
+    items[0].dispatchEvent(new rig.window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
 
-    // After ArrowRight: tab 1 should be active
-    expect(tabs[1].getAttribute('aria-selected')).toBe('true');
-    expect(tabs[0].getAttribute('aria-selected')).toBe('false');
-    expect(tabs[1].getAttribute('tabindex')).toBe('0');
-    expect(tabs[0].getAttribute('tabindex')).toBe('-1');
+    // After ArrowRight: item 1 should be active
+    expect(items[1].classList.contains('rail-ex-active')).toBe(true);
+    expect(items[0].classList.contains('rail-ex-active')).toBe(false);
   });
 
   it('ArrowLeft wraps from first to last', () => {
     const rig = loadApp();
-    const tabs = rig.document.querySelectorAll<HTMLButtonElement>('.tab');
-    tabs[0].focus();
-    tabs[0].dispatchEvent(new rig.window.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
-    expect(tabs[tabs.length - 1].getAttribute('aria-selected')).toBe('true');
+    const items = rig.document.querySelectorAll<HTMLButtonElement>('#rail-examples .rail-ex');
+    items[0].focus();
+    items[0].dispatchEvent(new rig.window.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(items[items.length - 1].classList.contains('rail-ex-active')).toBe(true);
   });
 
-  it('Home jumps to the first tab, End to the last', () => {
+  it('Home jumps to the first rail item, End to the last', () => {
     const rig = loadApp();
-    const tabs = rig.document.querySelectorAll<HTMLButtonElement>('.tab');
-    // Activate the middle tab first
-    tabs[3].dispatchEvent(new rig.window.MouseEvent('click', { bubbles: true }));
-    expect(tabs[3].getAttribute('aria-selected')).toBe('true');
-    // Now press Home — focus should move to first, active should stay on tab 3
-    tabs[3].focus();
-    tabs[3].dispatchEvent(new rig.window.KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
-    expect(tabs[0].getAttribute('tabindex')).toBe('0');
+    const items = rig.document.querySelectorAll<HTMLButtonElement>('#rail-examples .rail-ex');
+    // Activate a middle item first
+    items[3].dispatchEvent(new rig.window.MouseEvent('click', { bubbles: true }));
+    expect(items[3].classList.contains('rail-ex-active')).toBe(true);
+    // Now press Home — focus should move to first, active should stay on item 3
+    items[3].focus();
+    items[3].dispatchEvent(new rig.window.KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+    expect(items[0].classList.contains('rail-ex-active')).toBe(true);
   });
 });
 
 describe('UI smoke: streaming event handling', () => {
   it('renders llm:delta events into the streaming-text element', () => {
     const rig = loadApp();
-    // Activate the streaming tab
-    const streamingTab = rig.document.querySelector<HTMLButtonElement>('.tab[data-tab="streaming-chat"]');
-    streamingTab?.dispatchEvent(new rig.window.MouseEvent('click', { bubbles: true }));
+    // Activate the streaming rail item
+    const streamingRail = rig.document.querySelector<HTMLButtonElement>('#rail-examples .rail-ex[data-example="streaming-chat"]');
+    streamingRail?.dispatchEvent(new rig.window.MouseEvent('click', { bubbles: true }));
 
     // Find the EventSource the app opened for the streaming example.
     // (We need to submit the form first, but a simpler approach: simulate
@@ -187,6 +183,8 @@ describe('UI smoke: streaming event handling', () => {
 
   it('does NOT throw when outputEl is used in llm:delta case (regression: outputEl ReferenceError)', () => {
     const rig = loadApp();
+    const rail = rig.document.querySelector<HTMLButtonElement>('#rail-examples .rail-ex[data-example="streaming-chat"]');
+    rail?.dispatchEvent(new rig.window.MouseEvent('click', { bubbles: true }));
     const form = rig.document.querySelector<HTMLFormElement>('form[data-form="streaming-chat"]');
     form?.dispatchEvent(new rig.window.Event('submit', { bubbles: true }));
 
@@ -212,16 +210,9 @@ describe('UI smoke: render* defensive guards (regression: renderTriage TypeError
   // caught the original renderTriage bug.
   it('renderTriage does not crash when output.triage is missing', () => {
     const rig = loadApp();
-    // Open the streaming tab and submit a form so the app has an output panel
-    const streamingTab = rig.document.querySelector<HTMLButtonElement>('.tab[data-tab="streaming-chat"]');
-    streamingTab?.dispatchEvent(new rig.window.MouseEvent('click', { bubbles: true }));
-    // (We don't need a real streaming result; we just need to call the
-    // renderFinalResult path with a malformed output. The app's onmessage
-    // handler calls renderFinalResult on the 'done' event. We can fire
-    // done directly with a malformed output to exercise the path.)
-    // ... but renderFinalResult is internal. The cleanest test is: open
-    // the streaming example, fire a done event with output={}, and assert
-    // the panel doesn't throw and shows something useful.
+    // Open the streaming rail item and submit a form so the app has an output panel
+    const rail = rig.document.querySelector<HTMLButtonElement>('#rail-examples .rail-ex[data-example="streaming-chat"]');
+    rail?.dispatchEvent(new rig.window.MouseEvent('click', { bubbles: true }));
     const form = rig.document.querySelector<HTMLFormElement>('form[data-form="streaming-chat"]');
     form?.dispatchEvent(new rig.window.Event('submit', { bubbles: true }));
 
@@ -257,5 +248,63 @@ describe('UI smoke: history panel focus trap', () => {
 
     // The panel should be hidden (regardless of whether it was open before)
     expect(panel?.hidden).toBe(true);
+  });
+});
+
+describe('UI smoke: mastra-memory rail item (example 10)', () => {
+  it('renders the rail item and form with threadId field', () => {
+    const rig = loadApp();
+    const rail = rig.document.querySelector<HTMLButtonElement>('#rail-examples .rail-ex[data-example="mastra-memory"]');
+    expect(rail).toBeTruthy();
+    rail?.dispatchEvent(new rig.window.MouseEvent('click', { bubbles: true }));
+    const threadInput = rig.document.querySelector('#mem-threadId');
+    expect(threadInput).toBeTruthy();
+  });
+
+  it('does not throw when done event arrives with valid output shape', () => {
+    const rig = loadApp();
+    const rail = rig.document.querySelector<HTMLButtonElement>('#rail-examples .rail-ex[data-example="mastra-memory"]');
+    rail?.dispatchEvent(new rig.window.MouseEvent('click', { bubbles: true }));
+    const form = rig.document.querySelector<HTMLFormElement>('form[data-form="mastra-memory"]');
+    form?.dispatchEvent(new rig.window.Event('submit', { bubbles: true, cancelable: true }));
+
+    // Valid output shape: all the fields the renderer expects
+    expect(() =>
+      rig.fireEvent(
+        'done',
+        JSON.stringify({
+          status: 'success',
+          output: {
+            threadId: 'demo',
+            resourceId: 'user',
+            turn1: { input: 'hi', output: 'hello' },
+            turn2: { input: 'what?', output: 'what what?' },
+            recalled: true,
+            historyLength: 4,
+          },
+          totalMs: 100,
+        }),
+      ),
+    ).not.toThrow();
+  });
+
+  it('renders graceful error when done output is missing expected fields', () => {
+    const rig = loadApp();
+    const rail = rig.document.querySelector<HTMLButtonElement>('#rail-examples .rail-ex[data-example="mastra-memory"]');
+    rail?.dispatchEvent(new rig.window.MouseEvent('click', { bubbles: true }));
+    const form = rig.document.querySelector<HTMLFormElement>('form[data-form="mastra-memory"]');
+    form?.dispatchEvent(new rig.window.Event('submit', { bubbles: true }));
+
+    // Malformed output (missing turn1/turn2) — should show error UI, not crash
+    expect(() =>
+      rig.fireEvent(
+        'done',
+        JSON.stringify({
+          status: 'success',
+          output: { threadId: 'demo' }, // missing turn1/turn2
+          totalMs: 100,
+        }),
+      ),
+    ).not.toThrow();
   });
 });

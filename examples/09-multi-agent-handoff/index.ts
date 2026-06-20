@@ -130,7 +130,7 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
     name: 'Support Triage',
     instructions: [
       'You are the first point of contact for customer support.',
-      "If the customer asks about a refund, billing, charges, or invoice, call the",
+      'If the customer asks about a refund, billing, charges, or invoice, call the',
       "transfer_to_billing_specialist tool with the customer's full message.",
       'For all other questions, answer directly in 1-2 sentences.',
       'Do not try to answer billing questions yourself — always delegate.',
@@ -141,7 +141,7 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
   // The primary's handoff tool: synchronously invokes the specialist.
   const transferToBillingSpecialist = {
     id: 'transfer_to_billing_specialist',
-    description: "Transfer a customer message to the billing specialist agent",
+    description: 'Transfer a customer message to the billing specialist agent',
     inputSchema: z.object({ customerMessage: z.string() }),
     outputSchema: z.object({
       specialistResponse: z.string(),
@@ -269,7 +269,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   const result = await run.start({ inputData: { message: input.message, model: input.model } });
 
   const output = result.status === 'success' ? unwrapWorkflowOutput(result.result) : null;
-  const errMsg = result.status !== 'success' ? JSON.stringify(result) ?? String(result) : null;
+  const errMsg = result.status !== 'success' ? (JSON.stringify(result) ?? String(result)) : null;
   const doneStatus =
     result.status === 'success' || result.status === 'failed' || result.status === 'suspended'
       ? result.status

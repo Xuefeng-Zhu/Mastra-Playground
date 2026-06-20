@@ -2,6 +2,68 @@
 
 Date entries as you go. Each entry: one thing you noticed, one question it raised, one thing to try next.
 
+## 2026-06-20 — Phase 3 expanded: full 11-example eval (55 runs)
+
+**What changed.** The eval harness used to cover 4 examples (research /
+parallel-research / critic-loop / content-pipeline). Now covers all 11:
+each example's input shape is built by a per-example `build_payload()`
+function, each example's primary output text is extracted by a
+`PRIMARY_TEXT_FIELD` map, and example-specific signals (intent /
+delegated / recalled / suspended / streaming chunk count) are reported
+under the table.
+
+**Measured — single table for the whole playground:**
+
+| example             |   avg ms | avg chars | avg score | signal                                                   |
+| ------------------- | -------: | --------: | --------: | -------------------------------------------------------- |
+| support-triage      |     1407 |        62 |         — | 4/5 escalated, avg confidence 0.69                       |
+| research            |     3466 |       875 |         — | —                                                        |
+| code-review         |     1270 |       291 |         — | all 5 produced `reviewed` with 1 issue each              |
+| parallel-research   |     5186 |      1344 |         — | —                                                        |
+| multi-turn-chat     |     1392 |       419 |         — | assistant msg 341-560 chars, 0 escalations               |
+| hitl-approval       |     1192 |        31 |         — | **4/5 ok, 1 suspended** (high-urgency delete — correct!) |
+| streaming-chat      |     1265 |       459 |         — | 54-156 chunks per response                               |
+| critic-loop (thr=8) |     5665 |      1049 |      8.00 | avg 1.6 iterations, all converged to 8                   |
+| multi-agent-handoff |     1849 |        39 |         — | 2/5 delegated (refund/order only)                        |
+| mastra-memory       |     1680 |        55 |         — | **5/5 recalled**, historyLength=4                        |
+| content-pipeline    | **9985** |      1090 |  **8.80** | 3 sequential LLM calls (research→write→edit)             |
+
+**Two real bugs surfaced and fixed during expansion:**
+
+1. **Sibling-subagent directory collision.** Between my last turn and this
+   one, a sibling subagent added `examples/10-mastra-memory/` to claim the
+   slot before I could recreate `examples/10-content-pipeline/` (which got
+   wiped). Resolution: moved content-pipeline to `examples/11-`,
+   registered both examples in the server, and added the validator case
+   for `mastra-memory` (required `threadId`, optional `resourceId/turn1/turn2/model`).
+   **Lesson:** when multiple writers are active in the same session,
+   always `ls examples/` before assuming a directory still exists. The
+   `mastra-playground-evals` skill should add a "verify all registered
+   examples have files" check.
+
+2. **`build_payload()` was the right abstraction but shipped too small.**
+   My first version only handled the 4 research-shaped examples. When I
+   added the rest, I also added the `PRIMARY_TEXT_FIELD` map and the
+   `per_example_insights()` summary function. **Lesson:** when a function
+   silently falls back to a default, that fallback hides bugs. The fix was
+   to require every example to be explicitly handled — adding a new example
+   now requires updating three maps (`build_payload`, `PRIMARY_TEXT_FIELD`,
+   `per_example_insights`), which is annoying but catches drift.
+
+**One thing that surprised me.** `mastra-memory` recalled 5/5 with
+`historyLength=4` on every run — including runs that I'd previously done
+with different threadIds, because I gave each run a fresh
+`threadId=f"eval-thread-{run_idx}"`. That isolation-by-threadId is a
+really clean pattern: same model, same prompt, but thread-scoped memory
+state. Each run tests "did the second-turn prompt include the first-turn
+message?" independently of all other runs.
+
+**Try next.** Add `x-openrouter-cost` capture to `post_run()` so the
+summary table shows `$ per call`. The header is on every OpenRouter
+response — it's a 3-line change. Also: capture tokens from the
+`llmStructured` SSE events to measure prompt vs completion cost
+separation per example.
+
 ## 2026-06-19 — Phase 1: tool-use agent (example 02)
 
 **Noticed.** Example 02 is the cleanest demonstration of "agent with tools" in the

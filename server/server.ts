@@ -144,6 +144,18 @@ const EXAMPLES: Record<string, { file: string; exportName: string; description: 
     description:
       'Multi-agent handoff: primary triage agent delegates billing questions to a specialist agent with a narrower tool set.',
   },
+  'content-pipeline': {
+    file: 'examples/11-content-pipeline/index.ts',
+    exportName: 'runOne',
+    description:
+      '3-agent content pipeline: researcher produces facts+sources, writer drafts, editor polishes and scores 0-10. Three narrow role prompts instead of one generalist.',
+  },
+  'mastra-memory': {
+    file: 'examples/10-mastra-memory/index.ts',
+    exportName: 'runOne',
+    description:
+      'Real @mastra/memory Memory class: threadId+resourceId tie generate() calls together. Compare to Example 05 hand-rolled Map.',
+  },
 };
 
 type RunFn = (input: unknown, tracer: Tracer) => Promise<unknown>;
@@ -246,6 +258,28 @@ function validateExampleInput(name: string, body: unknown): Record<string, unkno
       }
       return {
         message: sanitizeText(body.message),
+        ...(typeof body.model === 'string' ? { model: body.model } : {}),
+      };
+    }
+    case 'content-pipeline': {
+      if (!('topic' in body) || typeof body.topic !== 'string' || body.topic.trim().length === 0) {
+        throw new ValidationError('Field "topic" must be a non-empty string', 'topic');
+      }
+      return {
+        topic: sanitizeText(body.topic),
+        ...(typeof body.audience === 'string' ? { audience: body.audience } : {}),
+        ...(typeof body.model === 'string' ? { model: body.model } : {}),
+      };
+    }
+    case 'mastra-memory': {
+      if (!('threadId' in body) || typeof body.threadId !== 'string' || body.threadId.trim().length === 0) {
+        throw new ValidationError('Field "threadId" must be a non-empty string', 'threadId');
+      }
+      return {
+        threadId: sanitizeText(body.threadId),
+        ...(typeof body.resourceId === 'string' ? { resourceId: body.resourceId } : {}),
+        ...(typeof body.turn1 === 'string' ? { turn1: body.turn1 } : {}),
+        ...(typeof body.turn2 === 'string' ? { turn2: body.turn2 } : {}),
         ...(typeof body.model === 'string' ? { model: body.model } : {}),
       };
     }

@@ -1,0 +1,1221 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mastra Playground — Mockup · Example 04 Parallel Research</title>
+    <style>
+/* ────────────────────────────────────────────────────────────────────────
+   Mastra Playground v2 — mockup styles
+   Standalone CSS for the docs/design mockup. NOT shipped to public/.
+   ──────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* surfaces */
+  --bg:            #0d1117;
+  --bg-elev-1:    #161b22;
+  --bg-elev-2:    #1f262e;
+  --bg-elev-3:    #262d36;
+  --border:        #30363d;
+  --border-strong: #484f58;
+  --border-active: #58a6ff;
+
+  /* text */
+  --text:         #c9d1d9;
+  --text-dim:     #8b949e;
+  --text-muted:   #6e7681;
+  --text-bright:  #f0f6fc;
+
+  /* brand + accents */
+  --c-accent:        #58a6ff;
+  --c-accent-2:      #79c0ff;
+  --c-accent-soft:   rgba(88, 166, 255, 0.12);
+  --c-accent-softer: rgba(88, 166, 255, 0.06);
+
+  /* primitive semantic colors */
+  --c-agent:       #58a6ff;   /* blue */
+  --c-workflow:    #f0f6fc;   /* near-white */
+  --c-tool:        #d29922;   /* amber */
+  --c-memory:      #bc8cff;   /* violet */
+  --c-hitl:        #db6d28;   /* orange */
+  --c-stream:      #79c0ff;   /* light blue */
+  --c-llm:         #3fb950;   /* green */
+  --c-branch:      #bc8cff;   /* violet (alias of memory) */
+  --c-error:       #f85149;   /* red */
+  --c-warn:        #d29922;   /* amber */
+
+  /* dot helpers */
+  --c-agent-soft:   rgba(88, 166, 255, 0.18);
+  --c-workflow-soft:rgba(240, 246, 252, 0.10);
+  --c-tool-soft:    rgba(210, 153, 34, 0.18);
+  --c-memory-soft:  rgba(188, 140, 255, 0.18);
+  --c-hitl-soft:    rgba(219, 109, 40, 0.18);
+  --c-stream-soft:  rgba(121, 192, 255, 0.18);
+  --c-llm-soft:     rgba(63, 185, 80, 0.18);
+
+  --c-workflow-edge-done: #3fb950;
+
+  /* type */
+  --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+
+  /* spacing */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px;  --sp-4: 16px;
+  --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+
+  --r-sm: 4px; --r-md: 6px; --r-lg: 8px; --r-xl: 12px;
+
+  --shadow-1: 0 1px 0 rgba(255,255,255,0.04) inset, 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-2: 0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 12px rgba(0,0,0,0.35);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  padding: 1px 5px;
+  background: var(--bg-elev-2);
+  border-radius: 4px;
+  color: var(--c-accent-2);
+}
+
+kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 5px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  color: var(--text-dim);
+  line-height: 1;
+}
+
+/* ── top bar ────────────────────────────────────────────────────────── */
+
+.topbar {
+  height: 48px;
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  align-items: center;
+  padding: 0 var(--sp-4);
+  background: var(--bg-elev-1);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+.brand-mark { color: var(--c-accent); font-size: 16px; }
+.brand-name { color: var(--text-bright); font-weight: 600; font-size: 14px; }
+.brand-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 2px 6px;
+  background: var(--bg-elev-2);
+  border-radius: 3px;
+}
+
+.topbar-center { display: flex; justify-content: center; }
+.cmd-k {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 360px;
+  max-width: 100%;
+  height: 30px;
+  padding: 0 var(--sp-3);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  transition: border-color 0.15s;
+}
+.cmd-k:hover { border-color: var(--border-strong); color: var(--text); }
+.cmd-k-icon { font-size: 13px; opacity: 0.6; }
+.cmd-k-text { flex: 1; text-align: left; }
+.cmd-k-keys { display: flex; gap: 2px; }
+
+.topbar-right {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.icon-btn:hover {
+  background: var(--bg-elev-2);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+/* ── layout ─────────────────────────────────────────────────────────── */
+
+.layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: calc(100vh - 48px);
+}
+
+/* ── left rail ──────────────────────────────────────────────────────── */
+
+.rail {
+  background: var(--bg-elev-1);
+  border-right: 1px solid var(--border);
+  padding: var(--sp-4) var(--sp-3);
+  overflow-y: auto;
+  position: sticky;
+  top: 48px;
+  height: calc(100vh - 48px);
+}
+
+.rail-section + .rail-section { margin-top: var(--sp-5); }
+
+.rail-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  padding: 0 var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+
+.rail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rail-primitives li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 6px var(--sp-2);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+.rail-primitives li:hover {
+  background: var(--bg-elev-2);
+}
+.prim-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.prim-agent    { background: var(--c-agent); }
+.prim-workflow { background: var(--c-workflow); }
+.prim-tool     { background: var(--c-tool); }
+.prim-memory   { background: var(--c-memory); }
+.prim-hitl     { background: var(--c-hitl); }
+.prim-stream   { background: var(--c-stream); }
+.rail-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.rail-count-muted { color: var(--text-muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+.rail-ex {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 6px var(--sp-2);
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  margin-left: -2px;
+}
+.rail-ex:hover {
+  background: var(--bg-elev-2);
+  color: var(--text);
+}
+.rail-ex-active {
+  background: var(--c-accent-soft);
+  color: var(--text-bright);
+  border-left-color: var(--c-accent);
+}
+.rail-ex-active:hover { background: var(--c-accent-soft); }
+.rail-ex-num {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  min-width: 18px;
+}
+.rail-ex-active .rail-ex-num { color: var(--c-accent-2); }
+.rail-ex-name { flex: 1; }
+.prim-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+.prim-tag-agent    { color: var(--c-agent);    background: var(--c-agent-soft); }
+.prim-tag-workflow { color: var(--c-workflow); background: var(--c-workflow-soft); }
+.prim-tag-tool     { color: var(--c-tool);     background: var(--c-tool-soft); }
+.prim-tag-memory   { color: var(--c-memory);   background: var(--c-memory-soft); }
+.prim-tag-hitl     { color: var(--c-hitl);     background: var(--c-hitl-soft); }
+.prim-tag-stream   { color: var(--c-stream);   background: var(--c-stream-soft); }
+.prim-tag-branch   { color: var(--c-memory);   background: var(--c-memory-soft); }
+
+/* ── workspace ──────────────────────────────────────────────────────── */
+
+.workspace {
+  padding: var(--sp-5) var(--sp-6) var(--sp-6);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.ex-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--sp-5);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border);
+}
+.ex-header-titles { min-width: 0; }
+.ex-kicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--c-accent-2);
+  margin-bottom: 4px;
+}
+.ex-title {
+  margin: 0 0 6px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.ex-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-dim);
+  max-width: 720px;
+}
+
+.ex-header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+.model-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.model-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+.model-picker select {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 8px;
+  border-radius: var(--r-md);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  outline: none;
+  min-width: 200px;
+}
+.model-picker select:focus { border-color: var(--c-accent); }
+
+/* ── the grid: input rail | trace ───────────────────────────────────── */
+
+.grid {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+/* ── input rail ─────────────────────────────────────────────────────── */
+
+.input-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  position: sticky;
+  top: 64px;
+}
+
+.input-section {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--sp-3);
+}
+.input-section:last-of-type { border-bottom: none; padding-bottom: 0; }
+
+.input-section summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  padding: var(--sp-2) 0;
+  user-select: none;
+}
+.input-section summary::-webkit-details-marker { display: none; }
+.input-section summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 12px;
+  color: var(--text-muted);
+  transition: transform 0.15s;
+}
+.input-section[open] summary::before { transform: rotate(90deg); }
+
+.input-section textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text);
+  padding: 8px 10px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  resize: vertical;
+  outline: none;
+  margin-top: var(--sp-2);
+}
+.input-section textarea:focus { border-color: var(--c-accent); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: var(--sp-2); }
+.chip {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 4px 9px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 11px;
+}
+.chip:hover { border-color: var(--c-accent); color: var(--text); }
+
+.recent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--sp-2);
+}
+.recent-row {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  align-items: center;
+  gap: var(--sp-2);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  padding: 5px 8px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: left;
+}
+.recent-row:hover {
+  background: var(--bg-elev-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+.recent-ts { font-family: var(--font-mono); color: var(--text-muted); font-size: 10px; }
+.recent-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recent-result { font-family: var(--font-mono); color: var(--c-accent-2); font-size: 10px; }
+
+.run-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  background: var(--c-accent);
+  color: #06121f;
+  border: none;
+  border-radius: var(--r-md);
+  padding: 9px 14px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: var(--sp-2);
+  box-shadow: var(--shadow-1);
+}
+.run-btn:hover { background: var(--c-accent-2); }
+.run-icon { font-size: 11px; }
+.run-shortcut {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(6, 18, 31, 0.7);
+}
+
+/* ── trace pane (graph + timeline, fused) ───────────────────────────── */
+
+.trace {
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+}
+
+.trace-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 var(--sp-3);
+  background: var(--bg-elev-2);
+  border-bottom: 1px solid var(--border);
+  height: 36px;
+}
+.trace-tab {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.trace-tab-active { color: var(--text-bright); border-bottom-color: var(--c-accent); }
+.trace-tab:hover { color: var(--text); }
+
+.trace-tabs-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+.trace-stat { display: flex; align-items: center; gap: 6px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; }
+.dot-green { background: var(--c-llm); }
+.dot-blue { background: var(--c-accent); animation: pulse 1.4s infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.85); }
+}
+.trace-stat-time { color: var(--c-accent-2); }
+
+/* graph area */
+.trace-graph {
+  background:
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0) 0 0/16px 16px,
+    var(--bg-elev-1);
+  padding: var(--sp-3) var(--sp-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.node rect {
+  fill: var(--bg-elev-2);
+  stroke: var(--border);
+  stroke-width: 1.5;
+  transition: fill 0.2s, stroke 0.2s;
+}
+.node text { fill: var(--text); font-family: var(--font-sans); font-size: 12px; font-weight: 500; }
+.node text.node-id { fill: var(--text-muted); font-family: var(--font-mono); font-size: 10px; }
+.node text.node-kind {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+/* node kind colors */
+.node-llm     rect { stroke: var(--c-llm); }
+.node-llm     text.node-kind { fill: var(--c-llm); }
+.node-tool    rect { stroke: var(--c-tool); }
+.node-tool    text.node-kind { fill: var(--c-tool); }
+.node-branch  rect { stroke: var(--c-memory); }
+.node-branch  text.node-kind { fill: var(--c-memory); }
+.node-hitl    rect { stroke: var(--c-hitl); }
+.node-hitl    text.node-kind { fill: var(--c-hitl); }
+
+/* node states */
+.node-done rect {
+  fill: rgba(63, 185, 80, 0.08);
+  stroke: var(--c-llm);
+}
+.node-active rect {
+  fill: var(--c-accent-soft);
+  stroke: var(--c-accent);
+  stroke-width: 2.5;
+}
+.node-active {
+  filter: drop-shadow(0 0 6px rgba(88, 166, 255, 0.4));
+}
+.node-skipped rect { fill: var(--bg-elev-1); stroke: var(--border); opacity: 0.4; }
+
+.node-pulse {
+  fill: var(--c-accent);
+  animation: nodePulse 1.4s ease-out infinite;
+  transform-origin: 440px 185px;
+}
+@keyframes nodePulse {
+  0%   { r: 4; opacity: 0.9; }
+  100% { r: 14; opacity: 0; }
+}
+
+.edge {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.5;
+  transition: stroke 0.2s;
+}
+.edge-done { stroke: var(--c-workflow-edge-done); stroke-width: 2; }
+.edge-active { stroke: var(--c-accent); stroke-width: 2.5; }
+
+/* ── timeline ───────────────────────────────────────────────────────── */
+
+.trace-timeline {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: var(--sp-2) 0;
+}
+
+.tl-row {
+  display: grid;
+  grid-template-columns: 50px 56px 1fr auto;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: 5px var(--sp-4);
+  border-left: 2px solid transparent;
+  transition: background 0.1s, border-color 0.1s;
+}
+.tl-row:hover {
+  background: var(--bg-elev-2);
+  border-left-color: var(--border-strong);
+}
+.tl-row-active {
+  background: var(--c-accent-softer);
+  border-left-color: var(--c-accent);
+}
+.tl-row-streaming {
+  background: linear-gradient(90deg, var(--c-accent-softer), transparent 60%);
+}
+.tl-ts { color: var(--text-muted); font-size: 10.5px; }
+.tl-kind {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-align: center;
+  font-weight: 700;
+}
+.tl-kind-llm  { background: var(--c-llm-soft);    color: var(--c-llm); }
+.tl-kind-tool { background: var(--c-tool-soft);   color: var(--c-tool); }
+.tl-kind-step { background: var(--c-workflow-soft); color: var(--c-workflow); }
+.tl-kind-branch { background: var(--c-memory-soft); color: var(--c-memory); }
+.tl-kind-hitl { background: var(--c-hitl-soft);   color: var(--c-hitl); }
+.tl-msg {
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tl-row-streaming .tl-msg { white-space: normal; }
+.cursor {
+  display: inline-block;
+  color: var(--c-accent);
+  animation: blink 1s steps(1) infinite;
+}
+@keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+.tl-step {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+/* ── output (full width, below) ─────────────────────────────────────── */
+
+.output {
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+}
+
+.output-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 var(--sp-3);
+  background: var(--bg-elev-2);
+  border-bottom: 1px solid var(--border);
+  height: 36px;
+}
+.output-tab {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.output-tab-active { color: var(--text-bright); border-bottom-color: var(--c-accent); }
+.output-tab:hover { color: var(--text); }
+.output-tabs-right { margin-left: auto; }
+.icon-btn-sm {
+  width: 24px; height: 24px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+}
+.icon-btn-sm:hover { color: var(--text); background: var(--bg-elev-1); }
+
+.output-body {
+  padding: var(--sp-5);
+  background: var(--bg-elev-1);
+}
+
+.prose {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text);
+  max-width: 760px;
+}
+.prose p { margin: 0 0 var(--sp-3) 0; }
+.prose p:last-child { margin-bottom: 0; }
+.prose strong { color: var(--text-bright); }
+.prose .muted { color: var(--text-dim); font-size: 12px; }
+
+.muted { color: var(--text-dim); }
+
+/* ── responsive (tablet) ────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: 220px 1fr; }
+  .grid   { grid-template-columns: 1fr; }
+  .input-rail { position: static; }
+}
+
+@media (max-width: 800px) {
+  .layout { grid-template-columns: 1fr; }
+  .rail {
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar { grid-template-columns: 1fr auto; }
+  .topbar-center { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot-blue, .cursor, .node-pulse { animation: none; }
+}
+</style>
+  </head>
+  <body>
+    <!-- ── Top bar ── -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">◆</span>
+        <span class="brand-name">Mastra Playground</span>
+        <span class="brand-tag">v2 preview · example 04</span>
+      </div>
+      <div class="topbar-center">
+        <button class="cmd-k" title="Search examples (⌘K)">
+          <span class="cmd-k-icon">⌕</span>
+          <span class="cmd-k-text">Search examples…</span>
+          <span class="cmd-k-keys"><kbd>⌘</kbd><kbd>K</kbd></span>
+        </button>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" title="Toggle theme">◐</button>
+        <button class="icon-btn" title="Open playground">↗</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- ── Left rail ── -->
+      <aside class="rail" aria-label="Examples">
+        <div class="rail-section">
+          <div class="rail-heading">Primitives</div>
+          <ul class="rail-list rail-primitives">
+            <li><span class="prim-dot prim-agent"></span>Agent <span class="rail-count">4</span></li>
+            <li><span class="prim-dot prim-workflow"></span>Workflow <span class="rail-count">5</span></li>
+            <li><span class="prim-dot prim-tool"></span>Tool <span class="rail-count">3</span></li>
+            <li><span class="prim-dot prim-memory"></span>Memory <span class="rail-count">2</span></li>
+            <li><span class="prim-dot prim-hitl"></span>HITL <span class="rail-count">1</span></li>
+            <li><span class="prim-dot prim-stream"></span>Streaming <span class="rail-count">1</span></li>
+          </ul>
+        </div>
+
+        <div class="rail-section">
+          <div class="rail-heading">Examples <span class="rail-count rail-count-muted">11</span></div>
+          <ul class="rail-list rail-examples">
+            <li class="rail-ex">
+              <span class="rail-ex-num">01</span>
+              <span class="rail-ex-name">Support Triage</span>
+              <span class="prim-tag prim-tag-branch">branch</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">02</span>
+              <span class="rail-ex-name">Research Agent</span>
+              <span class="prim-tag prim-tag-agent">agent</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">03</span>
+              <span class="rail-ex-name">Code Review</span>
+              <span class="prim-tag prim-tag-workflow">workflow</span>
+            </li>
+            <li class="rail-ex rail-ex-active" aria-current="page">
+              <span class="rail-ex-num">04</span>
+              <span class="rail-ex-name">Parallel Research</span>
+              <span class="prim-tag prim-tag-tool">parallel</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">05</span>
+              <span class="rail-ex-name">Multi-turn Chat</span>
+              <span class="prim-tag prim-tag-agent">agent</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">06</span>
+              <span class="rail-ex-name">HITL Approval</span>
+              <span class="prim-tag prim-tag-hitl">hitl</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">07</span>
+              <span class="rail-ex-name">Streaming Chat</span>
+              <span class="prim-tag prim-tag-stream">stream</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">08</span>
+              <span class="rail-ex-name">Critic Loop</span>
+              <span class="prim-tag prim-tag-workflow">loop</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">09</span>
+              <span class="rail-ex-name">Multi-Agent Handoff</span>
+              <span class="prim-tag prim-tag-agent">agent</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">10</span>
+              <span class="rail-ex-name">Mastra Memory</span>
+              <span class="prim-tag prim-tag-memory">memory</span>
+            </li>
+            <li class="rail-ex">
+              <span class="rail-ex-num">11</span>
+              <span class="rail-ex-name">Content Pipeline</span>
+              <span class="prim-tag prim-tag-workflow">workflow</span>
+            </li>
+          </ul>
+        </div>
+      </aside>
+
+      <!-- ── Workspace ── -->
+      <main class="workspace">
+        <!-- Example header -->
+        <div class="ex-header">
+          <div class="ex-header-titles">
+            <div class="ex-kicker">Example 04</div>
+            <h1 class="ex-title">Parallel Research</h1>
+            <p class="ex-desc">
+              One step fans out to <strong>3 sources in parallel</strong> via <code>Promise.all</code>,
+              then an LLM synthesizes the results. Watch the trace light up
+              <em>one</em> <code>step:start</code> → <em>three</em> <code>tool:call</code>
+              events in quick succession → <em>one</em> <code>step:end</code>.
+            </p>
+          </div>
+          <div class="ex-header-controls">
+            <label class="model-picker">
+              <span class="model-label">Model</span>
+              <select>
+                <option>gpt-4o-mini · default</option>
+                <option>claude-3-5-haiku</option>
+                <option>llama-3.1-8b-instruct</option>
+                <option>gemini-2.0-flash-001</option>
+              </select>
+            </label>
+            <button class="icon-btn" title="Settings">⚙</button>
+          </div>
+        </div>
+
+        <!-- The fused workspace -->
+        <div class="grid">
+          <!-- Input rail (collapsed by default) -->
+          <aside class="input-rail">
+            <details class="input-section" open>
+              <summary>Topic</summary>
+              <textarea rows="3">hybrid search with BM25 and vector reranking</textarea>
+            </details>
+            <details class="input-section">
+              <summary>Samples</summary>
+              <div class="chips">
+                <button class="chip">hybrid search</button>
+                <button class="chip">prompt caching</button>
+                <button class="chip">RAG eval</button>
+              </div>
+            </details>
+            <details class="input-section">
+              <summary>Recent runs <span class="muted">(3)</span></summary>
+              <div class="recent">
+                <button class="recent-row">
+                  <span class="recent-ts">2m</span>
+                  <span class="recent-text">prompt caching for LLM APIs</span>
+                  <span class="recent-result">2.1s</span>
+                </button>
+                <button class="recent-row">
+                  <span class="recent-ts">8m</span>
+                  <span class="recent-text">RAG evaluation metrics</span>
+                  <span class="recent-result">3.4s</span>
+                </button>
+                <button class="recent-row">
+                  <span class="recent-ts">1h</span>
+                  <span class="recent-text">hybrid search with BM25…</span>
+                  <span class="recent-result">2.8s</span>
+                </button>
+              </div>
+            </details>
+            <button class="run-btn">
+              <span class="run-icon">▶</span>
+              Run
+              <span class="run-shortcut">⌘↵</span>
+            </button>
+          </aside>
+
+          <!-- Fused trace pane -->
+          <section class="trace" aria-label="Trace">
+            <div class="trace-tabs">
+              <button class="trace-tab trace-tab-active">Trace</button>
+              <button class="trace-tab">Graph</button>
+              <button class="trace-tab">Events</button>
+              <div class="trace-tabs-right">
+                <span class="trace-stat"><span class="dot dot-green"></span>3 done</span>
+                <span class="trace-stat"><span class="dot dot-blue"></span>1 active</span>
+                <span class="trace-stat trace-stat-time">2.31s · $0.0023</span>
+              </div>
+            </div>
+
+            <!-- The graph -->
+            <div class="trace-graph" id="graph">
+              <svg viewBox="0 0 720 220" width="100%" height="220">
+                <defs>
+                  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--c-workflow-edge-done)" />
+                  </marker>
+                  <marker id="arrow-active" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--c-accent)" />
+                  </marker>
+                </defs>
+
+                <!-- edges from plan to 3 parallel -->
+                <path class="edge edge-done" d="M 200 60 C 260 60, 260 110, 320 110" marker-end="url(#arrow)" />
+                <path class="edge edge-done" d="M 200 60 C 260 60, 260 110, 440 110" marker-end="url(#arrow)" />
+                <path class="edge edge-done" d="M 200 60 C 260 60, 260 110, 560 110" marker-end="url(#arrow)" />
+
+                <!-- edges from 3 parallel down to synthesize -->
+                <path class="edge edge-done" d="M 320 140 C 320 180, 420 180, 420 195" marker-end="url(#arrow)" />
+                <path class="edge edge-done" d="M 440 140 C 440 180, 420 180, 420 195" marker-end="url(#arrow)" />
+                <path class="edge edge-done" d="M 560 140 C 560 180, 460 180, 460 195" marker-end="url(#arrow)" />
+
+                <!-- node: plan (LLM, done) -->
+                <g class="node node-done node-llm" tabindex="0">
+                  <rect x="40" y="30" width="160" height="60" rx="8" />
+                  <text class="node-id" x="56" y="50">plan</text>
+                  <text class="node-label" x="56" y="70">Plan (LLM)</text>
+                  <text class="node-kind" x="184" y="50" text-anchor="end">llm</text>
+                </g>
+
+                <!-- node: web (tool, done) -->
+                <g class="node node-done node-tool" tabindex="0">
+                  <rect x="240" y="80" width="160" height="60" rx="8" />
+                  <text class="node-id" x="256" y="100">web</text>
+                  <text class="node-label" x="256" y="120">web-search</text>
+                  <text class="node-kind" x="384" y="100" text-anchor="end">tool</text>
+                </g>
+
+                <!-- node: arxiv (tool, done) -->
+                <g class="node node-done node-tool" tabindex="0">
+                  <rect x="360" y="80" width="160" height="60" rx="8" />
+                  <text class="node-id" x="376" y="100">arxiv</text>
+                  <text class="node-label" x="376" y="120">arxiv-search</text>
+                  <text class="node-kind" x="504" y="100" text-anchor="end">tool</text>
+                </g>
+
+                <!-- node: wiki (tool, active) -->
+                <g class="node node-done node-tool" tabindex="0">
+                  <rect x="480" y="80" width="160" height="60" rx="8" />
+                  <text class="node-id" x="496" y="100">wiki</text>
+                  <text class="node-label" x="496" y="120">wiki</text>
+                  <text class="node-kind" x="624" y="100" text-anchor="end">tool</text>
+                </g>
+
+                <!-- node: synthesize (LLM, active) -->
+                <g class="node node-active node-llm" tabindex="0">
+                  <rect x="360" y="155" width="160" height="60" rx="8" />
+                  <text class="node-id" x="376" y="175">synthesize</text>
+                  <text class="node-label" x="376" y="195">Synthesize (LLM)</text>
+                  <text class="node-kind" x="504" y="175" text-anchor="end">llm</text>
+                  <circle class="node-pulse" cx="440" cy="185" r="6" />
+                </g>
+              </svg>
+            </div>
+
+            <!-- The timeline (fused into same panel) -->
+            <div class="trace-timeline" id="timeline">
+              <div class="tl-row tl-row-done" data-step="plan">
+                <span class="tl-ts">0.00s</span>
+                <span class="tl-kind tl-kind-llm">llm</span>
+                <span class="tl-msg"><strong>plan</strong> started · topic="hybrid search with BM25…"</span>
+                <span class="tl-step">step:start</span>
+              </div>
+              <div class="tl-row tl-row-done" data-step="plan">
+                <span class="tl-ts">0.41s</span>
+                <span class="tl-kind tl-kind-llm">llm</span>
+                <span class="tl-msg"><strong>plan</strong> ok · 3 sub-questions generated</span>
+                <span class="tl-step">step:end</span>
+              </div>
+              <div class="tl-row tl-row-active" data-step="fanout">
+                <span class="tl-ts">0.45s</span>
+                <span class="tl-kind tl-kind-tool">tool</span>
+                <span class="tl-msg"><strong>fanout</strong> started · parallel: web + arxiv + wiki</span>
+                <span class="tl-step">step:start</span>
+              </div>
+              <div class="tl-row tl-row-done" data-step="fanout">
+                <span class="tl-ts">0.71s</span>
+                <span class="tl-kind tl-kind-tool">tool</span>
+                <span class="tl-msg">↳ web-search ok · 1247 chars · 0.26s</span>
+                <span class="tl-step">tool:call</span>
+              </div>
+              <div class="tl-row tl-row-done" data-step="fanout">
+                <span class="tl-ts">0.83s</span>
+                <span class="tl-kind tl-kind-tool">tool</span>
+                <span class="tl-msg">↳ arxiv-search ok · 3 papers · 0.38s</span>
+                <span class="tl-step">tool:call</span>
+              </div>
+              <div class="tl-row tl-row-done" data-step="fanout">
+                <span class="tl-ts">0.94s</span>
+                <span class="tl-kind tl-kind-tool">tool</span>
+                <span class="tl-msg">↳ wiki ok · 2 sections · 0.49s</span>
+                <span class="tl-step">tool:call</span>
+              </div>
+              <div class="tl-row tl-row-active" data-step="synthesize">
+                <span class="tl-ts">1.12s</span>
+                <span class="tl-kind tl-kind-llm">llm</span>
+                <span class="tl-msg"><strong>synthesize</strong> started · prompt=4.2k tokens</span>
+                <span class="tl-step">step:start</span>
+              </div>
+              <div class="tl-row tl-row-active tl-row-streaming">
+                <span class="tl-ts">1.31s</span>
+                <span class="tl-kind tl-kind-llm">llm</span>
+                <span class="tl-msg">
+                  Hybrid search combines BM25's lexical matching with vector reranking. BM25 scores
+                  documents by term frequency saturation and document length normalization…<span class="cursor">▌</span>
+                </span>
+                <span class="tl-step">llm:delta</span>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Output, full width, below -->
+        <section class="output" aria-label="Output">
+          <div class="output-tabs">
+            <button class="output-tab output-tab-active">Result</button>
+            <button class="output-tab">Sources (3)</button>
+            <button class="output-tab">Raw JSON</button>
+            <button class="output-tab">Compare with prior</button>
+            <div class="output-tabs-right">
+              <button class="icon-btn-sm" title="Copy">⧉</button>
+            </div>
+          </div>
+          <div class="output-body">
+            <article class="prose">
+              <p>
+                <strong>Hybrid search</strong> combines BM25's lexical matching with a vector
+                reranking stage. BM25 handles rare-term recall and exact-match intent; the cross-encoder
+                reranker then re-scores the top-K candidates for semantic relevance. The trick is in
+                the candidate set — BM25 over the full corpus, then the reranker narrows to 20-50
+                chunks the LLM actually reads.
+              </p>
+              <p class="muted">
+                Sources synthesized from <code>web-search</code>, <code>arxiv-search</code>, and
+                <code>wiki</code>. Streamed in 0.18s · 412 output tokens.
+              </p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+// Lightweight interaction demo for the mockup.
+// Fuses the timeline ↔ graph: clicking a timeline row pulses the corresponding
+// graph node. Hovering a node highlights its timeline rows.
+//
+// Pure demo behavior — none of this ships; the real version lives in app.js.
+
+(function () {
+  // Click a timeline row → highlight matching graph node(s)
+  document.querySelectorAll('.tl-row').forEach((row) => {
+    row.addEventListener('click', () => {
+      const step = row.dataset.step;
+      if (!step) return;
+      flashNode(step);
+    });
+  });
+
+  // Hover a node → dim other nodes, filter timeline to that step
+  document.querySelectorAll('.node').forEach((node) => {
+    const step = node.querySelector('.node-id')?.textContent;
+    if (!step) return;
+
+    node.addEventListener('mouseenter', () => {
+      document.querySelectorAll('.tl-row').forEach((r) => {
+        r.style.opacity = r.dataset.step === step ? '1' : '0.25';
+      });
+      // dim other nodes slightly
+      document.querySelectorAll('.node').forEach((n) => {
+        if (n !== node) n.style.opacity = '0.35';
+      });
+      // pulse edge from this node
+      pulseEdges(step);
+    });
+    node.addEventListener('mouseleave', () => {
+      document.querySelectorAll('.tl-row').forEach((r) => (r.style.opacity = ''));
+      document.querySelectorAll('.node').forEach((n) => (n.style.opacity = ''));
+      document.querySelectorAll('.edge').forEach((e) => e.classList.remove('edge-flash'));
+    });
+  });
+
+  function flashNode(step) {
+    const node = findNodeByStep(step);
+    if (!node) return;
+    node.style.transition = 'transform 0.2s';
+    node.style.transformOrigin = 'center';
+    node.style.transform = 'scale(1.05)';
+    setTimeout(() => (node.style.transform = ''), 200);
+    pulseEdges(step);
+  }
+
+  function findNodeByStep(step) {
+    const map = {
+      plan: 'plan',
+      fanout: 'web',     // any of the parallel tools
+      synthesize: 'synthesize',
+    };
+    const id = map[step] || step;
+    return Array.from(document.querySelectorAll('.node')).find((n) => {
+      const label = n.querySelector('.node-id')?.textContent;
+      return label === id;
+    });
+  }
+
+  function pulseEdges(step) {
+    document.querySelectorAll('.edge').forEach((e) => e.classList.remove('edge-flash'));
+    // super-light: just bump opacity for a moment
+    document.querySelectorAll('.edge').forEach((e) => {
+      e.style.transition = 'stroke 0.2s';
+      e.style.opacity = '0.5';
+      setTimeout(() => (e.style.opacity = ''), 400);
+    });
+  }
+
+  // ⌘K fake-open (just flash the search bar)
+  document.addEventListener('keydown', (ev) => {
+    if ((ev.metaKey || ev.ctrlKey) && ev.key === 'k') {
+      ev.preventDefault();
+      const cmd = document.querySelector('.cmd-k');
+      if (!cmd) return;
+      cmd.style.borderColor = 'var(--c-accent)';
+      cmd.style.boxShadow = '0 0 0 3px var(--c-accent-soft)';
+      setTimeout(() => {
+        cmd.style.borderColor = '';
+        cmd.style.boxShadow = '';
+      }, 600);
+    }
+    // ⌘↵ to "run"
+    if ((ev.metaKey || ev.ctrlKey) && ev.key === 'Enter') {
+      ev.preventDefault();
+      const btn = document.querySelector('.run-btn');
+      if (!btn) return;
+      btn.style.transform = 'scale(0.97)';
+      setTimeout(() => (btn.style.transform = ''), 120);
+    }
+  });
+})();
+</script>
+  </body>
+</html>
