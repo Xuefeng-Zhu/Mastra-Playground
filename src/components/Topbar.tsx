@@ -1,0 +1,36 @@
+interface TopbarProps {
+  onCmdK: () => void;
+}
+
+export function Topbar({ onCmdK }: TopbarProps) {
+  return (
+    <header className="topbar">
+      <div className="brand">
+        <span className="brand-mark">◆</span>
+        <span className="brand-name">Mastra Playground</span>
+        <span className="brand-tag">v2 · ship</span>
+      </div>
+      <div className="topbar-center">
+        <button className="cmd-k" id="cmd-k" title="Search examples (⌘K)" onClick={onCmdK}>
+          <span className="cmd-k-icon">⌕</span>
+          <span className="cmd-k-text">Search examples…</span>
+          <span className="cmd-k-keys">
+            <kbd>⌘</kbd>
+            <kbd>K</kbd>
+          </span>
+        </button>
+      </div>
+      <div className="topbar-right">
+        <span className="status-pill" title="System status">
+          <span>System · Live</span>
+        </span>
+        <button className="icon-btn" title="Toggle theme" aria-label="Toggle theme">
+          ◐
+        </button>
+        <button className="icon-btn" title="Open in new tab" aria-label="Open in new tab">
+          ↗
+        </button>
+      </div>
+    </header>
+  );
+}
