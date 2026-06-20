@@ -6,8 +6,8 @@
 [![Mastra 1.43](https://img.shields.io/badge/Mastra-1.43-FF6B6B)](https://mastra.ai)
 
 A small, isolated TypeScript repo for learning [Mastra](https://mastra.ai) by
-example. Six real workflows exercising the framework's primitives, with a
-browser UI that visualizes the execution trace in real time.
+example. Eleven real workflows exercising the framework's primitives, with a
+React + Vite browser UI that visualizes the execution trace in real time.
 
 **Not for production. Not part of InboxPilot.**
 
@@ -38,7 +38,7 @@ cp .env.example .env
 npm run serve            # http://localhost:8917
 ```
 
-Open <http://localhost:8917> in a browser. Six tabs, one per example.
+Open <http://localhost:8917> in a browser. Eleven tabs, one per example.
 
 ## Why this exists
 
@@ -51,29 +51,34 @@ the full writeup.
 
 ## Examples
 
-| #   | Example                                                  | Mastra primitives                                 | What it teaches                                                           |
-| --- | -------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------- |
-| 01  | [Support Triage](examples/01-support-triage/)            | Agent, Workflow, structured output, `.branch()`   | The shape of an InboxPilot `AiAgentService` call.                         |
-| 02  | [Research Agent](examples/02-research-agent/)            | Agent with tools, sequential workflow             | Tool-using agents with mocked APIs.                                       |
-| 03  | [Code Review Agent](examples/03-code-review-agent/)      | Workflow with deterministic gate, conditional LLM | When to call the LLM based on tool output, not the other way around.      |
-| 04  | [Parallel Research](examples/04-parallel-research/)      | `Promise.all` fan-out inside a step               | The pattern InboxPilot §8 ("tool use") would use.                         |
-| 05  | [Multi-turn Chat](examples/05-multi-turn-chat/)          | Explicit conversation history in the prompt       | The pattern Mastra's `Memory` class abstracts over.                       |
-| 06  | [Human-in-the-Loop Approval](examples/06-hitl-approval/) | `suspend()` / `run.resume()`                      | The exact mechanism for InboxPilot §13's "named human-in-the-loop owner". |
+| #   | Example                                                  | Mastra primitives                                    | What it teaches                                                           |
+| --- | -------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------- |
+| 01  | [Support Triage](examples/01-support-triage/)            | Agent, Workflow, structured output, `.branch()`      | The shape of an InboxPilot `AiAgentService` call.                         |
+| 02  | [Research Agent](examples/02-research-agent/)            | Agent with tools, sequential workflow                | Tool-using agents with mocked APIs.                                       |
+| 03  | [Code Review Agent](examples/03-code-review-agent/)      | Workflow with deterministic gate, conditional LLM    | When to call the LLM based on tool output, not the other way around.      |
+| 04  | [Parallel Research](examples/04-parallel-research/)      | `Promise.all` fan-out inside a step                  | The pattern InboxPilot §8 ("tool use") would use.                         |
+| 05  | [Multi-turn Chat](examples/05-multi-turn-chat/)          | Explicit conversation history in the prompt          | The pattern Mastra's `Memory` class abstracts over.                       |
+| 06  | [Human-in-the-Loop Approval](examples/06-hitl-approval/) | `suspend()` / `run.resume()`                         | The exact mechanism for InboxPilot §13's "named human-in-the-loop owner". |
+| 07  | [Streaming Chat](examples/07-streaming-chat/)            | `Agent.stream()` token-by-token                      | How to consume streaming responses in a Mastra agent.                     |
+| 08  | [Critic Loop](examples/08-critic-loop/)                  | Evaluator-optimizer loop with score threshold        | Iterative self-critique until quality bar is met or budget runs out.      |
+| 09  | [Multi-Agent Handoff](examples/09-multi-agent-handoff/)  | Primary agent + specialist agent delegation          | Multi-agent systems where narrow specialists own part of the surface.     |
+| 10  | [Mastra Memory](examples/10-mastra-memory/)              | `@mastra/memory` `Memory` class, threadId+resourceId | The real abstraction that Example 05 hand-rolls with a Map.               |
+| 11  | [Content Pipeline](examples/11-content-pipeline/)        | 3-agent pipeline (research → write → edit + score)   | Composing narrow role prompts beats one generalist.                       |
 
 Each example is <350 lines including the CLI demo. The shared modules in
 `shared/` are <300 lines total.
 
 ## Endpoints
 
-| Method | Path                           | Purpose                                            | Rate limit    |
-| ------ | ------------------------------ | -------------------------------------------------- | ------------- |
-| GET    | `/`                            | UI shell                                           | none          |
-| GET    | `/style.css`, `/app.js`        | Static assets                                      | none          |
-| GET    | `/api/health`                  | Liveness probe (`{ ok, uptimeSec, exampleCount }`) | none          |
-| GET    | `/api/examples`                | List available examples                            | none          |
-| POST   | `/api/run/:example`            | One-shot JSON result                               | 30 req/min/IP |
-| GET    | `/api/stream/:example?input=…` | SSE trace stream                                   | 30 req/min/IP |
-| POST   | `/api/resume/:token`           | Resume a suspended workflow                        | 30 req/min/IP |
+| Method | Path                           | Purpose                                                      | Rate limit    |
+| ------ | ------------------------------ | ------------------------------------------------------------ | ------------- |
+| GET    | `/`                            | UI shell (served from `dist/index.html`)                     | none          |
+| GET    | `/style.css`, `/assets/*`      | Static assets (Vite emits `dist/style.css` + bundled JS/CSS) | none          |
+| GET    | `/api/health`                  | Liveness probe (`{ ok, uptimeSec, exampleCount }`)           | none          |
+| GET    | `/api/examples`                | List available examples                                      | none          |
+| POST   | `/api/run/:example`            | One-shot JSON result                                         | 30 req/min/IP |
+| GET    | `/api/stream/:example?input=…` | SSE trace stream                                             | 30 req/min/IP |
+| POST   | `/api/resume/:token`           | Resume a suspended workflow                                  | 30 req/min/IP |
 
 All API requests return JSON. Errors carry `{ error, field?, detail? }` with
 appropriate 4xx/5xx status codes. 429 responses include a `Retry-After`
@@ -83,7 +88,7 @@ header.
 
 ```bash
 curl -s http://localhost:8917/api/health
-# {"ok":true,"uptimeSec":12,"nodeEnv":"development","exampleCount":6,"ts":"2026-06-19T..."}
+# {"ok":true,"uptimeSec":12,"nodeEnv":"development","exampleCount":11,"ts":"2026-06-19T..."}
 ```
 
 ### Smoke test
@@ -120,9 +125,9 @@ every commit.
 ```
 ┌─────────────────┐    SSE /api/stream/:example    ┌─────────────────┐
 │   Browser       │ ◄──────────────────────────── │  Node http srv  │
-│   (public/)     │                                │  (server/)      │
-│                 │    POST /api/run/:example     │                 │
-│  6 tabs         │ ────────────────────────────► │  loads example  │
+│  (React + Vite  │                                │  (server/)      │
+│   UI from dist/)│    POST /api/run/:example     │                 │
+│  11 tabs        │ ────────────────────────────► │  loads example  │
 │  1 graph each   │                                │  via dynamic    │
 │  trace events   │    POST /api/resume/:token    │  import()       │
 │  recent runs    │ ◄──────────────────────────── │                 │
@@ -160,6 +165,10 @@ every commit.
 └─────────────────┘                              └─────────────────┘
 ```
 
+The React UI lives in `src/` and is built by Vite into `dist/` (gitignored).
+The Node server reads `dist/index.html`, `dist/style.css`, and `dist/assets/*`
+directly — there is no separate hand-written JS bundle to ship.
+
 ## Environment variables
 
 All variables are read at server startup. None are required for `npm run
@@ -185,48 +194,77 @@ OPENAI_MODEL=openai/gpt-4o-mini
 
 ```
 mastra-playground/
-  package.json, tsconfig.json, .env.example
+  package.json, tsconfig.json, vite.config.ts, .env.example
+  index.html                        # Vite entry (<script src="/src/main.tsx">)
   README.md, CHANGELOG.md, CONTRIBUTING.md, SECURITY.md, LICENSE
   .editorconfig, .nvmrc, .prettierrc
   .github/workflows/ci.yml           # typecheck + format check + smoke
-  shared/
+  shared/                           # cross-example helpers (<135 lines each)
     llm.ts                          # getModel(id) factory
-    observability.ts                # shared logger
+    observability.ts                # shared Mastra logger (ConsoleLogger)
     tracer.ts                       # Tracer class + TraceEvent types
     traced-step.ts                  # stepStart/stepEnd/llmStructured/toolCall helpers
     workflow-helpers.ts             # unwrapWorkflowOutput
     memory-store.ts                 # (ex 05) in-memory conversation store
     suspended-store.ts              # (ex 06) suspended-run registry
-  examples/
+    validation.ts                   # body parsing + rate limit + sanitization
+    logger.ts                       # structured stdout/stderr logger
+  examples/                         # 11 numbered workflows
     01-support-triage/              # + README.md
     02-research-agent/
     03-code-review-agent/
     04-parallel-research/
     05-multi-turn-chat/
     06-hitl-approval/
+    07-streaming-chat/
+    08-critic-loop/
+    09-multi-agent-handoff/
+    10-mastra-memory/
+    11-content-pipeline/
   server/
-    server.ts                       # static + JSON + SSE endpoints
+    server.ts                       # static + JSON + SSE endpoints (641 lines)
+  src/                              # React 18 + Vite UI
+    main.tsx                        # ReactDOM.createRoot entry
+    App.tsx                         # top-level shell
+    components/                     # FormField, Graph, OutputPanel, Rail, Topbar,
+                                    # TracePane, Workspace
+    hooks/useWorkspace.ts           # SSE EventSource consumer
+    registry/                       # examples.ts, renderers.tsx, graphs.ts, utils.ts
+    styles.css                      # bundled into dist/assets/index-*.css by Vite
   public/
-    index.html, style.css, app.js   # the web UI
-  scripts/
-    smoke.ts                        # end-to-end smoke test
+    style.css                       # copied verbatim to dist/style.css by Vite
+  scripts/                          # smoke, eval, ui-smoke, diagnostics
   notes/
     learning-log.md                 # user fills this in
     comparison-to-inboxpilot.md     # the verdict writeup
-  docs/audit/                     # code review artifacts (opencode)
+  docs/audit/                       # code review artifacts (opencode)
+  dist/                             # gitignored — Vite build output, served by Node
 ```
 
 ## Adding a new example
 
-1. Create `examples/0N-short-name/` with `index.ts` + `README.md`
-2. The example must export `async function runOne(input, tracer)` returning
-   `{ status, input, output, error, totalMs }`
-3. Use `stepStart` / `stepEnd` / `llmStructured` / `toolCall` from
-   `shared/traced-step.ts` to emit trace events
-4. Register the example in `server/server.ts` `EXAMPLES` map
-5. Add a tab in `public/index.html` and a `GRAPHS` entry in `public/app.js`
-6. Add an `example:0N` script in `package.json`
-7. Add a `node_modules` of `<300` lines per example (or split)
+The 7 touchpoints (one entry in the React registry drives the new tab):
+
+1. Create `examples/0N-short-name/` with `index.ts` + `README.md`. The example
+   must export `async function runOne(input, tracer)` returning
+   `{ status, input, output, error, totalMs }`.
+2. Use `stepStart` / `stepEnd` / `llmStructured` / `toolCall` from
+   `shared/traced-step.ts` to emit trace events. Do NOT call raw
+   `tracer.emit` — the helpers exist for grep-ability.
+3. Register the example in `server/server.ts` `EXAMPLES` map (the file path
+   is what `dynamic import()` reads at request time) and add a case to
+   `validateExampleInput()` if its input shape is new.
+4. Add an entry in `src/registry/examples.ts` — title, form fields, defaults,
+   and the `output.kind` that picks a renderer.
+5. If the new example uses an `output.kind` that no existing renderer in
+   `src/registry/renderers.tsx` handles, add a renderer branch there.
+6. Add an `example:0N` script in `package.json` so the CLI demo (`npm run
+example:0N`) and CI work.
+7. Keep each example's `index.ts` under 350 lines (CONTRIBUTING) — split
+   before growing.
+
+After all seven: `npm run build` regenerates `dist/` and the new tab appears
+in the served UI without any manual HTML edit.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for code style and commit conventions.
 
@@ -256,20 +294,22 @@ don't use a tunnel and run the server on `localhost` directly.
 ### The HITL gate node doesn't show the orange "suspended" glow
 
 Hard-refresh the page (`Ctrl+Shift+R` / `Cmd+Shift+R`) to pick up the latest
-`public/app.js`. There was a known bug where the wrong DOM attribute
+`dist/assets/*` bundle. There was a known bug where the wrong DOM attribute
 selector was used; it's been fixed but your browser may have cached the
-old version.
+old version. If you changed React code, re-run `npm run build` first.
 
 ### TypeScript errors after `npm install`
 
 Make sure you're on Node 22 (`nvm use`). The project uses TypeScript 6+
 features that older Node versions can't transpile.
 
-### Pre-existing dirty files in `public/app.js` from a previous session
+### Stale UI after editing React code
 
-A common gotcha when iterating: `write_file` and `patch` can leave stale
-content if the file was modified by both the user and a previous turn. A
-hard refresh in the browser picks up the new version from disk.
+The Node server serves files from `dist/`, which is only regenerated by
+`npm run build`. After editing anything in `src/`, run `npm run build` and
+hard-refresh the browser. For live HMR during development, use `npm run dev`
+in a separate terminal — Vite serves `src/` directly on :5173 with HMR, but
+the Node server (port 8917) still reads from `dist/`.
 
 ## Caveats
 
