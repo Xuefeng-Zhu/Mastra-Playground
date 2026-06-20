@@ -23,6 +23,9 @@
     "format:check": "prettier --check \"**/*.{ts,js,css,html,md,json}\" --ignore-path .gitignore",
     "serve": "tsx server/server.ts",
     "start:prod": "NODE_ENV=production tsx server/server.ts",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "health": "curl -s http://localhost:8917/api/health | head -c 500",
     "smoke": "tsx scripts/smoke.ts",
     "test": "vitest run",
@@ -46,16 +49,22 @@
     "@mastra/core": "^1.43.0",
     "@mastra/memory": "^1.21.0",
     "mastra": "^1.14.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/jsdom": "^28.0.3",
     "@types/node": "^25.9.3",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
     "@vitest/coverage-v8": "^4.1.9",
     "jsdom": "^29.1.1",
     "prettier": "^3.8.4",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
+    "vite": "^5.4.21",
     "vitest": "^4.1.9"
   }
 }

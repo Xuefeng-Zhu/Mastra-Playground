@@ -1,11 +1,53 @@
+# Dependencies
 node_modules/
+
+# Build / TypeScript (no build step, but tsx caches + future safety)
+dist/
+build/
+*.tsbuildinfo
+
+# Environment
 .env
 .env.local
-.mastra/
-*.log
-dist/
-.DS_Store
-.tsbuildinfo
+.env.*.local
 
-# Opencode dispatch brief (one-off, not part of the project)
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Mastra runtime cache
+.mastra/
+
+# Vitest
+coverage/
+.vitest-cache/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OpenCode / agent artifacts
+# .omo/             - opencode session state
+# .playwright-mcp/  - browser snapshots
+# AGENTS.md         - auto-generated knowledge base (root + per-subdir)
+# .review-brief.md  - one-off opencode dispatch brief
+.omo/
+.playwright-mcp/
+AGENTS.md
 .review-brief.md
+
+# Design-iteration screenshots (root, never tracked, transient)
+# Wildcards cover: v1-*.png, v2-*.png, current-v*-*.png, scroll-*.png
+v1-*.png
+v2-*.png
+current-v*-*.png
+scroll-*.png
