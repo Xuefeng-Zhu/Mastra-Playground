@@ -26,7 +26,7 @@ const openai = createOpenAI({
 });
 
 /** Default model used when no override is supplied. */
-export const modelId = process.env.OPENAI_MODEL || 'openai/gpt-4o-mini';
+const modelId = process.env.OPENAI_MODEL || 'openai/gpt-4o-mini';
 
 /** The default model — used by CLI examples without settings. */
 export const model = openai(modelId);
@@ -37,4 +37,12 @@ export const model = openai(modelId);
  */
 export function getModel(id: string) {
   return openai(id);
+}
+
+/**
+ * Resolve the LLM model to use for a request. Falls back to the project
+ * default (env-derived) when no per-request id is provided.
+ */
+export function resolveModel(inputModel?: string) {
+  return inputModel ? getModel(inputModel) : model;
 }
