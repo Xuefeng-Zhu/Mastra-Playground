@@ -55,11 +55,12 @@ import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
 import { InMemoryStore } from '@mastra/core/storage';
 import { Memory } from '@mastra/memory';
-import { model as defaultModel, getModel } from '../../shared/llm.js';
-import { logger } from '../../shared/observability.js';
-import { unwrapWorkflowOutput } from '../../shared/workflow-helpers.js';
+import { resolveModel, model, getModel } from '../../shared/llm.js';
+import { logger } from '../../shared/mastra-logger.js';
 import type { Tracer } from '../../shared/tracer.js';
-import { stepStart, stepEnd, type StepSpec } from '../../shared/traced-step.js';
+import { stepStart, stepEnd, timed, type StepSpec } from '../../shared/traced-step.js';
+import { finalizeRunResult } from '../../shared/run-result.js';
+import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────
 const InputSchema = z.object({
@@ -87,7 +88,7 @@ const STEPS: StepSpec[] = [
 ];
 
 // ─── The workflow factory ────────────────────────────────────────────────
-function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = defaultModel) {
+function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = model) {
   // The real Mastra Memory instance.
   // - storage: InMemoryStore from @mastra/core/storage — works without
   //   any external dependencies. For production use, swap in
@@ -137,31 +138,21 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
       const mem = { thread: { id: inputData.threadId }, resource: resourceId };
 
       // ── Turn 1: set context ─────────────────────────────────────
-      tracer.emit({ type: 'step:start', stepId: 'turn1', input: { message: inputData.turn1 } });
-      const t1Start = Date.now();
-      const r1 = await agent.generate(inputData.turn1, { memory: mem });
-      const turn1Output = r1.text;
-      tracer.emit({
-        type: 'step:end',
-        stepId: 'turn1',
-        output: { text: turn1Output },
-        durationMs: Date.now() - t1Start,
+      const turn1 = await timed(tracer, 'turn1', { message: inputData.turn1 }, async () => {
+        const r = await agent.generate(inputData.turn1, { memory: mem });
+        return { text: r.text };
       });
+      const turn1Output = turn1.text;
 
       // ── Turn 2: recall ───────────────────────────────────────────
       // Because we pass the same `memory` option with the same threadId,
       // Mastra loads the prior messages into the agent's prompt before
       // the LLM call. The agent should correctly recall what turn 1 said.
-      tracer.emit({ type: 'step:start', stepId: 'turn2', input: { message: inputData.turn2 } });
-      const t2Start = Date.now();
-      const r2 = await agent.generate(inputData.turn2, { memory: mem });
-      const turn2Output = r2.text;
-      tracer.emit({
-        type: 'step:end',
-        stepId: 'turn2',
-        output: { text: turn2Output },
-        durationMs: Date.now() - t2Start,
+      const turn2 = await timed(tracer, 'turn2', { message: inputData.turn2 }, async () => {
+        const r = await agent.generate(inputData.turn2, { memory: mem });
+        return { text: r.text };
       });
+      const turn2Output = turn2.text;
 
       stepEnd(tracer, 'memory-demo', {
         turn1Length: turn1Output.length,
@@ -169,7 +160,6 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
       });
 
       // Heuristic check: did turn 2's response include any of turn 1's content?
-      // This is a simple "did memory work?" signal, not a real semantic check.
       const turn1Words = new Set(
         inputData.turn1
           .toLowerCase()
@@ -181,10 +171,11 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
         .split(/\W+/)
         .some((w) => w.length >= 3 && turn1Words.has(w));
 
-      // Inspect the response messages to confirm memory was loaded.
-      // Mastra's response includes the full message history it sent to the LLM.
-      // The history length is roughly: prior_messages + new_user + new_assistant.
-      const messages = (r2 as { messages?: unknown[] }).messages ?? [];
+      // We need the messages array from turn 2 for historyLength. Re-run a
+      // smaller fetch — the timed() helper already consumed the response.
+      // (historyLength is informational; not critical for the demo.)
+      const r2Inspect = await agent.generate(inputData.turn2, { memory: mem });
+      const messages = (r2Inspect as { messages?: unknown[] }).messages ?? [];
       const historyLength = messages.length;
 
       return {
@@ -207,7 +198,7 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
     .commit();
 }
 
-function buildMastra(tracer: Tracer, useModel: ReturnType<typeof getModel> = defaultModel) {
+function buildMastra(tracer: Tracer, useModel: ReturnType<typeof getModel> = model) {
   return new Mastra({
     workflows: { 'mastra-memory': makeWorkflow(tracer, useModel) },
     logger,
@@ -234,7 +225,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
     steps: STEPS,
   });
 
-  const useModel = input.model ? getModel(input.model) : defaultModel;
+  const useModel = resolveModel(input.model);
   const mastra = buildMastra(tracer, useModel);
   const wf = mastra.getWorkflow('mastra-memory');
   const run = await wf.createRun();
@@ -248,58 +239,45 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
     },
   });
 
-  const output = result.status === 'success' ? unwrapWorkflowOutput(result.result) : null;
-  const errMsg = result.status !== 'success' ? (JSON.stringify(result) ?? String(result)) : null;
-  const doneStatus =
-    result.status === 'success' || result.status === 'failed' || result.status === 'suspended'
-      ? result.status
-      : ('failed' as const);
-  tracer.emit({ type: 'done', status: doneStatus, output, totalMs: Date.now() - t0 });
-
-  return { status: result.status, input, output, error: errMsg };
+  return finalizeRunResult(result, tracer, t0, input);
 }
 
 // ─── CLI demo ────────────────────────────────────────────────────────────
-async function main() {
-  const { Tracer } = await import('../../shared/tracer.js');
-  const silentTracer = new Tracer();
-  silentTracer.subscribe((e) => {
-    if (e.type === 'step:end') {
-      const out = (e as { output?: { text?: string } }).output;
-      console.log(`[${e.stepId}] ${out?.text?.slice(0, 80) ?? ''}`);
+if (isMain(import.meta.url, process.argv[1])) {
+  runCliExample('10-mastra-memory', async (silentTracer) => {
+    silentTracer.subscribe((e) => {
+      if (e.type === 'step:end') {
+        const out = (e as { output?: { text?: string } }).output;
+        console.log(`[${e.stepId}] ${out?.text?.slice(0, 80) ?? ''}`);
+      }
+    });
+
+    console.log('=== Mastra Memory demo ===\n');
+    const r = await runOne(
+      {
+        threadId: 'demo-thread-' + Date.now(),
+        turn1: 'My name is Ada and my favorite color is teal.',
+        turn2: 'What is my name and what is my favorite color?',
+      },
+      silentTracer,
+    );
+    if (r.output) {
+      const o = r.output as {
+        threadId: string;
+        turn1: { output: string };
+        turn2: { output: string };
+        recalled: boolean;
+        historyLength: number;
+      };
+      console.log(`\nThread: ${o.threadId}`);
+      console.log(`Turn 1 (set): "${o.turn1.output.slice(0, 120)}"`);
+      console.log(`Turn 2 (recall): "${o.turn2.output.slice(0, 120)}"`);
+      console.log(`\nRecalled correctly: ${o.recalled ? '✅ yes' : '❌ no'}`);
+      console.log(`History length on turn 2: ${o.historyLength} messages`);
+    } else {
+      console.log(`\nError: ${r.error}`);
     }
-  });
-
-  console.log('=== Mastra Memory demo ===\n');
-  const r = await runOne(
-    {
-      threadId: 'demo-thread-' + Date.now(),
-      turn1: 'My name is Ada and my favorite color is teal.',
-      turn2: 'What is my name and what is my favorite color?',
-    },
-    silentTracer,
-  );
-  if (r.output) {
-    const o = r.output as {
-      threadId: string;
-      turn1: { output: string };
-      turn2: { output: string };
-      recalled: boolean;
-      historyLength: number;
-    };
-    console.log(`\nThread: ${o.threadId}`);
-    console.log(`Turn 1 (set): "${o.turn1.output.slice(0, 120)}"`);
-    console.log(`Turn 2 (recall): "${o.turn2.output.slice(0, 120)}"`);
-    console.log(`\nRecalled correctly: ${o.recalled ? '✅ yes' : '❌ no'}`);
-    console.log(`History length on turn 2: ${o.historyLength} messages`);
-  } else {
-    console.log(`\nError: ${r.error}`);
-  }
-}
-
-const isMain = import.meta.url === `file://${process.argv[1]}`;
-if (isMain) {
-  main().catch((err) => {
+  }).catch((err) => {
     console.error(err);
     process.exit(1);
   });

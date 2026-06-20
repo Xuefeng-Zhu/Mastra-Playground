@@ -39,11 +39,12 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { model as defaultModel, getModel } from '../../shared/llm.js';
-import { logger } from '../../shared/observability.js';
-import { unwrapWorkflowOutput } from '../../shared/workflow-helpers.js';
+import { resolveModel, model, getModel } from '../../shared/llm.js';
+import { logger } from '../../shared/mastra-logger.js';
 import type { Tracer } from '../../shared/tracer.js';
 import { stepStart, stepEnd, type StepSpec } from '../../shared/traced-step.js';
+import { finalizeRunResult } from '../../shared/run-result.js';
+import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────
 const InputSchema = z.object({
@@ -66,7 +67,7 @@ const STEPS: StepSpec[] = [
 ];
 
 // ─── Make the workflow factory ────────────────────────────────────────────
-function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = defaultModel) {
+function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = model) {
   const agent = new Agent({
     id: 'streaming-chat',
     name: 'Streaming Chat',
@@ -141,7 +142,7 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
     .commit();
 }
 
-function buildMastra(tracer: Tracer, useModel: ReturnType<typeof getModel> = defaultModel) {
+function buildMastra(tracer: Tracer, useModel: ReturnType<typeof getModel> = model) {
   return new Mastra({
     workflows: { 'streaming-chat': makeWorkflow(tracer, useModel) },
     logger,
@@ -157,48 +158,35 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   const t0 = Date.now();
   tracer.emit({ type: 'start', workflow: 'streaming-chat', input, steps: STEPS });
 
-  const useModel = input.model ? getModel(input.model) : defaultModel;
+  const useModel = resolveModel(input.model);
   const mastra = buildMastra(tracer, useModel);
   const wf = mastra.getWorkflow('streaming-chat');
   const run = await wf.createRun();
   const result = await run.start({ inputData: { prompt: input.prompt, model: input.model } });
 
-  const output = result.status === 'success' ? unwrapWorkflowOutput(result.result) : null;
-  const errMsg = result.status !== 'success' ? (JSON.stringify(result) ?? String(result)) : null;
-  const doneStatus =
-    result.status === 'success' || result.status === 'failed' || result.status === 'suspended'
-      ? result.status
-      : ('failed' as const);
-  tracer.emit({ type: 'done', status: doneStatus, output, totalMs: Date.now() - t0 });
-
-  return { status: result.status, input, output, error: errMsg };
+  return finalizeRunResult(result, tracer, t0, input);
 }
 
 // ─── CLI demo ────────────────────────────────────────────────────────────
-async function main() {
-  const { Tracer } = await import('../../shared/tracer.js');
-  const silentTracer = new Tracer();
-  silentTracer.subscribe((e) => {
-    if (e.type === 'llm:delta') {
-      process.stdout.write(e.text);
-    } else if (e.type === 'llm:end') {
-      console.log(`\n[streamed in ${(e as { durationMs: number }).durationMs}ms]`);
+if (isMain(import.meta.url, process.argv[1])) {
+  runCliExample('07-streaming-chat', async (silentTracer) => {
+    silentTracer.subscribe((e) => {
+      if (e.type === 'llm:delta') {
+        process.stdout.write(e.text);
+      } else if (e.type === 'llm:end') {
+        console.log(`\n[streamed in ${(e as { durationMs: number }).durationMs}ms]`);
+      }
+    });
+
+    console.log('=== Streaming chat demo ===\n');
+    const r = await runOne({ prompt: 'Explain server-sent events in one paragraph.' }, silentTracer);
+    if (r.status === 'success' && r.output) {
+      const out = r.output as { finalText: string; durationMs: number; deltas: string[] };
+      console.log(
+        `\n\nFinal: ${out.finalText.length} chars in ${out.deltas.length} deltas (${out.durationMs}ms)`,
+      );
     }
-  });
-
-  console.log('=== Streaming chat demo ===\n');
-  const r = await runOne({ prompt: 'Explain server-sent events in one paragraph.' }, silentTracer);
-  if (r.status === 'success' && r.output) {
-    const out = r.output as { finalText: string; durationMs: number; deltas: string[] };
-    console.log(
-      `\n\nFinal: ${out.finalText.length} chars in ${out.deltas.length} deltas (${out.durationMs}ms)`,
-    );
-  }
-}
-
-const isMain = import.meta.url === `file://${process.argv[1]}`;
-if (isMain) {
-  main().catch((err) => {
+  }).catch((err) => {
     console.error(err);
     process.exit(1);
   });

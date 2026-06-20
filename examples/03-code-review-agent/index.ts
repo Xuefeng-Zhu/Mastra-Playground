@@ -6,13 +6,35 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { model as defaultModel, getModel } from '../../shared/llm.js';
-import { logger } from '../../shared/observability.js';
-import { unwrapWorkflowOutput } from '../../shared/workflow-helpers.js';
+import { resolveModel, model, getModel } from '../../shared/llm.js';
+import { logger } from '../../shared/mastra-logger.js';
 import type { Tracer } from '../../shared/tracer.js';
 import { stepStart, stepEnd, branchEvaluate, toolCall, type StepSpec } from '../../shared/traced-step.js';
+import { finalizeRunResult } from '../../shared/run-result.js';
+import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
 import { readFile, readFileDirect } from './tools/read-file.js';
 import { runCheck, runCheckDirect } from './tools/run-check.js';
+
+// Hoisted: declared 3x in the original (steps + workflow). Hoisting keeps the
+// shape single-sourced so a change is one edit, not three.
+const ReviewOutputSchema = z.object({
+  path: z.string(),
+  action: z.enum(['reviewed', 'approved']),
+  review: z.string(),
+  issueCount: z.number(),
+});
+
+const IssuesSchema = z.object({
+  path: z.string(),
+  content: z.string(),
+  issues: z.array(
+    z.object({
+      severity: z.enum(['error', 'warning', 'info']),
+      line: z.number(),
+      message: z.string(),
+    }),
+  ),
+});
 
 const STEPS: StepSpec[] = [
   { id: 'fetch-file', label: 'Read file', kind: 'tool' },
@@ -64,44 +86,18 @@ function makeCheckFileStep(tracer: Tracer) {
   });
 }
 
-function makeGenerateReviewStep(tracer: Tracer, useModel = defaultModel) {
+function makeGenerateReviewStep(tracer: Tracer, agent: Agent) {
   return createStep({
     id: 'generate-review',
     description: 'Use the LLM to write the review comment',
-    inputSchema: z.object({
-      path: z.string(),
-      content: z.string(),
-      issues: z.array(
-        z.object({
-          severity: z.enum(['error', 'warning', 'info']),
-          line: z.number(),
-          message: z.string(),
-        }),
-      ),
-    }),
-    outputSchema: z.object({
-      path: z.string(),
-      action: z.enum(['reviewed', 'approved']),
-      review: z.string(),
-      issueCount: z.number(),
-    }),
+    inputSchema: IssuesSchema,
+    outputSchema: ReviewOutputSchema,
     execute: async ({ inputData }) => {
       stepStart(tracer, 'generate-review', { path: inputData.path, issueCount: inputData.issues.length });
       const issueList = inputData.issues
         .map((i) => `- [${i.severity}] line ${i.line}: ${i.message}`)
         .join('\n');
       const prompt = `File: ${inputData.path}\n\nIssues found:\n${issueList || '(none)'}\n\nFile content:\n\`\`\`\n${inputData.content}\n\`\`\`\n\nWrite the review comment.`;
-      const agent = new Agent({
-        id: 'code-reviewer',
-        name: 'Code Reviewer',
-        instructions: [
-          'You are a code reviewer.',
-          'Given a list of issues and the file content, write a short Markdown review comment.',
-          'Lead with the most important issues. Be specific (cite line numbers).',
-          'Keep it under 200 words. No pleasantries.',
-        ].join('\n'),
-        model: useModel,
-      });
       const result = await agent.generate(prompt);
       const out = {
         path: inputData.path,
@@ -119,23 +115,8 @@ function makeApproveStep(tracer: Tracer) {
   return createStep({
     id: 'approve',
     description: 'No issues — approve the file',
-    inputSchema: z.object({
-      path: z.string(),
-      content: z.string(),
-      issues: z.array(
-        z.object({
-          severity: z.enum(['error', 'warning', 'info']),
-          line: z.number(),
-          message: z.string(),
-        }),
-      ),
-    }),
-    outputSchema: z.object({
-      path: z.string(),
-      action: z.enum(['reviewed', 'approved']),
-      review: z.string(),
-      issueCount: z.number(),
-    }),
+    inputSchema: IssuesSchema,
+    outputSchema: ReviewOutputSchema,
     execute: async () => {
       stepStart(tracer, 'approve', {});
       const out = {
@@ -150,16 +131,11 @@ function makeApproveStep(tracer: Tracer) {
   });
 }
 
-function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = defaultModel) {
+function makeWorkflow(tracer: Tracer, reviewerAgent: Agent) {
   return createWorkflow({
     id: 'review',
     inputSchema: z.object({ path: z.string() }),
-    outputSchema: z.object({
-      path: z.string(),
-      action: z.enum(['reviewed', 'approved']),
-      review: z.string(),
-      issueCount: z.number(),
-    }),
+    outputSchema: ReviewOutputSchema,
   })
     .then(makeFetchFileStep(tracer))
     .then(makeCheckFileStep(tracer))
@@ -178,7 +154,7 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
           branchEvaluate(tracer, 'branch.issues', matched, `issues.length > 0`);
           return matched;
         },
-        makeGenerateReviewStep(tracer, useModel),
+        makeGenerateReviewStep(tracer, reviewerAgent),
       ],
     ])
     .commit();
@@ -193,17 +169,21 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   const t0 = Date.now();
   tracer.emit({ type: 'start', workflow: 'code-review', input, steps: STEPS });
 
-  const useModel = input.model ? getModel(input.model) : defaultModel;
+  const useModel = resolveModel(input.model);
+  const reviewerAgent = new Agent({
+    id: 'code-reviewer',
+    name: 'Code Reviewer',
+    instructions: [
+      'You are a code reviewer.',
+      'Given a list of issues and the file content, write a short Markdown review comment.',
+      'Lead with the most important issues. Be specific (cite line numbers).',
+      'Keep it under 200 words. No pleasantries.',
+    ].join('\n'),
+    model: useModel,
+  });
   const mastra = new Mastra({
-    agents: {
-      reviewer: new Agent({
-        id: 'code-reviewer',
-        name: 'Code Reviewer',
-        instructions: 'review',
-        model: useModel,
-      }),
-    },
-    workflows: { review: makeWorkflow(tracer, useModel) },
+    agents: { reviewer: reviewerAgent },
+    workflows: { review: makeWorkflow(tracer, reviewerAgent) },
     logger,
   });
 
@@ -211,45 +191,25 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   const run = await wf.createRun();
   const result = await run.start({ inputData: { path: input.path } });
 
-  const output = result.status === 'success' ? unwrapWorkflowOutput(result.result) : null;
-  // Normalize the failed result into something readable rather than [object Object].
-  const errMsg = result.status !== 'success' ? (JSON.stringify(result) ?? String(result)) : null;
-  // Cast done-status to the tracer's narrower union (Mastra also emits 'tripwire' | 'paused' which we don't surface here).
-  const doneStatus =
-    result.status === 'success' || result.status === 'failed' || result.status === 'suspended'
-      ? result.status
-      : ('failed' as const);
-  tracer.emit({ type: 'done', status: doneStatus, output, totalMs: Date.now() - t0 });
-
-  return {
-    status: result.status,
-    input: { path: input.path },
-    output,
-    error: errMsg,
-  };
+  return finalizeRunResult(result, tracer, t0, input);
 }
 
 const demoFiles = ['auth.ts', 'utils.ts', 'clean.ts'];
 
-async function main() {
-  const { Tracer } = await import('../../shared/tracer.js');
-  const silentTracer = new Tracer();
-  for (const path of demoFiles) {
-    const r = await runOne({ path }, silentTracer);
-    console.log(`\n— Reviewing: ${path}`);
-    if (r.status === 'success' && r.output) {
-      const out = r.output as { action: string; issueCount: number; review: string };
-      console.log(`  action: ${out.action}  issues: ${out.issueCount}`);
-      console.log(out.review);
-    } else {
-      console.log(`  workflow ${r.status}: ${r.error}`);
+if (isMain(import.meta.url, process.argv[1])) {
+  runCliExample('03-code-review-agent', async (silentTracer) => {
+    for (const path of demoFiles) {
+      const r = await runOne({ path }, silentTracer);
+      console.log(`\n— Reviewing: ${path}`);
+      if (r.status === 'success' && r.output) {
+        const out = r.output as { action: string; issueCount: number; review: string };
+        console.log(`  action: ${out.action}  issues: ${out.issueCount}`);
+        console.log(out.review);
+      } else {
+        console.log(`  workflow ${r.status}: ${r.error}`);
+      }
     }
-  }
-}
-
-const isMain = import.meta.url === `file://${process.argv[1]}`;
-if (isMain) {
-  main().catch((err) => {
+  }).catch((err) => {
     console.error(err);
     process.exit(1);
   });

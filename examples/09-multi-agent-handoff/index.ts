@@ -37,11 +37,12 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { model as defaultModel, getModel } from '../../shared/llm.js';
-import { logger } from '../../shared/observability.js';
-import { unwrapWorkflowOutput } from '../../shared/workflow-helpers.js';
+import { resolveModel, model, getModel } from '../../shared/llm.js';
+import { logger } from '../../shared/mastra-logger.js';
 import type { Tracer } from '../../shared/tracer.js';
-import { stepStart, stepEnd, type StepSpec } from '../../shared/traced-step.js';
+import { stepStart, stepEnd, toolCall, timed, type StepSpec } from '../../shared/traced-step.js';
+import { finalizeRunResult } from '../../shared/run-result.js';
+import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────
 const InputSchema = z.object({
@@ -71,7 +72,7 @@ const STEPS: StepSpec[] = [
 ];
 
 // ─── The workflow factory ────────────────────────────────────────────────
-function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = defaultModel) {
+function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = model) {
   // The specialist agent: focused prompt, narrow tool set.
   const billingSpecialist = new Agent({
     id: 'billing-specialist',
@@ -97,13 +98,7 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
       message: z.string(),
     }),
     execute: async ({ orderId }: { orderId: string }) => {
-      tracer.emit({
-        type: 'tool:call',
-        stepId: 'specialist',
-        tool: 'lookup_refund',
-        input: { orderId },
-        output: '...',
-      });
+      toolCall(tracer, 'specialist', 'lookup_refund', { orderId }, '...');
       const record = REFUNDS[orderId];
       if (!record) {
         return {
@@ -147,34 +142,22 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
       specialistResponse: z.string(),
     }),
     execute: async ({ customerMessage }: { customerMessage: string }) => {
-      // Emit a tracer event so the user can see the handoff in the trace.
-      tracer.emit({
-        type: 'step:start',
-        stepId: 'specialist',
-        input: { customerMessage },
-      });
-      const t0 = Date.now();
-      // Synchronously invoke the specialist agent with the customer's message.
-      // The specialist agent already has lookup_refund attached as a tool on its
-      // constructor — but since lookup_refund is defined above, we attach it via
-      // toolsets so it's available to the specialist too.
-      const response = await billingSpecialist.generate(customerMessage, {
-        toolsets: {
-          billing: {
-            lookup_refund: lookupRefund,
+      return timed(tracer, 'specialist', { customerMessage }, async () => {
+        // Synchronously invoke the specialist agent with the customer's message.
+        // The specialist agent already has lookup_refund attached as a tool on its
+        // constructor — but since lookup_refund is defined above, we attach it via
+        // toolsets so it's available to the specialist too.
+        const response = await billingSpecialist.generate(customerMessage, {
+          toolsets: {
+            billing: {
+              lookup_refund: lookupRefund,
+            },
           },
-        },
-        // Use 'auto' tool choice so the specialist decides when to call lookup_refund
-        toolChoice: 'auto',
+          // Use 'auto' tool choice so the specialist decides when to call lookup_refund
+          toolChoice: 'auto',
+        });
+        return { specialistResponse: response.text };
       });
-      const text = response.text;
-      tracer.emit({
-        type: 'step:end',
-        stepId: 'specialist',
-        output: { specialistResponse: text },
-        durationMs: Date.now() - t0,
-      });
-      return { specialistResponse: text };
     },
   };
 
@@ -186,54 +169,41 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
     execute: async ({ inputData }) => {
-      stepStart(tracer, 'primary', { messageLength: inputData.message.length });
-
-      tracer.emit({
-        type: 'step:start',
-        stepId: 'primary',
-        input: { message: inputData.message },
-      });
-      const t0 = Date.now();
-      const response = await triageAgent.generate(inputData.message, {
-        toolsets: {
-          triage: {
-            transfer_to_billing_specialist: transferToBillingSpecialist,
+      return timed(tracer, 'primary', { messageLength: inputData.message.length }, async () => {
+        const response = await triageAgent.generate(inputData.message, {
+          toolsets: {
+            triage: {
+              transfer_to_billing_specialist: transferToBillingSpecialist,
+            },
           },
-        },
-      });
-      const text = response.text;
-      // Inspect tool calls/results to determine whether we delegated.
-      // Mastra 1.43 returns these as ToolCallChunk[] / ToolResultChunk[]
-      // with the actual data on `chunk.payload`.
-      const delegated =
-        response.toolCalls?.some(
-          (tc) => (tc.payload as { toolName?: string })?.toolName === 'transfer_to_billing_specialist',
-        ) ?? false;
-      // Find the specialist's response in toolResults.
-      let specialistResponse: string | undefined;
-      const transferResult = response.toolResults?.find(
-        (tr) => (tr.payload as { toolName?: string })?.toolName === 'transfer_to_billing_specialist',
-      );
-      if (transferResult) {
-        const result = (transferResult.payload as { result?: { specialistResponse?: string } }).result;
-        if (result && typeof result === 'object' && 'specialistResponse' in result) {
-          specialistResponse = result.specialistResponse;
+        });
+        const text = response.text;
+        // Inspect tool calls/results to determine whether we delegated.
+        // Mastra 1.43 returns these as ToolCallChunk[] / ToolResultChunk[]
+        // with the actual data on `chunk.payload`.
+        const delegated =
+          response.toolCalls?.some(
+            (tc) => (tc.payload as { toolName?: string })?.toolName === 'transfer_to_billing_specialist',
+          ) ?? false;
+        // Find the specialist's response in toolResults.
+        let specialistResponse: string | undefined;
+        const transferResult = response.toolResults?.find(
+          (tr) => (tr.payload as { toolName?: string })?.toolName === 'transfer_to_billing_specialist',
+        );
+        if (transferResult) {
+          const result = (transferResult.payload as { result?: { specialistResponse?: string } }).result;
+          if (result && typeof result === 'object' && 'specialistResponse' in result) {
+            specialistResponse = result.specialistResponse;
+          }
         }
-      }
-      tracer.emit({
-        type: 'step:end',
-        stepId: 'primary',
-        output: { text, delegated, toolCallCount: response.toolCalls?.length ?? 0 },
-        durationMs: Date.now() - t0,
-      });
-      stepEnd(tracer, 'primary', { delegated, textLength: text.length });
 
-      return {
-        message: text,
-        agentPath: delegated ? ['primary', 'specialist'] : ['primary'],
-        delegated,
-        specialistResponse,
-      };
+        return {
+          message: text,
+          agentPath: delegated ? ['primary', 'specialist'] : ['primary'],
+          delegated,
+          specialistResponse,
+        };
+      });
     },
   });
 
@@ -246,7 +216,7 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
     .commit();
 }
 
-function buildMastra(tracer: Tracer, useModel: ReturnType<typeof getModel> = defaultModel) {
+function buildMastra(tracer: Tracer, useModel: ReturnType<typeof getModel> = model) {
   return new Mastra({
     workflows: { 'multi-agent-handoff': makeWorkflow(tracer, useModel) },
     logger,
@@ -262,63 +232,50 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   const t0 = Date.now();
   tracer.emit({ type: 'start', workflow: 'multi-agent-handoff', input, steps: STEPS });
 
-  const useModel = input.model ? getModel(input.model) : defaultModel;
+  const useModel = resolveModel(input.model);
   const mastra = buildMastra(tracer, useModel);
   const wf = mastra.getWorkflow('multi-agent-handoff');
   const run = await wf.createRun();
   const result = await run.start({ inputData: { message: input.message, model: input.model } });
 
-  const output = result.status === 'success' ? unwrapWorkflowOutput(result.result) : null;
-  const errMsg = result.status !== 'success' ? (JSON.stringify(result) ?? String(result)) : null;
-  const doneStatus =
-    result.status === 'success' || result.status === 'failed' || result.status === 'suspended'
-      ? result.status
-      : ('failed' as const);
-  tracer.emit({ type: 'done', status: doneStatus, output, totalMs: Date.now() - t0 });
-
-  return { status: result.status, input, output, error: errMsg };
+  return finalizeRunResult(result, tracer, t0, input);
 }
 
 // ─── CLI demo ────────────────────────────────────────────────────────────
-async function main() {
-  const { Tracer } = await import('../../shared/tracer.js');
-  const silentTracer = new Tracer();
-  silentTracer.subscribe((e) => {
-    if (e.type === 'step:end') {
-      const out = (e as { output?: { delegated?: boolean; specialistResponse?: string } }).output;
-      console.log(`[${e.stepId}] ${JSON.stringify(out ?? {})}`);
+if (isMain(import.meta.url, process.argv[1])) {
+  runCliExample('09-multi-agent-handoff', async (silentTracer) => {
+    silentTracer.subscribe((e) => {
+      if (e.type === 'step:end') {
+        const out = (e as { output?: { delegated?: boolean; specialistResponse?: string } }).output;
+        console.log(`[${e.stepId}] ${JSON.stringify(out ?? {})}`);
+      }
+    });
+
+    console.log('=== Multi-agent handoff demo ===\n');
+    console.log('--- Test 1: billing question (should delegate) ---');
+    const r1 = await runOne({ message: 'Where is my refund for order-1234?' }, silentTracer);
+    if (r1.output) {
+      const o = r1.output as {
+        delegated: boolean;
+        agentPath: string[];
+        message: string;
+        specialistResponse?: string;
+      };
+      console.log(`  delegated: ${o.delegated}`);
+      console.log(`  agent path: ${o.agentPath.join(' -> ')}`);
+      console.log(`  final: ${o.message}`);
+      if (o.specialistResponse) console.log(`  specialist said: ${o.specialistResponse}`);
     }
-  });
 
-  console.log('=== Multi-agent handoff demo ===\n');
-  console.log('--- Test 1: billing question (should delegate) ---');
-  const r1 = await runOne({ message: 'Where is my refund for order-1234?' }, silentTracer);
-  if (r1.output) {
-    const o = r1.output as {
-      delegated: boolean;
-      agentPath: string[];
-      message: string;
-      specialistResponse?: string;
-    };
-    console.log(`  delegated: ${o.delegated}`);
-    console.log(`  agent path: ${o.agentPath.join(' -> ')}`);
-    console.log(`  final: ${o.message}`);
-    if (o.specialistResponse) console.log(`  specialist said: ${o.specialistResponse}`);
-  }
-
-  console.log('\n--- Test 2: non-billing question (should NOT delegate) ---');
-  const r2 = await runOne({ message: 'How do I reset my password?' }, silentTracer);
-  if (r2.output) {
-    const o = r2.output as { delegated: boolean; agentPath: string[]; message: string };
-    console.log(`  delegated: ${o.delegated}`);
-    console.log(`  agent path: ${o.agentPath.join(' -> ')}`);
-    console.log(`  final: ${o.message}`);
-  }
-}
-
-const isMain = import.meta.url === `file://${process.argv[1]}`;
-if (isMain) {
-  main().catch((err) => {
+    console.log('\n--- Test 2: non-billing question (should NOT delegate) ---');
+    const r2 = await runOne({ message: 'How do I reset my password?' }, silentTracer);
+    if (r2.output) {
+      const o = r2.output as { delegated: boolean; agentPath: string[]; message: string };
+      console.log(`  delegated: ${o.delegated}`);
+      console.log(`  agent path: ${o.agentPath.join(' -> ')}`);
+      console.log(`  final: ${o.message}`);
+    }
+  }).catch((err) => {
     console.error(err);
     process.exit(1);
   });

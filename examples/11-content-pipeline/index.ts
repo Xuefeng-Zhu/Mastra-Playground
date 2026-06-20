@@ -35,18 +35,28 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { model as defaultModel, getModel } from '../../shared/llm.js';
-import { logger } from '../../shared/observability.js';
-import { unwrapWorkflowOutput } from '../../shared/workflow-helpers.js';
+import { resolveModel, model, getModel } from '../../shared/llm.js';
+import { logger } from '../../shared/mastra-logger.js';
 import type { Tracer } from '../../shared/tracer.js';
 import { stepStart, stepEnd, llmStructured, type StepSpec } from '../../shared/traced-step.js';
+import { finalizeRunResult } from '../../shared/run-result.js';
+import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
 
-// Schemas
+// Schemas (hoisted to module scope so the .extend() chain isn't inlined 4x)
 
 const ResearchSchema = z.object({
   facts: z.array(z.string()).min(2).max(6),
   sources: z.array(z.string()).min(1).max(4),
   angle: z.string(),
+});
+
+const WithTopic = ResearchSchema.extend({ topic: z.string(), audience: z.string().optional() });
+const WithDraft = WithTopic.extend({ draft: z.string() });
+const WithEdit = WithDraft.extend({
+  edited: z.string(),
+  score: z.number(),
+  suggestions: z.array(z.string()),
+  approved: z.boolean(),
 });
 
 const EditSchema = z.object({
@@ -64,28 +74,15 @@ const STEPS: StepSpec[] = [
 
 // Step factories
 
-function makeResearchStep(tracer: Tracer, useModel = defaultModel) {
+function makeResearchStep(tracer: Tracer, agent: Agent) {
   return createStep({
     id: 'research',
     description: 'Researcher gathers 3-5 facts and identifies the lead angle',
     inputSchema: z.object({ topic: z.string(), audience: z.string().optional() }),
-    outputSchema: ResearchSchema.extend({ topic: z.string(), audience: z.string().optional() }),
+    outputSchema: WithTopic,
     execute: async ({ inputData }) => {
       const audience = inputData.audience ?? 'technical readers';
       stepStart(tracer, 'research', { topic: inputData.topic, audience });
-      const agent = new Agent({
-        id: 'researcher',
-        name: 'Researcher',
-        instructions: [
-          'You are a researcher preparing a brief for a writer.',
-          `Given a topic and target audience ("${audience}"), produce:`,
-          '- 3-5 specific facts (verifiable claims, not opinions)',
-          '- 1-4 source citations (you can invent plausible source names like arxiv.org/abs/... — they will be cited as if real)',
-          '- ONE single most interesting angle to lead with',
-          'Return JSON only matching the schema.',
-        ].join('\n'),
-        model: useModel,
-      });
       const prompt = `Topic: "${inputData.topic}". Audience: ${audience}. Produce a research brief.`;
       const result = await agent.generate(prompt, { structuredOutput: { schema: ResearchSchema } });
       const out = { topic: inputData.topic, audience, ...(result.object as z.infer<typeof ResearchSchema>) };
@@ -96,31 +93,15 @@ function makeResearchStep(tracer: Tracer, useModel = defaultModel) {
   });
 }
 
-function makeWriteStep(tracer: Tracer, useModel = defaultModel) {
+function makeWriteStep(tracer: Tracer, agent: Agent) {
   return createStep({
     id: 'write',
     description: 'Writer drafts ~150 words from the research brief',
-    inputSchema: ResearchSchema.extend({ topic: z.string(), audience: z.string().optional() }),
-    outputSchema: ResearchSchema.extend({
-      topic: z.string(),
-      audience: z.string().optional(),
-      draft: z.string(),
-    }),
+    inputSchema: WithTopic,
+    outputSchema: WithDraft,
     execute: async ({ inputData }) => {
       const audience = inputData.audience ?? 'technical readers';
       stepStart(tracer, 'write', { topic: inputData.topic, facts: inputData.facts.length });
-      const agent = new Agent({
-        id: 'writer',
-        name: 'Writer',
-        instructions: [
-          'You are a writer producing a concise ~150-word article for the given audience.',
-          'Open with the lead angle the researcher identified.',
-          'Weave in 3-5 facts from the brief (do not list them — they should be load-bearing claims).',
-          'Cite 1-2 sources inline using markdown links [text](url).',
-          'No headings, no bullet points — flowing prose.',
-        ].join('\n'),
-        model: useModel,
-      });
       const prompt = `Topic: "${inputData.topic}"\nAudience: ${audience}\nLead angle: ${inputData.angle}\n\nFacts:\n${inputData.facts.map((f, i) => `  ${i + 1}. ${f}`).join('\n')}\n\nSources:\n${inputData.sources.map((s, i) => `  [${i + 1}] ${s}`).join('\n')}\n\nWrite the article (~150 words).`;
       const result = await agent.generate(prompt);
       const draft = String(result.text).trim();
@@ -138,40 +119,14 @@ function makeWriteStep(tracer: Tracer, useModel = defaultModel) {
   });
 }
 
-function makeEditStep(tracer: Tracer, useModel = defaultModel) {
+function makeEditStep(tracer: Tracer, agent: Agent) {
   return createStep({
     id: 'edit',
     description: 'Editor polishes the draft and scores 0-10 with suggestions',
-    inputSchema: ResearchSchema.extend({
-      topic: z.string(),
-      audience: z.string().optional(),
-      draft: z.string(),
-    }),
-    outputSchema: ResearchSchema.extend({
-      topic: z.string(),
-      audience: z.string().optional(),
-      draft: z.string(),
-      edited: z.string(),
-      score: z.number(),
-      suggestions: z.array(z.string()),
-      approved: z.boolean(),
-    }),
+    inputSchema: WithDraft,
+    outputSchema: WithEdit,
     execute: async ({ inputData }) => {
       stepStart(tracer, 'edit', { topic: inputData.topic, draftLen: inputData.draft.length });
-      const agent = new Agent({
-        id: 'editor',
-        name: 'Editor',
-        instructions: [
-          'You are a strict editor polishing a draft for the given topic.',
-          '- Fix grammar, tighten prose, remove redundancy.',
-          '- Keep the same length (±15%). Do not add new facts.',
-          '- Score the edited version 0-10 on: clarity, accuracy, completeness, voice.',
-          '- approved = true if score >= 7, false otherwise.',
-          '- suggestions: 1-3 specific improvements if approved=false.',
-          'Return JSON: {edited, score, suggestions, approved}',
-        ].join('\n'),
-        model: useModel,
-      });
       const prompt = `Topic: "${inputData.topic}"\n\nDraft:\n${inputData.draft}\n\nPolish and score.`;
       const result = await agent.generate(prompt, { structuredOutput: { schema: EditSchema } });
       const editResult = result.object as z.infer<typeof EditSchema>;
@@ -196,23 +151,15 @@ function makeEditStep(tracer: Tracer, useModel = defaultModel) {
 
 // Workflow factory
 
-function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = defaultModel) {
+function makeWorkflow(tracer: Tracer, researcher: Agent, writer: Agent, editor: Agent) {
   return createWorkflow({
     id: 'content-pipeline',
     inputSchema: z.object({ topic: z.string(), audience: z.string().optional() }),
-    outputSchema: ResearchSchema.extend({
-      topic: z.string(),
-      audience: z.string().optional(),
-      draft: z.string(),
-      edited: z.string(),
-      score: z.number(),
-      suggestions: z.array(z.string()),
-      approved: z.boolean(),
-    }),
+    outputSchema: WithEdit,
   })
-    .then(makeResearchStep(tracer, useModel))
-    .then(makeWriteStep(tracer, useModel))
-    .then(makeEditStep(tracer, useModel))
+    .then(makeResearchStep(tracer, researcher))
+    .then(makeWriteStep(tracer, writer))
+    .then(makeEditStep(tracer, editor))
     .commit();
 }
 
@@ -228,19 +175,49 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   const t0 = Date.now();
   tracer.emit({ type: 'start', workflow: 'content-pipeline', input, steps: STEPS });
 
-  const useModel = input.model ? getModel(input.model) : defaultModel;
+  const useModel = resolveModel(input.model);
+  const researcher = new Agent({
+    id: 'researcher',
+    name: 'Researcher',
+    instructions: [
+      'You are a researcher preparing a brief for a writer.',
+      'Given a topic and target audience, produce:',
+      '- 3-5 specific facts (verifiable claims, not opinions)',
+      '- 1-4 source citations (you can invent plausible source names like arxiv.org/abs/... — they will be cited as if real)',
+      '- ONE single most interesting angle to lead with',
+      'Return JSON only matching the schema.',
+    ].join('\n'),
+    model: useModel,
+  });
+  const writer = new Agent({
+    id: 'writer',
+    name: 'Writer',
+    instructions: [
+      'You are a writer producing a concise ~150-word article for the given audience.',
+      'Open with the lead angle the researcher identified.',
+      'Weave in 3-5 facts from the brief (do not list them — they should be load-bearing claims).',
+      'Cite 1-2 sources inline using markdown links [text](url).',
+      'No headings, no bullet points — flowing prose.',
+    ].join('\n'),
+    model: useModel,
+  });
+  const editor = new Agent({
+    id: 'editor',
+    name: 'Editor',
+    instructions: [
+      'You are a strict editor polishing a draft for the given topic.',
+      '- Fix grammar, tighten prose, remove redundancy.',
+      '- Keep the same length (±15%). Do not add new facts.',
+      '- Score the edited version 0-10 on: clarity, accuracy, completeness, voice.',
+      '- approved = true if score >= 7, false otherwise.',
+      '- suggestions: 1-3 specific improvements if approved=false.',
+      'Return JSON: {edited, score, suggestions, approved}',
+    ].join('\n'),
+    model: useModel,
+  });
   const mastra = new Mastra({
-    agents: {
-      researcher: new Agent({
-        id: 'researcher',
-        name: 'Researcher',
-        instructions: 'research',
-        model: useModel,
-      }),
-      writer: new Agent({ id: 'writer', name: 'Writer', instructions: 'write', model: useModel }),
-      editor: new Agent({ id: 'editor', name: 'Editor', instructions: 'edit', model: useModel }),
-    },
-    workflows: { 'content-pipeline': makeWorkflow(tracer, useModel) },
+    agents: { researcher, writer, editor },
+    workflows: { 'content-pipeline': makeWorkflow(tracer, researcher, writer, editor) },
     logger,
   });
 
@@ -250,20 +227,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
     inputData: { topic: input.topic, audience: input.audience ?? 'technical readers' },
   });
 
-  const output = result.status === 'success' ? unwrapWorkflowOutput(result.result) : null;
-  const errMsg = result.status !== 'success' ? (JSON.stringify(result) ?? String(result)) : null;
-  const doneStatus =
-    result.status === 'success' || result.status === 'failed' || result.status === 'suspended'
-      ? result.status
-      : ('failed' as const);
-  tracer.emit({ type: 'done', status: doneStatus, output, totalMs: Date.now() - t0 });
-
-  return {
-    status: result.status,
-    input: { topic: input.topic, audience: input.audience ?? 'technical readers' },
-    output,
-    error: errMsg,
-  };
+  return finalizeRunResult(result, tracer, t0, input);
 }
 
 const demoTopics = [
@@ -271,38 +235,31 @@ const demoTopics = [
   'How do I evaluate whether a small LLM is good enough for my use case?',
 ];
 
-async function main() {
-  const { Tracer } = await import('../../shared/tracer.js');
-  const silentTracer = new Tracer();
-  for (const topic of demoTopics) {
-    const r = await runOne({ topic, audience: 'technical readers' }, silentTracer);
-    console.log(`\n— Content pipeline: "${topic}"`);
-    if (r.status === 'success' && r.output) {
-      // Note: the actual output shape is workflow-unwrapped. The CLI is best-effort;
-      // a crash here just means the output schema changed. The API path is canonical.
-      const out = r.output as {
-        research?: { angle?: string };
-        draft?: string;
-        edited?: string;
-        score?: number;
-        approved?: boolean;
-        suggestions?: string[];
-      };
-      if (out.research?.angle) console.log(`  angle: ${out.research.angle}`);
-      if (typeof out.score === 'number') console.log(`  score: ${out.score}/10  approved=${out.approved}`);
-      if (out.draft && out.edited)
-        console.log(`  draft (${out.draft.length} chars) → edited (${out.edited.length} chars)`);
-      if (out.suggestions && !out.approved) console.log(`  suggestions: ${out.suggestions.join(' | ')}`);
-      if (out.edited) console.log(`\n${out.edited}\n`);
-    } else {
-      console.log(`  workflow ${r.status}: ${r.error}`);
+if (isMain(import.meta.url, process.argv[1])) {
+  runCliExample('11-content-pipeline', async (silentTracer) => {
+    for (const topic of demoTopics) {
+      const r = await runOne({ topic, audience: 'technical readers' }, silentTracer);
+      console.log(`\n— Content pipeline: "${topic}"`);
+      if (r.status === 'success' && r.output) {
+        const out = r.output as {
+          research?: { angle?: string };
+          draft?: string;
+          edited?: string;
+          score?: number;
+          approved?: boolean;
+          suggestions?: string[];
+        };
+        if (out.research?.angle) console.log(`  angle: ${out.research.angle}`);
+        if (typeof out.score === 'number') console.log(`  score: ${out.score}/10  approved=${out.approved}`);
+        if (out.draft && out.edited)
+          console.log(`  draft (${out.draft.length} chars) → edited (${out.edited.length} chars)`);
+        if (out.suggestions && !out.approved) console.log(`  suggestions: ${out.suggestions.join(' | ')}`);
+        if (out.edited) console.log(`\n${out.edited}\n`);
+      } else {
+        console.log(`  workflow ${r.status}: ${r.error}`);
+      }
     }
-  }
-}
-
-const isMain = import.meta.url === `file://${process.argv[1]}`;
-if (isMain) {
-  main().catch((err) => {
+  }).catch((err) => {
     console.error(err);
     process.exit(1);
   });

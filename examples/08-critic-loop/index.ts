@@ -29,11 +29,12 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { model as defaultModel, getModel } from '../../shared/llm.js';
-import { logger } from '../../shared/observability.js';
-import { unwrapWorkflowOutput } from '../../shared/workflow-helpers.js';
+import { resolveModel, model, getModel } from '../../shared/llm.js';
+import { logger } from '../../shared/mastra-logger.js';
 import type { Tracer } from '../../shared/tracer.js';
-import { stepStart, stepEnd, llmStructured, type StepSpec } from '../../shared/traced-step.js';
+import { stepStart, stepEnd, llmStructured, timed, type StepSpec } from '../../shared/traced-step.js';
+import { finalizeRunResult } from '../../shared/run-result.js';
+import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────
 
@@ -58,7 +59,7 @@ const INPUT_DEFAULTS = {
 
 // ─── Step factory ─────────────────────────────────────────────────────────
 
-function makeIterateStep(tracer: Tracer, useModel = defaultModel) {
+function makeIterateStep(tracer: Tracer, generator: Agent, critic: Agent) {
   return createStep({
     id: 'iterate',
     description:
@@ -78,86 +79,62 @@ function makeIterateStep(tracer: Tracer, useModel = defaultModel) {
       history: z.array(IterationSchema),
     }),
     execute: async ({ inputData }) => {
-      stepStart(tracer, 'iterate', {
-        topic: inputData.topic,
-        threshold: inputData.threshold,
-        maxIterations: inputData.maxIterations,
-      });
+      return timed(
+        tracer,
+        'iterate',
+        {
+          topic: inputData.topic,
+          threshold: inputData.threshold,
+          maxIterations: inputData.maxIterations,
+        },
+        async () => {
+          const history: z.infer<typeof IterationSchema>[] = [];
+          let draft = '';
+          let lastFeedback = '';
+          let lastScore = 0;
 
-      const generator = new Agent({
-        id: 'draft-generator',
-        name: 'Draft Generator',
-        instructions: [
-          'You are a writer producing concise, well-structured answers.',
-          'Given a topic and (optionally) a prior draft plus critic feedback,',
-          'produce a NEW draft that incorporates the feedback.',
-          'If no prior draft exists, write the first version from scratch.',
-          'Aim for ~150 words. Plain prose, no markdown headers.',
-        ].join('\n'),
-        model: useModel,
-      });
+          for (let i = 0; i < inputData.maxIterations; i++) {
+            const genPrompt =
+              i === 0
+                ? `Topic: "${inputData.topic}".\nWrite a concise ~150-word answer.`
+                : `Topic: "${inputData.topic}".\n\nPrevious draft (scored ${lastScore}/10):\n${draft}\n\nCritic's feedback:\n${lastFeedback}\n\nRewrite to address the feedback. Keep it ~150 words.`;
 
-      const critic = new Agent({
-        id: 'draft-critic',
-        name: 'Draft Critic',
-        instructions: [
-          'You are a strict critic scoring a short draft on a 0-10 scale.',
-          'Score based on: relevance to topic, accuracy, completeness, clarity.',
-          'Return JSON: {"score": <0-10 integer>, "feedback": "<one short sentence>"}',
-          'Be honest — a 10 is rare. Most decent first drafts are 5-7.',
-        ].join('\n'),
-        model: useModel,
-      });
+            const genResult = await generator.generate(genPrompt);
+            draft = String(genResult.text).trim();
 
-      const history: z.infer<typeof IterationSchema>[] = [];
-      let draft = '';
-      let lastFeedback = '';
-      let lastScore = 0;
+            const critPrompt = `Topic: "${inputData.topic}".\n\nDraft:\n${draft}\n\nScore this draft and give one sentence of feedback.`;
+            const critResult = await critic.generate(critPrompt, {
+              structuredOutput: { schema: CritiqueSchema },
+            });
+            const critique = critResult.object as z.infer<typeof CritiqueSchema>;
+            lastScore = critique.score;
+            lastFeedback = critique.feedback;
 
-      for (let i = 0; i < inputData.maxIterations; i++) {
-        // 1. Generate (or regenerate) the draft
-        const genPrompt =
-          i === 0
-            ? `Topic: "${inputData.topic}".\nWrite a concise ~150-word answer.`
-            : `Topic: "${inputData.topic}".\n\nPrevious draft (scored ${lastScore}/10):\n${draft}\n\nCritic's feedback:\n${lastFeedback}\n\nRewrite to address the feedback. Keep it ~150 words.`;
+            const entry = { index: i, draft, score: lastScore, feedback: lastFeedback };
+            history.push(entry);
+            llmStructured(tracer, 'iterate', `Iter[${i}]`, entry);
 
-        const genResult = await generator.generate(genPrompt);
-        draft = String(genResult.text).trim();
+            if (lastScore >= inputData.threshold) {
+              break;
+            }
+          }
 
-        // 2. Critique
-        const critPrompt = `Topic: "${inputData.topic}".\n\nDraft:\n${draft}\n\nScore this draft and give one sentence of feedback.`;
-        const critResult = await critic.generate(critPrompt, {
-          structuredOutput: { schema: CritiqueSchema },
-        });
-        const critique = critResult.object as z.infer<typeof CritiqueSchema>;
-        lastScore = critique.score;
-        lastFeedback = critique.feedback;
-
-        const entry = { index: i, draft, score: lastScore, feedback: lastFeedback };
-        history.push(entry);
-        llmStructured(tracer, 'iterate', `Iter[${i}]`, entry);
-
-        if (lastScore >= inputData.threshold) {
-          break; // quality bar met
-        }
-      }
-
-      const out = {
-        topic: inputData.topic,
-        threshold: inputData.threshold,
-        maxIterations: inputData.maxIterations,
-        draft,
-        score: lastScore,
-        iterations: history.length,
-        history,
-      };
-      stepEnd(tracer, 'iterate', out);
-      return out;
+          return {
+            topic: inputData.topic,
+            threshold: inputData.threshold,
+            maxIterations: inputData.maxIterations,
+            draft,
+            score: lastScore,
+            iterations: history.length,
+            history,
+          };
+        },
+      );
     },
   });
 }
 
-function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = defaultModel) {
+function makeWorkflow(tracer: Tracer, generator: Agent, critic: Agent) {
   return createWorkflow({
     id: 'critic-loop',
     inputSchema: z.object({
@@ -175,7 +152,7 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
       history: z.array(IterationSchema),
     }),
   })
-    .then(makeIterateStep(tracer, useModel))
+    .then(makeIterateStep(tracer, generator, critic))
     .commit();
 }
 
@@ -192,23 +169,33 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   const t0 = Date.now();
   tracer.emit({ type: 'start', workflow: 'critic-loop', input, steps: STEPS });
 
-  const useModel = input.model ? getModel(input.model) : defaultModel;
+  const useModel = resolveModel(input.model);
+  const generator = new Agent({
+    id: 'draft-generator',
+    name: 'Draft Generator',
+    instructions: [
+      'You are a writer producing concise, well-structured answers.',
+      'Given a topic and (optionally) a prior draft plus critic feedback,',
+      'produce a NEW draft that incorporates the feedback.',
+      'If no prior draft exists, write the first version from scratch.',
+      'Aim for ~150 words. Plain prose, no markdown headers.',
+    ].join('\n'),
+    model: useModel,
+  });
+  const critic = new Agent({
+    id: 'draft-critic',
+    name: 'Draft Critic',
+    instructions: [
+      'You are a strict critic scoring a short draft on a 0-10 scale.',
+      'Score based on: relevance to topic, accuracy, completeness, clarity.',
+      'Return JSON: {"score": <0-10 integer>, "feedback": "<one short sentence>"}',
+      'Be honest — a 10 is rare. Most decent first drafts are 5-7.',
+    ].join('\n'),
+    model: useModel,
+  });
   const mastra = new Mastra({
-    agents: {
-      generator: new Agent({
-        id: 'draft-generator',
-        name: 'Draft Generator',
-        instructions: 'generate',
-        model: useModel,
-      }),
-      critic: new Agent({
-        id: 'draft-critic',
-        name: 'Draft Critic',
-        instructions: 'critique',
-        model: useModel,
-      }),
-    },
-    workflows: { 'critic-loop': makeWorkflow(tracer, useModel) },
+    agents: { generator, critic },
+    workflows: { 'critic-loop': makeWorkflow(tracer, generator, critic) },
     logger,
   });
 
@@ -222,24 +209,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
     },
   });
 
-  const output = result.status === 'success' ? unwrapWorkflowOutput(result.result) : null;
-  const errMsg = result.status !== 'success' ? (JSON.stringify(result) ?? String(result)) : null;
-  const doneStatus =
-    result.status === 'success' || result.status === 'failed' || result.status === 'suspended'
-      ? result.status
-      : ('failed' as const);
-  tracer.emit({ type: 'done', status: doneStatus, output, totalMs: Date.now() - t0 });
-
-  return {
-    status: result.status,
-    input: {
-      topic: input.topic,
-      threshold: input.threshold ?? INPUT_DEFAULTS.threshold,
-      maxIterations: input.maxIterations ?? INPUT_DEFAULTS.maxIterations,
-    },
-    output,
-    error: errMsg,
-  };
+  return finalizeRunResult(result, tracer, t0, input);
 }
 
 // ─── CLI demo ─────────────────────────────────────────────────────────────
@@ -249,33 +219,28 @@ const demoTopics = [
   'How do I evaluate whether a small LLM is good enough for my use case?',
 ];
 
-async function main() {
-  const { Tracer } = await import('../../shared/tracer.js');
-  const silentTracer = new Tracer();
-  for (const topic of demoTopics) {
-    const r = await runOne({ topic, threshold: 8, maxIterations: 3 }, silentTracer);
-    console.log(`\n— Critic loop: "${topic}"`);
-    if (r.status === 'success' && r.output) {
-      const out = r.output as {
-        draft: string;
-        score: number;
-        iterations: number;
-        history: { index: number; score: number; feedback: string; draft: string }[];
-      };
-      console.log(`  score=${out.score}/10 after ${out.iterations} iteration(s)`);
-      for (const h of out.history) {
-        console.log(`    iter ${h.index}: ${h.score}/10 — ${h.feedback}`);
+if (isMain(import.meta.url, process.argv[1])) {
+  runCliExample('08-critic-loop', async (silentTracer) => {
+    for (const topic of demoTopics) {
+      const r = await runOne({ topic, threshold: 8, maxIterations: 3 }, silentTracer);
+      console.log(`\n— Critic loop: "${topic}"`);
+      if (r.status === 'success' && r.output) {
+        const out = r.output as {
+          draft: string;
+          score: number;
+          iterations: number;
+          history: { index: number; score: number; feedback: string; draft: string }[];
+        };
+        console.log(`  score=${out.score}/10 after ${out.iterations} iteration(s)`);
+        for (const h of out.history) {
+          console.log(`    iter ${h.index}: ${h.score}/10 — ${h.feedback}`);
+        }
+        console.log(`\n${out.draft}\n`);
+      } else {
+        console.log(`  workflow ${r.status}: ${r.error}`);
       }
-      console.log(`\n${out.draft}\n`);
-    } else {
-      console.log(`  workflow ${r.status}: ${r.error}`);
     }
-  }
-}
-
-const isMain = import.meta.url === `file://${process.argv[1]}`;
-if (isMain) {
-  main().catch((err) => {
+  }).catch((err) => {
     console.error(err);
     process.exit(1);
   });

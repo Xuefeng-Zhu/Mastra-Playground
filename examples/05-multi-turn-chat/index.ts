@@ -33,19 +33,20 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { model as defaultModel, getModel } from '../../shared/llm.js';
-import { logger } from '../../shared/observability.js';
-import { unwrapWorkflowOutput } from '../../shared/workflow-helpers.js';
+import { resolveModel, model } from '../../shared/llm.js';
+import { logger } from '../../shared/mastra-logger.js';
 import { memoryStore, type Message } from '../../shared/memory-store.js';
 import type { Tracer } from '../../shared/tracer.js';
-import { stepStart, stepEnd, toolCall, type StepSpec } from '../../shared/traced-step.js';
+import { stepStart, stepEnd, toolCall, timed, type StepSpec } from '../../shared/traced-step.js';
+import { finalizeRunResult } from '../../shared/run-result.js';
+import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
 import { escalate, escalateDirect } from './tools/escalate.js';
 import { lookupOrder, lookupOrderDirect } from './tools/lookup_order.js';
 
 const STEPS: StepSpec[] = [{ id: 'chat', label: 'Chat (LLM + memory)', kind: 'llm' }];
 
 // ─── Build the agent with per-request model ───────────────────────────
-function makeAgent(useModel = defaultModel) {
+function makeAgent(useModel = model) {
   return new Agent({
     id: 'multi-turn-chat',
     name: 'Multi-turn Chat',
@@ -62,7 +63,7 @@ function makeAgent(useModel = defaultModel) {
   });
 }
 
-function makeWorkflow(tracer: Tracer, useModel = defaultModel) {
+function makeWorkflow(tracer: Tracer, useModel = model) {
   const agent = makeAgent(useModel);
   return createWorkflow({
     id: 'multi-turn-chat',
@@ -98,70 +99,61 @@ function makeWorkflow(tracer: Tracer, useModel = defaultModel) {
           allMessages: z.array(z.object({ role: z.string(), content: z.string(), ts: z.number() })),
         }),
         execute: async ({ inputData }) => {
-          const t0 = Date.now();
-          stepStart(tracer, 'chat', {
-            threadId: inputData.threadId,
-            messageLength: inputData.message.length,
-          });
+          return timed(
+            tracer,
+            'chat',
+            { threadId: inputData.threadId, messageLength: inputData.message.length },
+            async () => {
+              // 1. Load conversation history (Mastra's Memory would do this;
+              //    we do it explicitly for transparency)
+              const history = memoryStore.getMessages(inputData.threadId);
 
-          // 1. Load conversation history (Mastra's Memory would do this;
-          //    we do it explicitly for transparency)
-          const history = memoryStore.getMessages(inputData.threadId);
+              // 2. Append the new user message
+              const userMsg = memoryStore.appendUserMessage(inputData.threadId, inputData.message);
 
-          // 2. Append the new user message
-          const userMsg = memoryStore.appendUserMessage(inputData.threadId, inputData.message);
+              // 3. Build a single prompt that includes the full conversation history.
+              const transcriptLines = history
+                .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+                .join('\n');
+              const prompt = transcriptLines
+                ? `Here is the conversation so far:\n\n${transcriptLines}\n\nUser: ${inputData.message}\n\nRespond to the latest user message. Be conversational. Keep it under 80 words.`
+                : inputData.message;
 
-          // 3. Build a single prompt that includes the full conversation history.
-          //    This is the "Memory in a single string" pattern: instead of passing
-          //    a messages array (which Mastra types strictly), we inline the
-          //    transcript into a user message. Same LLM behavior, fewer type issues.
-          //
-          //    In production: use Mastra's Memory class with a proper storage
-          //    backend and pass `memory: { thread, resource }` to agent.generate().
-          //    The Memory class handles the transcript assembly + persistence.
-          const transcriptLines = history
-            .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
-            .join('\n');
-          const prompt = transcriptLines
-            ? `Here is the conversation so far:\n\n${transcriptLines}\n\nUser: ${inputData.message}\n\nRespond to the latest user message. Be conversational. Keep it under 80 words.`
-            : inputData.message;
+              // 4. Call the agent with the assembled prompt
+              const result = await agent.generate(prompt);
 
-          // 4. Call the agent with the assembled prompt
-          const result = await agent.generate(prompt);
+              // 5. Append the assistant response
+              const assistantContent = String(result.text);
+              const assistantMsg = memoryStore.appendAssistantMessage(inputData.threadId, assistantContent);
 
-          // 5. Append the assistant response
-          const assistantContent = String(result.text);
-          const assistantMsg = memoryStore.appendAssistantMessage(inputData.threadId, assistantContent);
+              // 6. Check if the agent called escalate_to_human — the escalate tool
+              // marks the thread via memoryStore.markEscalated when called.
+              // We detect that by checking state after the call.
+              const escalated = memoryStore.isEscalated(inputData.threadId);
+              const state = memoryStore.getOrCreate(inputData.threadId);
+              const escalationReason = escalated ? (state.escalationReason ?? null) : null;
 
-          // 6. Check if the agent called escalate_to_human — the escalate tool
-          // marks the thread via memoryStore.markEscalated when called.
-          // We detect that by checking state after the call.
-          const escalated = memoryStore.isEscalated(inputData.threadId);
-          const state = memoryStore.getOrCreate(inputData.threadId);
-          const escalationReason = escalated ? (state.escalationReason ?? null) : null;
+              // Emit a tool:call event if escalation happened (visual signal in the trace)
+              if (escalated) {
+                toolCall(
+                  tracer,
+                  'chat',
+                  'escalate_to_human',
+                  { threadId: inputData.threadId, reason: escalationReason },
+                  { escalated: true, reason: escalationReason },
+                );
+              }
 
-          // Emit a tool:call event if escalation happened (visual signal in the trace)
-          if (escalated) {
-            toolCall(
-              tracer,
-              'chat',
-              'escalate_to_human',
-              { threadId: inputData.threadId, reason: escalationReason },
-              { escalated: true, reason: escalationReason },
-            );
-          }
-
-          const out = {
-            threadId: inputData.threadId,
-            escalated,
-            escalationReason,
-            newUserMessage: userMsg,
-            newAssistantMessage: assistantMsg,
-            allMessages: memoryStore.getMessages(inputData.threadId),
-          };
-
-          stepEnd(tracer, 'chat', { ...out, durationMs: Date.now() - t0 });
-          return out;
+              return {
+                threadId: inputData.threadId,
+                escalated,
+                escalationReason,
+                newUserMessage: userMsg,
+                newAssistantMessage: assistantMsg,
+                allMessages: memoryStore.getMessages(inputData.threadId),
+              };
+            },
+          );
         },
       }),
     )
@@ -209,7 +201,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   }
 
   // Default: process one turn of the conversation
-  const useModel = input.model ? getModel(input.model) : defaultModel;
+  const useModel = resolveModel(input.model);
   const mastra = new Mastra({
     agents: { 'multi-turn-chat': makeAgent(useModel) },
     workflows: { 'multi-turn-chat': makeWorkflow(tracer, useModel) },
@@ -222,52 +214,32 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
     inputData: { threadId: input.threadId, resourceId: input.resourceId, message: input.message },
   });
 
-  const output = result.status === 'success' ? unwrapWorkflowOutput(result.result) : null;
-  // Normalize the failed result into something readable rather than [object Object].
-  const errMsg = result.status !== 'success' ? (JSON.stringify(result) ?? String(result)) : null;
-  // Cast done-status to the tracer's narrower union (Mastra also emits 'tripwire' | 'paused' which we don't surface here).
-  const doneStatus =
-    result.status === 'success' || result.status === 'failed' || result.status === 'suspended'
-      ? result.status
-      : ('failed' as const);
-  tracer.emit({ type: 'done', status: doneStatus, output, totalMs: Date.now() - t0 });
-
-  return {
-    status: result.status,
-    input,
-    output,
-    error: errMsg,
-  };
+  return finalizeRunResult(result, tracer, t0, input);
 }
 
 // ─── CLI demo ────────────────────────────────────────────────────────────
-async function main() {
-  const { Tracer } = await import('../../shared/tracer.js');
-  const silentTracer = new Tracer();
-  const threadId = `thread-cli-${Date.now()}`;
-  const resourceId = 'cli-user';
+if (isMain(import.meta.url, process.argv[1])) {
+  runCliExample('05-multi-turn-chat', async (silentTracer) => {
+    const threadId = `thread-cli-${Date.now()}`;
+    const resourceId = 'cli-user';
 
-  console.log('=== Multi-turn chat demo ===\n');
-  for (const message of [
-    'Hi, I want to check the status of order 12345',
-    'When will it arrive?',
-    'Actually, I am really upset. I want a refund. Get me a manager.',
-  ]) {
-    const r = await runOne({ threadId, resourceId, message }, silentTracer);
-    const out = r.output as { escalated?: boolean; newAssistantMessage?: Message } | null;
-    if (r.status === 'success' && out && out.newAssistantMessage) {
-      console.log(`USER: ${message}`);
-      console.log(`AGENT: ${out.newAssistantMessage.content}`);
-      console.log(`[escalated: ${out.escalated ?? false}]\n`);
-    } else {
-      console.log(`  workflow ${r.status}: ${r.error ?? 'no output'}`);
+    console.log('=== Multi-turn chat demo ===\n');
+    for (const message of [
+      'Hi, I want to check the status of order 12345',
+      'When will it arrive?',
+      'Actually, I am really upset. I want a refund. Get me a manager.',
+    ]) {
+      const r = await runOne({ threadId, resourceId, message }, silentTracer);
+      const out = r.output as { escalated?: boolean; newAssistantMessage?: Message } | null;
+      if (r.status === 'success' && out && out.newAssistantMessage) {
+        console.log(`USER: ${message}`);
+        console.log(`AGENT: ${out.newAssistantMessage.content}`);
+        console.log(`[escalated: ${out.escalated ?? false}]\n`);
+      } else {
+        console.log(`  workflow ${r.status}: ${r.error ?? 'no output'}`);
+      }
     }
-  }
-}
-
-const isMain = import.meta.url === `file://${process.argv[1]}`;
-if (isMain) {
-  main().catch((err) => {
+  }).catch((err) => {
     console.error(err);
     process.exit(1);
   });

@@ -29,12 +29,13 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { model as defaultModel, getModel } from '../../shared/llm.js';
-import { logger } from '../../shared/observability.js';
+import { resolveModel, model, getModel } from '../../shared/llm.js';
+import { logger } from '../../shared/mastra-logger.js';
 import { unwrapWorkflowOutput } from '../../shared/workflow-helpers.js';
 import { registerSuspendedRun } from '../../shared/suspended-store.js';
 import type { Tracer } from '../../shared/tracer.js';
 import { stepStart, stepEnd, llmStructured, type StepSpec } from '../../shared/traced-step.js';
+import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────
 // The action the user is proposing (what they typed in the form)
@@ -82,7 +83,7 @@ const STEPS: StepSpec[] = [
 ];
 
 // ─── Build the classifier agent ──────────────────────────────────────────
-function makeAgent(useModel = defaultModel) {
+function makeAgent(useModel = model) {
   return new Agent({
     id: 'hitl-classifier',
     name: 'Action Classifier',
@@ -101,7 +102,7 @@ function makeAgent(useModel = defaultModel) {
 }
 
 // ─── Make a workflow factory ────────────────────────────────────────────
-function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = defaultModel) {
+function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = model) {
   const agent = makeAgent(useModel);
 
   // We capture the run + workflow + mastra in outer scope so the gate's
@@ -243,7 +244,7 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = de
   };
 }
 
-function buildMastra(tracer: Tracer, useModel: ReturnType<typeof getModel> = defaultModel) {
+function buildMastra(tracer: Tracer, useModel: ReturnType<typeof getModel> = model) {
   const wrapped = makeWorkflow(tracer, useModel);
   return {
     mastra: new Mastra({
@@ -268,7 +269,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   const t0 = Date.now();
   tracer.emit({ type: 'start', workflow: 'hitl-approval', input, steps: STEPS });
 
-  const useModel = input.model ? getModel(input.model) : defaultModel;
+  const useModel = resolveModel(input.model);
 
   // Resume path: continue a previously-suspended run.
   // (Mastra doesn't expose a getRun by id; the run is captured at suspend
@@ -336,39 +337,33 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 }
 
 // ─── CLI demo ────────────────────────────────────────────────────────────
-async function main() {
-  const { Tracer } = await import('../../shared/tracer.js');
-  const silentTracer = new Tracer();
+if (isMain(import.meta.url, process.argv[1])) {
+  runCliExample('06-hitl-approval', async (silentTracer) => {
+    console.log('=== HITL Approval demo ===\n');
 
-  console.log('=== HITL Approval demo ===\n');
+    // 1) Low-risk action: auto-approved
+    console.log('Test 1: small refund (auto-approved)');
+    const r1 = await runOne({ action: 'Refund $20 to customer 12345', actionType: 'refund' }, silentTracer);
+    console.log(`  status: ${r1.status}`);
+    const o1 = r1.output as { executed?: boolean; message?: string } | null;
+    if (o1 && typeof o1 === 'object') {
+      console.log(`  executed: ${o1.executed ?? '?'}`);
+      console.log(`  message: ${o1.message ?? '?'}`);
+    }
 
-  // 1) Low-risk action: auto-approved
-  console.log('Test 1: small refund (auto-approved)');
-  const r1 = await runOne({ action: 'Refund $20 to customer 12345', actionType: 'refund' }, silentTracer);
-  console.log(`  status: ${r1.status}`);
-  const o1 = r1.output as { executed?: boolean; message?: string } | null;
-  if (o1 && typeof o1 === 'object') {
-    console.log(`  executed: ${o1.executed ?? '?'}`);
-    console.log(`  message: ${o1.message ?? '?'}`);
-  }
-
-  console.log('\nTest 2: large refund (should suspend)');
-  // 2) High-risk action: suspends. We can't easily test the resume path from CLI,
-  //    so we just confirm the suspension happens.
-  const r2 = await runOne(
-    { action: 'Refund $500 to customer 12345 — they threatened to sue', actionType: 'refund' },
-    silentTracer,
-  );
-  console.log(`  status: ${r2.status}`);
-  const o2 = r2.output as { token?: string; suspendedStep?: { id?: string } } | null;
-  if (r2.status === 'suspended' && o2) {
-    console.log(`  resumption token: ${o2.token ?? '?'}`);
-  }
-}
-
-const isMain = import.meta.url === `file://${process.argv[1]}`;
-if (isMain) {
-  main().catch((err) => {
+    console.log('\nTest 2: large refund (should suspend)');
+    // 2) High-risk action: suspends. We can't easily test the resume path from CLI,
+    //    so we just confirm the suspension happens.
+    const r2 = await runOne(
+      { action: 'Refund $500 to customer 12345 — they threatened to sue', actionType: 'refund' },
+      silentTracer,
+    );
+    console.log(`  status: ${r2.status}`);
+    const o2 = r2.output as { token?: string; suspendedStep?: { id?: string } } | null;
+    if (r2.status === 'suspended' && o2) {
+      console.log(`  resumption token: ${o2.token ?? '?'}`);
+    }
+  }).catch((err) => {
     console.error(err);
     process.exit(1);
   });

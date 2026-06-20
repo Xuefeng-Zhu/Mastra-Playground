@@ -11,9 +11,8 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { model as defaultModel, getModel } from '../../shared/llm.js';
-import { logger } from '../../shared/observability.js';
-import { unwrapWorkflowOutput } from '../../shared/workflow-helpers.js';
+import { resolveModel, model } from '../../shared/llm.js';
+import { logger } from '../../shared/mastra-logger.js';
 import type { Tracer } from '../../shared/tracer.js';
 import {
   stepStart,
@@ -22,6 +21,8 @@ import {
   branchEvaluate,
   type StepSpec,
 } from '../../shared/traced-step.js';
+import { finalizeRunResult } from '../../shared/run-result.js';
+import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
 
 // ─── 1. The structured-output schema ────────────────────────────────────────
 const TriageSchema = z.object({
@@ -40,7 +41,7 @@ export type Triage = z.infer<typeof TriageSchema>;
 // with the model that the request specifies. The step closures capture it.
 
 // ─── 3. Steps ───────────────────────────────────────────────────────────────
-function makeClassifyStep(tracer: Tracer, useModel = defaultModel) {
+function makeClassifyStep(tracer: Tracer, useModel = model) {
   return createStep({
     id: 'classify',
     description: 'Run the triage agent to classify the message',
@@ -126,7 +127,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   tracer.emit({ type: 'start', workflow: 'support-triage', input, steps: STEPS });
 
   // Build per-request model if overridden
-  const useModel = input.model ? getModel(input.model) : defaultModel;
+  const useModel = resolveModel(input.model);
   const classifyStep = makeClassifyStep(tracer, useModel);
   const respondStep = makeRespondStep(tracer);
   const escalateStep = makeEscalateStep(tracer);
@@ -175,22 +176,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   const run = await wf.createRun();
   const result = await run.start({ inputData: { message: input.message } });
 
-  const output = result.status === 'success' ? unwrapWorkflowOutput(result.result) : null;
-  // Normalize the failed result into something readable rather than [object Object].
-  const errMsg = result.status !== 'success' ? (JSON.stringify(result) ?? String(result)) : null;
-  // Cast done-status to the tracer's narrower union (Mastra also emits 'tripwire' | 'paused' which we don't surface here).
-  const doneStatus =
-    result.status === 'success' || result.status === 'failed' || result.status === 'suspended'
-      ? result.status
-      : ('failed' as const);
-  tracer.emit({ type: 'done', status: doneStatus, output, totalMs: Date.now() - t0 });
-
-  return {
-    status: result.status,
-    input: { message: input.message },
-    output,
-    error: errMsg,
-  };
+  return finalizeRunResult(result, tracer, t0, input);
 }
 
 // ─── 7. CLI demo (no tracer) ────────────────────────────────────────────────
@@ -202,25 +188,19 @@ const demoMessages = [
   'Do you have a product that does X?',
 ];
 
-async function main() {
-  // Use a no-op tracer for CLI
-  const { Tracer } = await import('../../shared/tracer.js');
-  const silentTracer = new Tracer();
-  for (const message of demoMessages) {
-    const r = await runOne({ message }, silentTracer);
-    console.log(`\n— IN: "${message}"`);
-    if (r.status === 'success' && r.output) {
-      const out = r.output as { action: string; triage: Triage };
-      console.log(`  ← ${out.action} (intent=${out.triage.intent}, confidence=${out.triage.confidence})`);
-    } else {
-      console.log(`  ← ${r.status}: ${r.error}`);
+if (isMain(import.meta.url, process.argv[1])) {
+  runCliExample('01-support-triage', async (silentTracer) => {
+    for (const message of demoMessages) {
+      const r = await runOne({ message }, silentTracer);
+      console.log(`\n— IN: "${message}"`);
+      if (r.status === 'success' && r.output) {
+        const out = r.output as { action: string; triage: Triage };
+        console.log(`  ← ${out.action} (intent=${out.triage.intent}, confidence=${out.triage.confidence})`);
+      } else {
+        console.log(`  ← ${r.status}: ${r.error}`);
+      }
     }
-  }
-}
-
-const isMain = import.meta.url === `file://${process.argv[1]}`;
-if (isMain) {
-  main().catch((err) => {
+  }).catch((err) => {
     console.error(err);
     process.exit(1);
   });
