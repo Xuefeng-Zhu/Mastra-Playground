@@ -73,24 +73,62 @@ const cleanupInterval = setInterval(
 cleanupInterval.unref();
 
 // ─── 1. Static file serving ────────────────────────────────────────────────
+// The UI is now a React app bundled by Vite. The build outputs to `dist/`
+// (configured in vite.config.ts). Vite also copies the contents of
+// `public/` into `dist/` (e.g. `dist/style.css`), so the original
+// stylesheet is available without bundling.
+//
+// The server maps every request to a file under `dist/`:
 const STATIC_FILES: Record<string, string> = {
-  '/': 'public/index.html',
-  '/index.html': 'public/index.html',
-  '/style.css': 'public/style.css',
-  '/app.js': 'public/app.js',
+  '/': 'dist/index.html',
+  '/index.html': 'dist/index.html',
+  '/style.css': 'dist/style.css',
 };
 
+const STATIC_MIME: Record<string, string> = {
+  html: 'text/html; charset=utf-8',
+  css: 'text/css; charset=utf-8',
+  js: 'application/javascript; charset=utf-8',
+  mjs: 'application/javascript; charset=utf-8',
+  json: 'application/json; charset=utf-8',
+  svg: 'image/svg+xml',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  ico: 'image/x-icon',
+  map: 'application/json; charset=utf-8',
+  txt: 'text/plain; charset=utf-8',
+};
+
+function mimeFor(filePath: string): string {
+  const ext = filePath.split('.').pop()?.toLowerCase() || '';
+  return STATIC_MIME[ext] || 'application/octet-stream';
+}
+
 async function serveStatic(path: string, res: http.ServerResponse): Promise<boolean> {
-  const rel = STATIC_FILES[path];
-  if (!rel) return false;
-  const full = join(ROOT, rel);
-  if (!existsSync(full)) return false;
-  const content = await readFile(full);
-  const ext = full.split('.').pop();
-  const mime = ext === 'html' ? 'text/html' : ext === 'css' ? 'text/css' : 'application/javascript';
-  res.writeHead(200, { 'Content-Type': mime + '; charset=utf-8' });
-  res.end(content);
-  return true;
+  // 1) Explicit STATIC_FILES map.
+  if (STATIC_FILES[path]) {
+    const full = join(ROOT, STATIC_FILES[path]);
+    if (existsSync(full)) {
+      const content = await readFile(full);
+      res.writeHead(200, { 'Content-Type': mimeFor(full) });
+      res.end(content);
+      return true;
+    }
+    return false;
+  }
+  // 2) React build assets: anything under `/assets/` maps to `dist/assets/…`
+  //    (Vite uses content-hashed filenames so we can't enumerate them).
+  if (path.startsWith('/assets/')) {
+    const rel = path.slice(1); // strip leading "/"
+    const full = join(ROOT, rel);
+    if (!full.startsWith(join(ROOT, 'dist'))) return false; // path-traversal guard
+    if (!existsSync(full)) return false;
+    const content = await readFile(full);
+    res.writeHead(200, { 'Content-Type': mimeFor(full) });
+    res.end(content);
+    return true;
+  }
+  return false;
 }
 
 // ─── 2. Example registry ───────────────────────────────────────────────────

@@ -6,6 +6,10 @@
 **Date:** 2026-06-20
 **Scope:** `public/index.html`, `public/style.css`, `public/app.js` (no backend changes)
 
+**Implementation note (2026-06-20):** Wave 1 is implemented and verified in the browser. v2 is the default shell; clicking any non-parallel-research example in the left rail swaps to the v1 panel for that example. Example 04's v2 workspace renders synthesis prose, three capturable sources (web/arxiv/wiki), raw JSON, and a side-by-side Compare-with-prior tab. Graph+timeline are fused (graph on top, timeline below), primitive colors are applied per node kind, active nodes pulse at ~1.6s, skip-to-workspace link is in place, and `prefers-reduced-motion` disables the pulse. Subsequent waves (chat-style, HITL, ⌘K palette) are still pending.
+
+**Implementation note (2026-06-20, React migration):** All waves are complete and the UI has been migrated from vanilla HTML/CSS/JS to React 18 + Vite. The build produces a single React bundle (~187KB, 57KB gzipped) that mounts `<App>` in `#root`. The shell is parameterized by `V2_EXAMPLES` and per-example `output.kind` (one of 10 renderers: parallel, triage, research, codeReview, chat, streaming, hitl, criticLoop, contentPipeline, mastraMemory). All 11 examples work in React — verified by Playwright with mocked SSE. The JSDOM-based smoke test was rewritten to validate the React build artifacts (since JSDOM struggles with React 18's createRoot). The server (`server/server.ts`) was updated to serve the React build from `dist/`. Typecheck passes; 38/38 vitest tests pass.
+
 ---
 
 ## 1. What the current UI does well
