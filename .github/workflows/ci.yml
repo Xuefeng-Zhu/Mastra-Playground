@@ -51,12 +51,17 @@ jobs:
           cat /tmp/serve.log
           # The server should refuse to start (exit non-zero) OR boot and return 500 on /api/run
           # We don't assert either strictly here — the goal is to catch build/import errors.
+      - name: Build React app
+        run: npm run build
       - name: Static asset smoke check
         run: |
-          # The static files (HTML, CSS, JS) are valid — assert the file sizes are reasonable
-          test -f public/index.html
+          # The static files (HTML, CSS, JS) are valid — assert the file sizes are reasonable.
+          # The UI is now a React+Vite app, so the served files live in dist/ (built above)
+          # and the legacy public/style.css (still copied verbatim to dist/style.css by Vite).
           test -f public/style.css
-          test -f public/app.js
-          test -s public/index.html
           test -s public/style.css
-          test -s public/app.js
+          test -f dist/index.html
+          test -s dist/index.html
+          test -d dist/assets
+          test -n "$(ls -A dist/assets/*.js 2>/dev/null)"
+          test -n "$(ls -A dist/assets/*.css 2>/dev/null)"
