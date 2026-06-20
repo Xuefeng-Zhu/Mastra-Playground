@@ -16,7 +16,7 @@ export type Message = {
   ts: number;
 };
 
-export type ThreadState = {
+type ThreadState = {
   threadId: string;
   messages: Message[];
   escalated: boolean;

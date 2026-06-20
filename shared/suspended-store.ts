@@ -35,6 +35,11 @@ export function takeSuspendedRun(token: string): SuspendedRun | undefined {
   return sr;
 }
 
-export function peekSuspendedRun(token: string): SuspendedRun | undefined {
-  return store.get(token);
-}
+/**
+ * Human-in-the-loop decision vocabulary for the resume handshake.
+ * The /api/resume/:token endpoint validates that `body.decision` is
+ * one of these values; example 06 (hitl-approval) is the only
+ * example that uses this contract today.
+ */
+export const HITL_DECISIONS = ['approved', 'rejected'] as const;
+export type HITLDecision = (typeof HITL_DECISIONS)[number];
