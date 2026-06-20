@@ -2,8 +2,8 @@
  * Local dev server for the playground UI.
  *
  * Endpoints:
- *   GET  /                          → static HTML
- *   GET  /style.css, /app.js        → static assets
+ *   GET  /                          → static HTML (dist/index.html)
+ *   GET  /assets/*                  → Vite-bundled JS/CSS (content-hashed)
  *   GET  /api/health                → liveness probe (200 always if process is up)
  *   GET  /api/examples              → list of examples
  *   POST /api/run/:example          → JSON result (one-shot)
@@ -23,7 +23,7 @@ import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import { Tracer, sseLine, type TraceEvent } from '../shared/tracer.js';
-import { takeSuspendedRun } from '../shared/suspended-store.js';
+import { takeSuspendedRun, HITL_DECISIONS } from '../shared/suspended-store.js';
 import { logger } from '../shared/logger.js';
 import {
   ValidationError,
@@ -42,6 +42,22 @@ const ROOT = join(__dirname, '..');
 const STARTED_AT = Date.now();
 const PLACEHOLDER_KEYS = new Set(['', 'your-key-here', 'changeme', '[redacted]']);
 
+// Route prefixes (used in paired startsWith + slice patterns).
+const RUN_PREFIX = '/api/run/';
+const STREAM_PREFIX = '/api/stream/';
+const RESUME_PREFIX = '/api/resume/';
+
+// SSE input query param char cap.
+const SSE_INPUT_CAP_CHARS = 8192;
+
+// Suspended-run GC: drop entries older than 1 hour, sweep every 10 minutes.
+const SUSPENDED_GC_CUTOFF_MS = 60 * 60 * 1000;
+const SUSPENDED_GC_INTERVAL_MS = 10 * 60 * 1000;
+
+// Reused error message strings.
+const BODY_NOT_OBJECT = 'Request body must be a JSON object';
+const MESSAGE_NOT_STRING = 'Field "message" must be a string';
+
 // ─── Secrets hardening (boot check) ───────────────────────────────────────
 const apiKey = process.env.OPENAI_API_KEY;
 if (!apiKey || PLACEHOLDER_KEYS.has(apiKey.toLowerCase())) {
@@ -57,32 +73,28 @@ if (!apiKey || PLACEHOLDER_KEYS.has(apiKey.toLowerCase())) {
 logger.info('server_starting', { port: PORT, nodeEnv: process.env.NODE_ENV ?? 'unset' });
 
 // Periodic cleanup of stale runs (>1 hour old, just to be tidy)
-const cleanupInterval = setInterval(
-  () => {
-    const cutoff = Date.now() - 60 * 60 * 1000;
-    const store = (globalThis as { __mastraPlaygroundSuspended?: Map<string, { suspendedAt: number }> })
-      .__mastraPlaygroundSuspended;
-    if (store) {
-      for (const [token, sr] of store) {
-        if (sr.suspendedAt < cutoff) store.delete(token);
-      }
+const cleanupInterval = setInterval(() => {
+  const cutoff = Date.now() - SUSPENDED_GC_CUTOFF_MS;
+  const store = (globalThis as { __mastraPlaygroundSuspended?: Map<string, { suspendedAt: number }> })
+    .__mastraPlaygroundSuspended;
+  if (store) {
+    for (const [token, sr] of store) {
+      if (sr.suspendedAt < cutoff) store.delete(token);
     }
-  },
-  10 * 60 * 1000,
-);
+  }
+}, SUSPENDED_GC_INTERVAL_MS);
 cleanupInterval.unref();
 
 // ─── 1. Static file serving ────────────────────────────────────────────────
-// The UI is now a React app bundled by Vite. The build outputs to `dist/`
-// (configured in vite.config.ts). Vite also copies the contents of
-// `public/` into `dist/` (e.g. `dist/style.css`), so the original
-// stylesheet is available without bundling.
+// The UI is a React app bundled by Vite (see vite.config.ts). The build
+// emits `dist/index.html` plus hashed JS/CSS under `dist/assets/`. The
+// stylesheet lives at src/styles.css and is bundled into
+// dist/assets/index-*.css (no public/style.css — do not reintroduce).
 //
 // The server maps every request to a file under `dist/`:
 const STATIC_FILES: Record<string, string> = {
   '/': 'dist/index.html',
   '/index.html': 'dist/index.html',
-  '/style.css': 'dist/style.css',
 };
 
 const STATIC_MIME: Record<string, string> = {
@@ -198,10 +210,12 @@ const EXAMPLES: Record<string, { file: string; exportName: string; description: 
 
 type RunFn = (input: unknown, tracer: Tracer) => Promise<unknown>;
 
+function notFoundExampleError(name: string): never {
+  throw new NotFoundError(`Unknown example: ${name}. Available: ${Object.keys(EXAMPLES).join(', ')}`);
+}
+
 async function loadRunFn(name: string): Promise<RunFn> {
-  if (!EXAMPLES[name]) {
-    throw new NotFoundError(`Unknown example: ${name}. Available: ${Object.keys(EXAMPLES).join(', ')}`);
-  }
+  if (!EXAMPLES[name]) notFoundExampleError(name);
   const meta = EXAMPLES[name];
   const url = `../${meta.file}?t=${Date.now()}`;
   const mod = (await import(url)) as Record<string, unknown>;
@@ -215,12 +229,12 @@ async function loadRunFn(name: string): Promise<RunFn> {
 // ─── 3. Per-example input validation ──────────────────────────────────────
 function validateExampleInput(name: string, body: unknown): Record<string, unknown> {
   if (!isPlainObject(body)) {
-    throw new ValidationError('Request body must be a JSON object', 'body');
+    throw new ValidationError(BODY_NOT_OBJECT, 'body');
   }
   switch (name) {
     case 'support-triage': {
       if ('message' in body && typeof body.message !== 'string') {
-        throw new ValidationError('Field "message" must be a string', 'message');
+        throw new ValidationError(MESSAGE_NOT_STRING, 'message');
       }
       return { message: sanitizeText(body.message) };
     }
@@ -264,7 +278,7 @@ function validateExampleInput(name: string, body: unknown): Record<string, unkno
         }
       }
       if ('message' in body && typeof body.message !== 'string') {
-        throw new ValidationError('Field "message" must be a string', 'message');
+        throw new ValidationError(MESSAGE_NOT_STRING, 'message');
       }
       return {
         ...(typeof body.threadId === 'string' ? { threadId: body.threadId } : {}),
@@ -287,6 +301,15 @@ function validateExampleInput(name: string, body: unknown): Record<string, unkno
       return {
         action: sanitizeText(body.action),
         ...(typeof body.actionType === 'string' ? { actionType: body.actionType } : {}),
+        ...(typeof body.model === 'string' ? { model: body.model } : {}),
+      };
+    }
+    case 'streaming-chat': {
+      if (!('prompt' in body) || typeof body.prompt !== 'string' || body.prompt.trim().length === 0) {
+        throw new ValidationError('Field "prompt" must be a non-empty string', 'prompt');
+      }
+      return {
+        prompt: sanitizeText(body.prompt),
         ...(typeof body.model === 'string' ? { model: body.model } : {}),
       };
     }
@@ -404,11 +427,9 @@ const server = http.createServer(async (req, res) => {
     }
 
     // POST /api/run/:example — one-shot JSON result
-    if (req.method === 'POST' && req.url?.startsWith('/api/run/')) {
-      const name = req.url.slice('/api/run/'.length).split('?')[0];
-      if (!EXAMPLES[name]) {
-        throw new NotFoundError(`Unknown example: ${name}. Available: ${Object.keys(EXAMPLES).join(', ')}`);
-      }
+    if (req.method === 'POST' && req.url?.startsWith(RUN_PREFIX)) {
+      const name = req.url.slice(RUN_PREFIX.length).split('?')[0];
+      if (!EXAMPLES[name]) notFoundExampleError(name);
       checkRateLimit(clientIp(req) + ':run');
       const raw = await readJsonBody(req);
       const input = validateExampleInput(name, raw);
@@ -420,19 +441,17 @@ const server = http.createServer(async (req, res) => {
     }
 
     // GET /api/stream/:example?input=... — SSE trace stream
-    if (req.method === 'GET' && req.url?.startsWith('/api/stream/')) {
+    if (req.method === 'GET' && req.url?.startsWith(STREAM_PREFIX)) {
       const url = new URL(req.url, `http://localhost:${PORT}`);
-      const name = url.pathname.slice('/api/stream/'.length);
-      if (!EXAMPLES[name]) {
-        throw new NotFoundError(`Unknown example: ${name}. Available: ${Object.keys(EXAMPLES).join(', ')}`);
-      }
+      const name = url.pathname.slice(STREAM_PREFIX.length);
+      if (!EXAMPLES[name]) notFoundExampleError(name);
       checkRateLimit(clientIp(req) + ':stream');
       const inputParam = url.searchParams.get('input') ?? '{}';
-      if (inputParam.length > 8192) {
+      if (inputParam.length > SSE_INPUT_CAP_CHARS) {
         throw new ValidationError(
           'input query param too large',
           'input',
-          `${inputParam.length} > 8192 chars`,
+          `${inputParam.length} > ${SSE_INPUT_CAP_CHARS} chars`,
         );
       }
       let raw: unknown;
@@ -446,15 +465,18 @@ const server = http.createServer(async (req, res) => {
     }
 
     // POST /api/resume/:token — resume a suspended workflow
-    if (req.method === 'POST' && req.url?.startsWith('/api/resume/')) {
-      const token = req.url.slice('/api/resume/'.length).split('?')[0];
+    if (req.method === 'POST' && req.url?.startsWith(RESUME_PREFIX)) {
+      const token = req.url.slice(RESUME_PREFIX.length).split('?')[0];
       checkRateLimit(clientIp(req) + ':resume');
       const raw = await readJsonBody(req);
       if (!isPlainObject(raw)) {
-        throw new ValidationError('Request body must be a JSON object', 'body');
+        throw new ValidationError(BODY_NOT_OBJECT, 'body');
       }
-      if ('decision' in raw && raw.decision !== 'approved' && raw.decision !== 'rejected') {
-        throw new ValidationError('Field "decision" must be "approved" or "rejected"', 'decision');
+      if ('decision' in raw && !HITL_DECISIONS.includes(raw.decision as (typeof HITL_DECISIONS)[number])) {
+        throw new ValidationError(
+          `Field "decision" must be one of: ${HITL_DECISIONS.join(', ')}`,
+          'decision',
+        );
       }
       return resumeSuspended(res, token, raw as { decision?: 'approved' | 'rejected' });
     }
