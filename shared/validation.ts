@@ -85,7 +85,6 @@ type Bucket = { tokens: number; lastRefill: number };
 const BUCKETS = new Map<string, Bucket>();
 const RATE_LIMIT = 30; // requests
 const RATE_WINDOW_MS = 60_000; // per minute
-const BURST = 5; // allow up to 5 in a single second before throttling
 
 export function checkRateLimit(key: string, now = Date.now()): void {
   const bucket = BUCKETS.get(key) ?? { tokens: RATE_LIMIT, lastRefill: now };

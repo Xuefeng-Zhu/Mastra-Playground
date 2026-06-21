@@ -237,7 +237,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
 // ─── CLI demo ────────────────────────────────────────────────────────────
 if (isMain(import.meta.url, process.argv[1])) {
-  runCliExample('10-mastra-memory', async (silentTracer) => {
+  runCliExample(async (silentTracer) => {
     silentTracer.subscribe((e) => {
       if (e.type === 'step:end') {
         const out = (e as { output?: { text?: string } }).output;

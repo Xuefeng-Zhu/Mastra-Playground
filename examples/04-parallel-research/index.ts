@@ -29,7 +29,7 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { resolveModel, model } from '../../shared/llm.js';
+import { resolveModel } from '../../shared/llm.js';
 import { logger } from '../../shared/mastra-logger.js';
 import type { Tracer } from '../../shared/tracer.js';
 import {
@@ -45,7 +45,7 @@ import { finalizeRunResult } from '../../shared/run-result.js';
 import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
 import { webSearch } from '../02-research-agent/tools/web-search.js';
 import { arxivSearch } from '../02-research-agent/tools/arxiv.js';
-import { wiki, wikiDirect } from './tools/wiki.js';
+import { wikiDirect } from './tools/wiki.js';
 
 // ─── Two agents: one for planning, one for synthesis ──────────────────────
 // These are built per-request inside runOne() with the model specified by the request.
@@ -55,6 +55,16 @@ const STEPS: StepSpec[] = [
   { id: 'fanout', label: 'Parallel fetch (web + arxiv + wiki)', kind: 'tool' },
   { id: 'synthesize', label: 'Synthesize (LLM)', kind: 'llm' },
 ];
+
+const WebResultSchema = z.object({ title: z.string(), url: z.string(), snippet: z.string() });
+const ArxivPaperSchema = z.object({
+  title: z.string(),
+  authors: z.array(z.string()),
+  abstract: z.string(),
+  url: z.string(),
+});
+type WebResult = z.infer<typeof WebResultSchema>;
+type ArxivPaper = z.infer<typeof ArxivPaperSchema>;
 
 function makePlanStep(tracer: Tracer, agent: Agent) {
   return createStep({
@@ -87,8 +97,8 @@ function makeFanoutStep(tracer: Tracer) {
     outputSchema: z.object({
       topic: z.string(),
       sources: z.object({
-        web: z.object({ query: z.string(), results: z.array(z.any()) }),
-        arxiv: z.object({ query: z.string(), papers: z.array(z.any()) }),
+        web: z.object({ query: z.string(), results: z.array(WebResultSchema) }),
+        arxiv: z.object({ query: z.string(), papers: z.array(ArxivPaperSchema) }),
         wiki: z.object({ topic: z.string(), summary: z.string(), references: z.array(z.string()) }),
       }),
     }),
@@ -100,13 +110,19 @@ function makeFanoutStep(tracer: Tracer) {
         async () => {
           // Fan out: 3 sub-tasks in parallel
           const [webResults, arxivResults, wikiResult] = await Promise.all([
-            (webSearch.execute as unknown as (input: { query: string }) => Promise<{ results: unknown[] }>)({
-              query: inputData.subQuestions[0],
-            }).then((r) => {
+            (webSearch.execute as unknown as (input: { query: string }) => Promise<{ results: WebResult[] }>)(
+              {
+                query: inputData.subQuestions[0],
+              },
+            ).then((r) => {
               toolCall(tracer, 'fanout', 'web-search', { query: inputData.subQuestions[0] }, r);
               return r;
             }),
-            (arxivSearch.execute as unknown as (input: { query: string }) => Promise<{ papers: unknown[] }>)({
+            (
+              arxivSearch.execute as unknown as (input: {
+                query: string;
+              }) => Promise<{ papers: ArxivPaper[] }>
+            )({
               query: inputData.subQuestions[1],
             }).then((r) => {
               toolCall(tracer, 'fanout', 'arxiv-search', { query: inputData.subQuestions[1] }, r);
@@ -123,11 +139,11 @@ function makeFanoutStep(tracer: Tracer) {
             sources: {
               web: {
                 query: inputData.subQuestions[0],
-                results: (webResults as { results: unknown[] }).results,
+                results: webResults.results,
               },
               arxiv: {
                 query: inputData.subQuestions[1],
-                papers: (arxivResults as { papers: unknown[] }).papers,
+                papers: arxivResults.papers,
               },
               wiki: wikiResult,
             },
@@ -145,8 +161,8 @@ function makeSynthesizeStep(tracer: Tracer, agent: Agent) {
     inputSchema: z.object({
       topic: z.string(),
       sources: z.object({
-        web: z.object({ query: z.string(), results: z.array(z.any()) }),
-        arxiv: z.object({ query: z.string(), papers: z.array(z.any()) }),
+        web: z.object({ query: z.string(), results: z.array(WebResultSchema) }),
+        arxiv: z.object({ query: z.string(), papers: z.array(ArxivPaperSchema) }),
         wiki: z.object({ topic: z.string(), summary: z.string(), references: z.array(z.string()) }),
       }),
     }),
@@ -160,10 +176,10 @@ function makeSynthesizeStep(tracer: Tracer, agent: Agent) {
       const prompt = `Topic: ${inputData.topic}
 
 Web (${inputData.sources.web.query}):
-${inputData.sources.web.results.map((r: { title: string; snippet: string }) => `- ${r.title}: ${r.snippet}`).join('\n')}
+${inputData.sources.web.results.map((r) => `- ${r.title}: ${r.snippet}`).join('\n')}
 
 Arxiv (${inputData.sources.arxiv.query}):
-${inputData.sources.arxiv.papers.map((p: { title: string; abstract: string }) => `- ${p.title}: ${p.abstract}`).join('\n')}
+${inputData.sources.arxiv.papers.map((p) => `- ${p.title}: ${p.abstract}`).join('\n')}
 
 Internal wiki (${inputData.sources.wiki.topic}):
 ${inputData.sources.wiki.summary}
@@ -238,7 +254,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 const demoTopics = ['hybrid search with BM25', 'prompt caching in LLM APIs'];
 
 if (isMain(import.meta.url, process.argv[1])) {
-  runCliExample('04-parallel-research', async (silentTracer) => {
+  runCliExample(async (silentTracer) => {
     for (const topic of demoTopics) {
       const r = await runOne({ topic }, silentTracer);
       console.log(`\n— Parallel research: "${topic}"`);

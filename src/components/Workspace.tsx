@@ -1,20 +1,18 @@
 import { useState, useRef, useEffect } from 'react';
-import type { V2Example } from '../registry/examples.js';
-import { V2_MODEL_OPTIONS } from '../registry/examples.js';
+import type { PlaygroundExample } from '../registry/examples.js';
+import { MODEL_OPTIONS } from '../registry/examples.js';
 import { FormFieldView, SamplesGroup } from './FormField.js';
 import { TracePane, type TimelineEntry } from './TracePane.js';
 import { OutputPanel } from './OutputPanel.js';
-import { useWorkspace, type OutputTab } from '../hooks/useWorkspace.js';
-import { formatSec } from '../registry/utils.js';
+import { useWorkspace } from '../hooks/useWorkspace.js';
 
 interface WorkspaceProps {
-  example: V2Example;
+  example: PlaygroundExample;
 }
 
 export function Workspace({ example }: WorkspaceProps) {
   const ws = useWorkspace(example);
-  const [model, setModel] = useState(V2_MODEL_OPTIONS[0].value);
-  const [traceTab] = useState<'trace' | 'graph' | 'events'>('trace');
+  const [model, setModel] = useState(MODEL_OPTIONS[0].value);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -23,7 +21,7 @@ export function Workspace({ example }: WorkspaceProps) {
   // shell had silently dropped it.
   useEffect(() => {
     const saved = localStorage.getItem('mpg:model');
-    if (saved && V2_MODEL_OPTIONS.some((o) => o.value === saved)) {
+    if (saved && MODEL_OPTIONS.some((o) => o.value === saved)) {
       setModel(saved);
     }
   }, []);
@@ -117,7 +115,7 @@ export function Workspace({ example }: WorkspaceProps) {
                   : undefined
               }
             >
-              {V2_MODEL_OPTIONS.map((o) => (
+              {MODEL_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
@@ -140,12 +138,6 @@ export function Workspace({ example }: WorkspaceProps) {
               <FormFieldView key={i} field={f} disabled={ws.running} />
             ))}
             <SamplesGroup samples={example.form.samples} disabled={ws.running} />
-            <details className="input-section">
-              <summary>
-                Recent runs <span className="muted v2-recent-count">(0)</span>
-              </summary>
-              <div className="recent v2-recent-list"></div>
-            </details>
             <button type="submit" className="run-btn" disabled={ws.running}>
               <span className="run-icon">▶</span>
               {ws.running ? 'Running…' : example.runLabel}
@@ -161,8 +153,6 @@ export function Workspace({ example }: WorkspaceProps) {
           doneCount={ws.doneCount}
           activeNode={ws.activeNode}
           totalMs={ws.totalMs}
-          sourceCount={ws.sources.length}
-          hasSources={example.output.kind === 'parallel'}
         />
       </div>
 

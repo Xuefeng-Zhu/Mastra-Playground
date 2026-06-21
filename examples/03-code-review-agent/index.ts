@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { resolveModel, model } from '../../shared/llm.js';
+import { resolveModel } from '../../shared/llm.js';
 import { logger } from '../../shared/mastra-logger.js';
 import type { Tracer } from '../../shared/tracer.js';
 import {
@@ -19,8 +19,8 @@ import {
 } from '../../shared/traced-step.js';
 import { finalizeRunResult } from '../../shared/run-result.js';
 import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
-import { readFile, readFileDirect } from './tools/read-file.js';
-import { runCheck, runCheckDirect } from './tools/run-check.js';
+import { readFileDirect } from './tools/read-file.js';
+import { runCheckDirect } from './tools/run-check.js';
 
 // Hoisted: declared 3x in the original (steps + workflow). Hoisting keeps the
 // shape single-sourced so a change is one edit, not three.
@@ -203,7 +203,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 const demoFiles = ['auth.ts', 'utils.ts', 'clean.ts'];
 
 if (isMain(import.meta.url, process.argv[1])) {
-  runCliExample('03-code-review-agent', async (silentTracer) => {
+  runCliExample(async (silentTracer) => {
     for (const path of demoFiles) {
       const r = await runOne({ path }, silentTracer);
       console.log(`\n— Reviewing: ${path}`);
@@ -217,5 +217,3 @@ if (isMain(import.meta.url, process.argv[1])) {
     }
   });
 }
-
-// Note: keep `readFile` and `runCheck` imported (used when an agent's `tools:` references them)

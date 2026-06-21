@@ -40,7 +40,7 @@ import { Mastra } from '@mastra/core';
 import { resolveModel, model, getModel } from '../../shared/llm.js';
 import { logger } from '../../shared/mastra-logger.js';
 import type { Tracer } from '../../shared/tracer.js';
-import { startRun, stepStart, stepEnd, toolCall, timed, type StepSpec } from '../../shared/traced-step.js';
+import { startRun, toolCall, timed, type StepSpec } from '../../shared/traced-step.js';
 import { finalizeRunResult } from '../../shared/run-result.js';
 import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
 
@@ -242,7 +242,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
 // ─── CLI demo ────────────────────────────────────────────────────────────
 if (isMain(import.meta.url, process.argv[1])) {
-  runCliExample('09-multi-agent-handoff', async (silentTracer) => {
+  runCliExample(async (silentTracer) => {
     silentTracer.subscribe((e) => {
       if (e.type === 'step:end') {
         const out = (e as { output?: { delegated?: boolean; specialistResponse?: string } }).output;

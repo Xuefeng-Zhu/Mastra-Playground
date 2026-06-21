@@ -70,7 +70,7 @@ describe('React build artifacts', () => {
 });
 
 describe('React bundle composition', () => {
-  it('bundle includes all 11 V2_EXAMPLES by name', () => {
+  it('bundle includes all 11 EXAMPLES by name', () => {
     const js = readBundle();
     const examples = [
       'support-triage',
@@ -86,7 +86,7 @@ describe('React bundle composition', () => {
       'content-pipeline',
     ];
     for (const ex of examples) {
-      // The V2_EXAMPLES object literal includes the id as a string key.
+      // The EXAMPLES object literal includes the id as a string key.
       expect(js).toContain(`"${ex}"`);
     }
   });

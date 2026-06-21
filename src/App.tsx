@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Topbar } from './components/Topbar.js';
 import { Rail } from './components/Rail.js';
 import { Workspace } from './components/Workspace.js';
-import { V2_EXAMPLES } from './registry/examples.js';
+import { EXAMPLES } from './registry/examples.js';
 
 export function App() {
   const [activeId, setActiveId] = useState<string>('parallel-research');
@@ -24,7 +24,7 @@ export function App() {
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
-  const example = V2_EXAMPLES[activeId];
+  const example = EXAMPLES[activeId];
 
   return (
     <>

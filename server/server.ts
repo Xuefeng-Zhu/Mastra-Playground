@@ -18,13 +18,13 @@
  */
 
 import http from 'node:http';
-import { readFile } from 'node:fs/promises';
-import { existsSync, realpathSync } from 'node:fs';
-import { join, dirname, sep } from 'node:path';
+import { join, dirname } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import { Tracer, sseLine, type TraceEvent } from '../shared/tracer.js';
 import { takeSuspendedRun, HITL_DECISIONS } from '../shared/suspended-store.js';
 import { logger } from '../shared/logger.js';
+import { validateExampleInput, type ExampleId } from '../shared/example-inputs.js';
+import { serveStatic } from './static-files.js';
 import {
   ValidationError,
   NotFoundError,
@@ -33,7 +33,6 @@ import {
   isPlainObject,
   checkRateLimit,
   clientIp,
-  sanitizeText,
 } from '../shared/validation.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -55,8 +54,6 @@ const SUSPENDED_GC_CUTOFF_MS = 60 * 60 * 1000;
 const SUSPENDED_GC_INTERVAL_MS = 10 * 60 * 1000;
 
 // Reused error message strings.
-const BODY_NOT_OBJECT = 'Request body must be a JSON object';
-const MESSAGE_NOT_STRING = 'Field "message" must be a string';
 
 // ─── Secrets hardening (boot check) ───────────────────────────────────────
 const apiKey = process.env.OPENAI_API_KEY;
@@ -85,73 +82,7 @@ const cleanupInterval = setInterval(() => {
 }, SUSPENDED_GC_INTERVAL_MS);
 cleanupInterval.unref();
 
-// ─── 1. Static file serving ────────────────────────────────────────────────
-// The UI is a React app bundled by Vite (see vite.config.ts). The build
-// emits `dist/index.html` plus hashed JS/CSS under `dist/assets/`. The
-// stylesheet lives at src/styles.css and is bundled into
-// dist/assets/index-*.css (no public/style.css — do not reintroduce).
-//
-// The server maps every request to a file under `dist/`:
-const STATIC_FILES: Record<string, string> = {
-  '/': 'dist/index.html',
-  '/index.html': 'dist/index.html',
-};
-
-const STATIC_MIME: Record<string, string> = {
-  html: 'text/html; charset=utf-8',
-  css: 'text/css; charset=utf-8',
-  js: 'application/javascript; charset=utf-8',
-  mjs: 'application/javascript; charset=utf-8',
-  json: 'application/json; charset=utf-8',
-  svg: 'image/svg+xml',
-  png: 'image/png',
-  jpg: 'image/jpeg',
-  ico: 'image/x-icon',
-  map: 'application/json; charset=utf-8',
-  txt: 'text/plain; charset=utf-8',
-};
-
-function mimeFor(filePath: string): string {
-  const ext = filePath.split('.').pop()?.toLowerCase() || '';
-  return STATIC_MIME[ext] || 'application/octet-stream';
-}
-
-async function serveStatic(path: string, res: http.ServerResponse): Promise<boolean> {
-  // 1) Explicit STATIC_FILES map.
-  if (STATIC_FILES[path]) {
-    const full = join(ROOT, STATIC_FILES[path]);
-    if (existsSync(full)) {
-      const content = await readFile(full);
-      res.writeHead(200, { 'Content-Type': mimeFor(full) });
-      res.end(content);
-      return true;
-    }
-    return false;
-  }
-  // 2) React build assets: anything under `/assets/` maps to `dist/assets/…`
-  //    (Vite uses content-hashed filenames so we can't enumerate them).
-  //    `path` still has its leading `/`; `join` consumes it. We resolve the
-  //    full target under ROOT/dist and verify it stays there after symlink
-  //    resolution to prevent path traversal AND symlink escape.
-  if (path.startsWith('/assets/')) {
-    const full = join(ROOT, 'dist', path);
-    const distRoot = join(ROOT, 'dist') + sep;
-    // Prefix check (string form) catches `..` after `path.join` normalization.
-    if (!full.startsWith(distRoot)) return false;
-    if (!existsSync(full)) return false;
-    // realpath check catches symlinks that point outside dist/ (e.g. a
-    // malicious `dist/assets/leak` symlinking to /etc/passwd).
-    const real = realpathSync(full);
-    if (!real.startsWith(distRoot)) return false;
-    const content = await readFile(full);
-    res.writeHead(200, { 'Content-Type': mimeFor(full) });
-    res.end(content);
-    return true;
-  }
-  return false;
-}
-
-// ─── 2. Example registry ───────────────────────────────────────────────────
+// ─── 1. Example registry ───────────────────────────────────────────────────
 const EXAMPLES: Record<string, { file: string; exportName: string; description: string }> = {
   'support-triage': {
     file: 'examples/01-support-triage/index.ts',
@@ -234,130 +165,7 @@ async function loadRunFn(name: string): Promise<RunFn> {
   return fn;
 }
 
-// ─── 3. Per-example input validation ──────────────────────────────────────
-function validateExampleInput(name: string, body: unknown): Record<string, unknown> {
-  if (!isPlainObject(body)) {
-    throw new ValidationError(BODY_NOT_OBJECT, 'body');
-  }
-  switch (name) {
-    case 'support-triage': {
-      if ('message' in body && typeof body.message !== 'string') {
-        throw new ValidationError(MESSAGE_NOT_STRING, 'message');
-      }
-      return { message: sanitizeText(body.message) };
-    }
-    case 'research':
-    case 'parallel-research':
-    case 'critic-loop': {
-      if (!('topic' in body) || typeof body.topic !== 'string' || body.topic.trim().length === 0) {
-        throw new ValidationError('Field "topic" must be a non-empty string', 'topic');
-      }
-      const out: Record<string, unknown> = { topic: sanitizeText(body.topic) };
-      if ('threshold' in body) {
-        if (typeof body.threshold !== 'number' || body.threshold < 0 || body.threshold > 10) {
-          throw new ValidationError('Field "threshold" must be a number 0-10', 'threshold');
-        }
-        out.threshold = body.threshold;
-      }
-      if ('maxIterations' in body) {
-        if (
-          typeof body.maxIterations !== 'number' ||
-          !Number.isInteger(body.maxIterations) ||
-          body.maxIterations < 1 ||
-          body.maxIterations > 5
-        ) {
-          throw new ValidationError('Field "maxIterations" must be an integer 1-5', 'maxIterations');
-        }
-        out.maxIterations = body.maxIterations;
-      }
-      return out;
-    }
-    case 'code-review': {
-      if ('path' in body && typeof body.path !== 'string') {
-        throw new ValidationError('Field "path" must be a string', 'path');
-      }
-      return { path: sanitizeText(body.path, 512) };
-    }
-    case 'multi-turn-chat': {
-      const allowed = new Set(['threadId', 'resourceId', 'message', 'model', 'action']);
-      for (const key of Object.keys(body)) {
-        if (!allowed.has(key)) {
-          throw new ValidationError(`Unknown field: ${key}`, key);
-        }
-      }
-      if ('message' in body && typeof body.message !== 'string') {
-        throw new ValidationError(MESSAGE_NOT_STRING, 'message');
-      }
-      return {
-        ...(typeof body.threadId === 'string' ? { threadId: body.threadId } : {}),
-        ...(typeof body.resourceId === 'string' ? { resourceId: body.resourceId } : {}),
-        message: sanitizeText(body.message),
-        ...(body.action === 'clear' ? { action: 'clear' as const } : {}),
-        ...(typeof body.model === 'string' ? { model: body.model } : {}),
-      };
-    }
-    case 'hitl-approval': {
-      if ('action' in body && typeof body.action !== 'string') {
-        throw new ValidationError('Field "action" must be a string', 'action');
-      }
-      if ('actionType' in body) {
-        const valid = new Set(['refund', 'send', 'delete']);
-        if (typeof body.actionType !== 'string' || !valid.has(body.actionType)) {
-          throw new ValidationError('Field "actionType" must be one of: refund, send, delete', 'actionType');
-        }
-      }
-      return {
-        action: sanitizeText(body.action),
-        ...(typeof body.actionType === 'string' ? { actionType: body.actionType } : {}),
-        ...(typeof body.model === 'string' ? { model: body.model } : {}),
-      };
-    }
-    case 'streaming-chat': {
-      if (!('prompt' in body) || typeof body.prompt !== 'string' || body.prompt.trim().length === 0) {
-        throw new ValidationError('Field "prompt" must be a non-empty string', 'prompt');
-      }
-      return {
-        prompt: sanitizeText(body.prompt),
-        ...(typeof body.model === 'string' ? { model: body.model } : {}),
-      };
-    }
-    case 'multi-agent-handoff': {
-      if (!('message' in body) || typeof body.message !== 'string' || body.message.trim().length === 0) {
-        throw new ValidationError('Field "message" must be a non-empty string', 'message');
-      }
-      return {
-        message: sanitizeText(body.message),
-        ...(typeof body.model === 'string' ? { model: body.model } : {}),
-      };
-    }
-    case 'content-pipeline': {
-      if (!('topic' in body) || typeof body.topic !== 'string' || body.topic.trim().length === 0) {
-        throw new ValidationError('Field "topic" must be a non-empty string', 'topic');
-      }
-      return {
-        topic: sanitizeText(body.topic),
-        ...(typeof body.audience === 'string' ? { audience: body.audience } : {}),
-        ...(typeof body.model === 'string' ? { model: body.model } : {}),
-      };
-    }
-    case 'mastra-memory': {
-      if (!('threadId' in body) || typeof body.threadId !== 'string' || body.threadId.trim().length === 0) {
-        throw new ValidationError('Field "threadId" must be a non-empty string', 'threadId');
-      }
-      return {
-        threadId: sanitizeText(body.threadId),
-        ...(typeof body.resourceId === 'string' ? { resourceId: body.resourceId } : {}),
-        ...(typeof body.turn1 === 'string' ? { turn1: body.turn1 } : {}),
-        ...(typeof body.turn2 === 'string' ? { turn2: body.turn2 } : {}),
-        ...(typeof body.model === 'string' ? { model: body.model } : {}),
-      };
-    }
-    default:
-      return body;
-  }
-}
-
-// ─── 4. Response helpers ──────────────────────────────────────────────────
+// ─── 3. Response helpers ──────────────────────────────────────────────────
 function sendJson(res: http.ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify(body));
@@ -440,7 +248,7 @@ const server = http.createServer(async (req, res) => {
       if (!EXAMPLES[name]) notFoundExampleError(name);
       checkRateLimit(clientIp(req) + ':run');
       const raw = await readJsonBody(req);
-      const input = validateExampleInput(name, raw);
+      const input = validateExampleInput(name as ExampleId, raw);
       const fn = await loadRunFn(name);
       const tracer = new Tracer();
       const result = await fn(input, tracer);
@@ -468,7 +276,7 @@ const server = http.createServer(async (req, res) => {
       } catch {
         throw new ValidationError('Invalid input JSON in query param', 'input');
       }
-      const input = validateExampleInput(name, raw);
+      const input = validateExampleInput(name as ExampleId, raw);
       return startSseStream(req, res, name, input);
     }
 
@@ -478,7 +286,7 @@ const server = http.createServer(async (req, res) => {
       checkRateLimit(clientIp(req) + ':resume');
       const raw = await readJsonBody(req);
       if (!isPlainObject(raw)) {
-        throw new ValidationError(BODY_NOT_OBJECT, 'body');
+        throw new ValidationError('Request body must be a JSON object', 'body');
       }
       if ('decision' in raw && !HITL_DECISIONS.includes(raw.decision as (typeof HITL_DECISIONS)[number])) {
         throw new ValidationError(
@@ -491,7 +299,7 @@ const server = http.createServer(async (req, res) => {
 
     // Static files (no rate limit)
     if (req.method === 'GET') {
-      const served = await serveStatic(req.url || '/', res);
+      const served = await serveStatic(req.url || '/', res, ROOT);
       if (served) return;
     }
 
@@ -511,7 +319,12 @@ const server = http.createServer(async (req, res) => {
 });
 
 // ─── 6. SSE handler ────────────────────────────────────────────────────────
-function startSseStream(req: http.IncomingMessage, res: http.ServerResponse, name: string, input: unknown) {
+async function startSseStream(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  name: string,
+  input: unknown,
+): Promise<void> {
   // Parse trace logging options from the query string
   //   ?trace=true              → log every event to stderr
   //   ?trace=true&events=start,step:start,step:end,done
@@ -542,14 +355,6 @@ function startSseStream(req: http.IncomingMessage, res: http.ServerResponse, nam
   res.write(': connected\n\n');
   res.flushHeaders?.();
 
-  const send = (event: TraceEvent) => {
-    try {
-      res.write(sseLine(event));
-    } catch {
-      // Client disconnected
-    }
-  };
-
   let unsub: (() => void) | null = null;
   let unsubLog: (() => void) | null = null;
   let closed = false;
@@ -561,52 +366,66 @@ function startSseStream(req: http.IncomingMessage, res: http.ServerResponse, nam
     if (unsubLog) unsubLog();
   };
 
-  reqSocketCleanup(req, cleanup);
+  reqSocketCleanup(req, res, cleanup);
+  res.once('error', (err) => {
+    logger.warn('sse_response_error', { example: name, error: err.message });
+    cleanup();
+  });
 
-  (async () => {
+  const send = (event: TraceEvent) => {
+    if (closed || res.destroyed || res.writableEnded) return;
     try {
-      const fn = await loadRunFn(name);
-      const tracer = new Tracer();
-      unsub = tracer.subscribe(send);
-
-      // Optional server-side trace logging for `npm run serve | jq`
-      const ip = clientIp(req);
-      if (traceLogEnabled) {
-        logger.info('trace_session_start', { example: name, ip, events: traceEventFilter.size || 'all' });
-        unsubLog = tracer.subscribe((event) => {
-          if (traceFilterActive && !traceEventFilter.has(event.type)) return;
-          // Route through the structured logger so it lands in stderr (not stdout
-          // where the SSE bytes live) and survives `jq` filtering.
-          process.stderr.write(
-            JSON.stringify({
-              ts: new Date().toISOString(),
-              level: 'info',
-              msg: 'trace_event',
-              example: name,
-              ip,
-              event,
-            }) + '\n',
-          );
-        });
-      }
-
-      await fn(input, tracer);
-
-      if (traceLogEnabled) {
-        logger.info('trace_session_end', { example: name, ip });
-      }
+      res.write(sseLine(event));
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      send({ type: 'done', status: 'failed', output: { error: message }, totalMs: 0 });
-    } finally {
-      res.end();
+      logger.warn('sse_write_failed', {
+        example: name,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      cleanup();
     }
-  })();
+  };
+
+  try {
+    const fn = await loadRunFn(name);
+    const tracer = new Tracer();
+    unsub = tracer.subscribe(send);
+
+    // Optional server-side trace logging for `npm run serve | jq`
+    const ip = clientIp(req);
+    if (traceLogEnabled) {
+      logger.info('trace_session_start', { example: name, ip, events: traceEventFilter.size || 'all' });
+      unsubLog = tracer.subscribe((event) => {
+        if (traceFilterActive && !traceEventFilter.has(event.type)) return;
+        process.stderr.write(
+          JSON.stringify({
+            ts: new Date().toISOString(),
+            level: 'info',
+            msg: 'trace_event',
+            example: name,
+            ip,
+            event,
+          }) + '\n',
+        );
+      });
+    }
+
+    await fn(input, tracer);
+
+    if (traceLogEnabled) {
+      logger.info('trace_session_end', { example: name, ip });
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    send({ type: 'done', status: 'failed', output: { error: message }, totalMs: 0 });
+  } finally {
+    cleanup();
+    if (!res.destroyed && !res.writableEnded) res.end();
+  }
 }
 
-function reqSocketCleanup(req: http.IncomingMessage, cleanup: () => void) {
-  req.on('close', cleanup);
-  req.on('aborted', cleanup);
+function reqSocketCleanup(req: http.IncomingMessage, res: http.ServerResponse, cleanup: () => void) {
+  req.once('aborted', cleanup);
+  res.once('close', cleanup);
 }
 
 // ─── 7. Resume handler ───────────────────────────────────────────────────

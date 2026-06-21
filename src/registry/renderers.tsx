@@ -11,221 +11,18 @@
  * in <OutputPanel>.
  */
 
-import { formatSec, escapeText } from './utils.js';
-import type { FormSample } from './examples.js';
-import type { V2Example } from './examples.js';
-
-// ── shared bits ─────────────────────────────────────────────────────────
-
-function SummaryGrid({ items }: { items: { label: string; value: string; className?: string }[] }) {
-  return (
-    <div className="summary-grid">
-      {items.map((it, i) => (
-        <div key={i} className={`summary-item ${it.className ?? ''}`}>
-          <div className="label">{it.label}</div>
-          <div className="value">{it.value}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function CompareGrid({
-  currentLabel,
-  priorLabel,
-  currentText,
-  priorText,
-}: {
-  currentLabel: string;
-  priorLabel: string;
-  currentText: string;
-  priorText: string;
-}) {
-  return (
-    <div className="compare-grid">
-      <section className="compare-col">
-        <header>{currentLabel}</header>
-        <div className="compare-body">{currentText}</div>
-      </section>
-      <section className="compare-col">
-        <header>{priorLabel}</header>
-        <div className="compare-body">{priorText}</div>
-      </section>
-    </div>
-  );
-}
-
-function SourcesList({ sources }: { sources: CapturedSource[] }) {
-  if (sources.length === 0) {
-    return <p className="muted">No sources captured. Run the workflow first.</p>;
-  }
-  return (
-    <div className="src-list">
-      {sources.map((s, i) => (
-        <details key={i} className="src-block" open>
-          <summary>
-            <span className="src-num">{i + 1}</span> <strong>{escapeText(s.tool)}</strong>{' '}
-            <span className="muted">— {escapeText(JSON.stringify(s.input))}</span>
-          </summary>
-          <pre className="src-output">{escapeText(JSON.stringify(s.output, null, 2))}</pre>
-        </details>
-      ))}
-    </div>
-  );
-}
-
-function ChatThread({
-  messages,
-  escalated,
-  escalationReason,
-}: {
-  messages: ChatMsg[];
-  escalated: boolean;
-  escalationReason: string | null;
-}) {
-  if (messages.length === 0) {
-    return <p className="muted">Send a message to start the conversation.</p>;
-  }
-  return (
-    <div className="chat-thread">
-      {messages.map((m, i) => (
-        <div key={i} className={`chat-msg ${m.role}`}>
-          <div className="chat-msg-body">{m.content}</div>
-          <div className="chat-msg-meta">{new Date(m.ts).toLocaleTimeString('en-US', { hour12: false })}</div>
-        </div>
-      ))}
-      {escalated && (
-        <div className="escalation-badge">⚠ ESCALATED{escalationReason ? `: ${escalationReason}` : ''}</div>
-      )}
-    </div>
-  );
-}
-
-function StreamingView({
-  text,
-  tokens,
-  durationMs,
-  model,
-}: {
-  text: string;
-  tokens: number;
-  durationMs: number;
-  model: string;
-}) {
-  const tps = durationMs > 0 ? (tokens / (durationMs / 1000)).toFixed(1) : '0.0';
-  return (
-    <div className="streaming-view">
-      <div className="streaming-header">Streaming response</div>
-      <div className="streaming-text">{text}</div>
-      <div className="streaming-meta">
-        <span className="streaming-tokens">{tokens} tokens</span> ·{' '}
-        <span className="streaming-rate">{tps} tok/s</span> ·{' '}
-        <span className="streaming-time">{formatSec(durationMs)}</span>
-        {model ? (
-          <>
-            {' '}
-            · <span className="streaming-model">{model}</span>
-          </>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function HitlPending({
-  token,
-  classified,
-  onApprove,
-  onReject,
-}: {
-  token: string;
-  classified: { amount?: number; urgency?: string; reasoning?: string };
-  onApprove: () => void;
-  onReject: () => void;
-}) {
-  return (
-    <div className="pending-approval" data-token={token}>
-      <div className="pending-approval-header">⏸ Pending approval</div>
-      <div className="pending-approval-detail">
-        <span className="pad-label">Amount</span>
-        <span className="pad-value">${classified.amount ?? '?'}</span>
-        <span className="pad-label">Urgency</span>
-        <span className="pad-value">{classified.urgency ?? '?'}</span>
-        <span className="pad-label">Reasoning</span>
-        <span className="pad-value">{classified.reasoning ?? ''}</span>
-      </div>
-      <div className="pending-approval-actions">
-        <button
-          type="button"
-          className="btn-approve v2-btn-approve"
-          onClick={onApprove}
-          aria-label="Approve the proposed action"
-        >
-          ✅ Approve
-        </button>
-        <button
-          type="button"
-          className="btn-reject v2-btn-reject"
-          onClick={onReject}
-          aria-label="Reject the proposed action"
-        >
-          ❌ Reject
-        </button>
-      </div>
-      <div className="pending-approval-token muted">Token: {token}</div>
-    </div>
-  );
-}
-
-function HitlFinal({
-  classified,
-  decision,
-  executed,
-  message,
-}: {
-  classified: { amount?: number; urgency?: string; reasoning?: string };
-  decision: string;
-  executed: boolean;
-  message: string;
-}) {
-  return (
-    <>
-      <div className={`hitl-final-banner ${executed ? 'executed' : 'blocked'}`}>
-        <span className="icon">{executed ? '✅' : '🛑'}</span>
-        <span>
-          {executed ? 'Action executed' : 'Action blocked'}: {message}
-        </span>
-      </div>
-      <div className="output-section">
-        <h3>Classification</h3>
-        <div className="pending-approval-detail">
-          <span className="pad-label">Amount</span>
-          <span className="pad-value">${classified.amount ?? 0}</span>
-          <span className="pad-label">Urgency</span>
-          <span className="pad-value">{classified.urgency ?? '?'}</span>
-          <span className="pad-label">Reasoning</span>
-          <span className="pad-value">{classified.reasoning ?? ''}</span>
-          <span className="pad-label">Decision</span>
-          <span className="pad-value">{decision}</span>
-        </div>
-      </div>
-    </>
-  );
-}
-
-// ── types shared with the workspace hook ──────────────────────────────
-
-export interface CapturedSource {
-  tool: string;
-  input: unknown;
-  output: unknown;
-}
-
-export interface ChatMsg {
-  role: string;
-  content: string;
-  ts: number;
-}
+import { formatSec } from './utils.js';
+import { COMPARE_RENDERERS } from './compare-renderers.js';
+import {
+  ChatThread,
+  HitlFinal,
+  HitlPending,
+  SourcesList,
+  StreamingView,
+  SummaryGrid,
+  type CapturedSource,
+  type ChatMsg,
+} from './renderer-components.js';
 
 export interface RenderContext {
   totalMs: number;
@@ -237,9 +34,48 @@ export interface RenderContext {
   onHitlReject: (token: string) => void;
 }
 
+type TriageOutput = {
+  action?: string;
+  triage?: {
+    intent: string;
+    urgency: string;
+    confidence: number;
+    requires_human: boolean;
+    summary: string;
+    response_text?: string;
+  };
+};
+type ResearchOutput = { formatted?: string };
+type CodeReviewOutput = { action?: string; issueCount?: number; review?: string };
+type ParallelOutput = { synthesis?: string };
+type ChatOutput = { allMessages?: ChatMsg[]; escalated?: boolean; escalationReason?: string | null };
+type StreamingOutput = { finalText?: string; model?: string; durationMs?: number; deltas?: unknown[] };
+type HitlOutput = {
+  token?: string;
+  classified?: { amount?: number; urgency?: string; reasoning?: string };
+  decision?: string;
+  executed?: boolean;
+  message?: string;
+};
+type CriticLoopOutput = {
+  draft?: string;
+  score?: number;
+  iterations?: number;
+  threshold?: number;
+  history?: { index: number; score: number; draft: string; feedback: string }[];
+};
+type ContentPipelineOutput = { research?: string; draft?: string; score?: number; edited?: string };
+type MemoryOutput = {
+  recalled?: boolean;
+  historyLength?: number;
+  turn1?: { output?: string };
+  turn2?: { output?: string };
+};
+
 // ── the per-kind renderers ─────────────────────────────────────────────
 
-function renderTriage(out: any, ctx: RenderContext) {
+function renderTriage(value: unknown, ctx: RenderContext) {
+  const out = value as TriageOutput | null;
   const t = out?.triage;
   const action = out?.action;
   if (!t || !action) return <p className="muted">(no output)</p>;
@@ -265,7 +101,8 @@ function renderTriage(out: any, ctx: RenderContext) {
   );
 }
 
-function renderResearch(out: any, ctx: RenderContext) {
+function renderResearch(value: unknown, ctx: RenderContext) {
+  const out = value as ResearchOutput | null;
   const formatted = out?.formatted;
   if (!formatted) return <p className="muted">(no output)</p>;
   const paragraphs = String(formatted)
@@ -279,7 +116,8 @@ function renderResearch(out: any, ctx: RenderContext) {
   );
 }
 
-function renderCodeReview(out: any, ctx: RenderContext) {
+function renderCodeReview(value: unknown, ctx: RenderContext) {
+  const out = value as CodeReviewOutput | null;
   if (!out || !out.action) return <p className="muted">(no output)</p>;
   const lgtm = out.action === 'approved';
   return (
@@ -297,7 +135,8 @@ function renderCodeReview(out: any, ctx: RenderContext) {
   );
 }
 
-function renderParallel(out: any, ctx: RenderContext) {
+function renderParallel(value: unknown, ctx: RenderContext) {
+  const out = value as ParallelOutput | null;
   const synth = out?.synthesis;
   if (!synth) return <p className="muted">Run the workflow to see the synthesized answer.</p>;
   const paragraphs = synth.split(/\n\n+/).map((p: string, i: number) => <p key={i}>{p}</p>);
@@ -312,7 +151,8 @@ function renderParallel(out: any, ctx: RenderContext) {
   );
 }
 
-function renderChat(out: any, ctx: RenderContext) {
+function renderChat(value: unknown) {
+  const out = value as ChatOutput | null;
   // The expression must prefer `out.allMessages` when present (post-run
   // state). The previous code was `out?.allMessages || ctx.streamingText
   // ? [] : []` which JS parsed as `((out?.allMessages) ||
@@ -327,7 +167,8 @@ function renderChat(out: any, ctx: RenderContext) {
   return <ChatThread messages={messages} escalated={escalated} escalationReason={escalationReason} />;
 }
 
-function renderStreaming(out: any, ctx: RenderContext) {
+function renderStreaming(value: unknown, ctx: RenderContext) {
+  const out = value as StreamingOutput | null;
   const text = ctx.streamingText || out?.finalText || '';
   const model = out?.model || ctx.streamingModel || '';
   const durationMs = out?.durationMs || ctx.totalMs;
@@ -335,14 +176,16 @@ function renderStreaming(out: any, ctx: RenderContext) {
   return <StreamingView text={text} tokens={tokens} durationMs={durationMs} model={model} />;
 }
 
-function renderHitl(out: any, ctx: RenderContext) {
+function renderHitl(value: unknown, ctx: RenderContext) {
+  const out = value as HitlOutput | null;
   if (out?.token && out?.classified && out?.decision === undefined) {
+    const token = out.token;
     return (
       <HitlPending
-        token={out.token}
+        token={token}
         classified={out.classified}
-        onApprove={() => ctx.onHitlApprove(out.token)}
-        onReject={() => ctx.onHitlReject(out.token)}
+        onApprove={() => ctx.onHitlApprove(token)}
+        onReject={() => ctx.onHitlReject(token)}
       />
     );
   }
@@ -356,7 +199,8 @@ function renderHitl(out: any, ctx: RenderContext) {
   );
 }
 
-function renderCriticLoop(out: any, ctx: RenderContext) {
+function renderCriticLoop(value: unknown, ctx: RenderContext) {
+  const out = value as CriticLoopOutput | null;
   if (!out || !out.draft) return <p className="muted">(no output)</p>;
   const history = out.history || [];
   return (
@@ -374,7 +218,7 @@ function renderCriticLoop(out: any, ctx: RenderContext) {
         <details className="src-block" open>
           <summary>Iteration history ({history.length})</summary>
           <ol className="iter-list">
-            {history.map((it: any, i: number) => (
+            {history.map((it, i) => (
               <li key={i}>
                 <strong>Draft {it.index + 1}</strong> · score <strong>{it.score}/10</strong>
                 <p className="iter-draft">{it.draft}</p>
@@ -391,7 +235,8 @@ function renderCriticLoop(out: any, ctx: RenderContext) {
   );
 }
 
-function renderContentPipeline(out: any, ctx: RenderContext) {
+function renderContentPipeline(value: unknown, ctx: RenderContext) {
+  const out = value as ContentPipelineOutput | null;
   if (!out) return <p className="muted">(no output)</p>;
   return (
     <>
@@ -406,7 +251,8 @@ function renderContentPipeline(out: any, ctx: RenderContext) {
   );
 }
 
-function renderMastraMemory(out: any, ctx: RenderContext) {
+function renderMastraMemory(value: unknown, ctx: RenderContext) {
+  const out = value as MemoryOutput | null;
   if (!out) return <p className="muted">(no output)</p>;
   const t1 = out.turn1;
   const t2 = out.turn2;
@@ -427,141 +273,9 @@ function renderMastraMemory(out: any, ctx: RenderContext) {
   );
 }
 
-// ── the per-kind compare renderers ─────────────────────────────────────
-
-function compareTriage(cur: any, prior: any) {
-  const curR = cur?.triage?.response_text;
-  const priorR = prior?.triage?.response_text;
-  if (!curR && !priorR) return <p className="muted">Run the workflow twice to compare.</p>;
-  if (!priorR) return <p className="muted">No prior run yet.</p>;
-  return (
-    <CompareGrid
-      currentLabel="Current"
-      priorLabel="Prior"
-      currentText={curR || '(empty)'}
-      priorText={priorR}
-    />
-  );
-}
-
-function compareResearch(cur: any, prior: any) {
-  const curF = cur?.formatted;
-  const priorF = prior?.formatted;
-  if (!curF && !priorF) return <p className="muted">Run the workflow twice to compare.</p>;
-  if (!priorF) return <p className="muted">No prior run yet.</p>;
-  return (
-    <CompareGrid
-      currentLabel="Current"
-      priorLabel="Prior"
-      currentText={curF || '(empty)'}
-      priorText={priorF}
-    />
-  );
-}
-
-function compareCodeReview(cur: any, prior: any) {
-  const curR = cur?.review;
-  const priorR = prior?.review;
-  if (!curR && !priorR) return <p className="muted">Run the workflow twice to compare.</p>;
-  if (!priorR) return <p className="muted">No prior run yet.</p>;
-  return (
-    <CompareGrid
-      currentLabel="Current"
-      priorLabel="Prior"
-      currentText={curR || '(empty)'}
-      priorText={priorR}
-    />
-  );
-}
-
-function compareParallel(cur: any, prior: any) {
-  const curS = cur?.synthesis;
-  const priorS = prior?.synthesis;
-  if (!curS && !priorS) return <p className="muted">Run the workflow twice to compare.</p>;
-  if (!priorS) return <p className="muted">No prior run yet.</p>;
-  return (
-    <CompareGrid
-      currentLabel="Current"
-      priorLabel="Prior"
-      currentText={curS || '(empty)'}
-      priorText={priorS}
-    />
-  );
-}
-
-function compareChat() {
-  return (
-    <p className="muted">Chat threads aren't compared. Use the Raw JSON tab to inspect prior outputs.</p>
-  );
-}
-
-function compareStreaming(cur: any, prior: any) {
-  const curT = cur?.finalText;
-  const priorT = prior?.finalText;
-  if (!curT && !priorT) return <p className="muted">Run the workflow twice to compare.</p>;
-  if (!priorT) return <p className="muted">No prior run yet.</p>;
-  return (
-    <CompareGrid
-      currentLabel="Current"
-      priorLabel="Prior"
-      currentText={curT || '(empty)'}
-      priorText={priorT}
-    />
-  );
-}
-
-function compareHitl() {
-  return <p className="muted">HITL runs are stateful. Use the Raw JSON tab to inspect prior outputs.</p>;
-}
-
-function compareCriticLoop(cur: any, prior: any) {
-  const curD = cur?.draft;
-  const priorD = prior?.draft;
-  if (!curD && !priorD) return <p className="muted">Run the workflow twice to compare.</p>;
-  if (!priorD) return <p className="muted">No prior run yet.</p>;
-  return (
-    <CompareGrid
-      currentLabel={`Current (${cur?.score || 0}/10)`}
-      priorLabel={`Prior (${prior?.score || 0}/10)`}
-      currentText={curD || '(empty)'}
-      priorText={priorD}
-    />
-  );
-}
-
-function compareContentPipeline(cur: any, prior: any) {
-  const curD = cur?.draft;
-  const priorD = prior?.draft;
-  if (!curD && !priorD) return <p className="muted">Run the workflow twice to compare.</p>;
-  if (!priorD) return <p className="muted">No prior run yet.</p>;
-  return (
-    <CompareGrid
-      currentLabel="Current draft"
-      priorLabel="Prior draft"
-      currentText={curD || '(empty)'}
-      priorText={priorD}
-    />
-  );
-}
-
-function compareMastraMemory(cur: any, prior: any) {
-  const curR = cur?.turn2?.output;
-  const priorR = prior?.turn2?.output;
-  if (!curR && !priorR) return <p className="muted">Run the workflow twice to compare.</p>;
-  if (!priorR) return <p className="muted">No prior run yet.</p>;
-  return (
-    <CompareGrid
-      currentLabel="Current"
-      priorLabel="Prior"
-      currentText={curR || '(empty)'}
-      priorText={priorR}
-    />
-  );
-}
-
 // ── the public dispatcher ──────────────────────────────────────────────
 
-export const RESULT_RENDERERS: Record<string, (out: any, ctx: RenderContext) => React.ReactNode> = {
+export const RESULT_RENDERERS: Record<string, (out: unknown, ctx: RenderContext) => React.ReactNode> = {
   parallel: renderParallel,
   triage: renderTriage,
   research: renderResearch,
@@ -572,19 +286,6 @@ export const RESULT_RENDERERS: Record<string, (out: any, ctx: RenderContext) => 
   criticLoop: renderCriticLoop,
   contentPipeline: renderContentPipeline,
   mastraMemory: renderMastraMemory,
-};
-
-export const COMPARE_RENDERERS: Record<string, (cur: any, prior: any) => React.ReactNode> = {
-  parallel: compareParallel,
-  triage: compareTriage,
-  research: compareResearch,
-  codeReview: compareCodeReview,
-  chat: compareChat,
-  streaming: compareStreaming,
-  hitl: compareHitl,
-  criticLoop: compareCriticLoop,
-  contentPipeline: compareContentPipeline,
-  mastraMemory: compareMastraMemory,
 };
 
 // The "parallel" kind has a Sources tab. Others don't.
@@ -616,3 +317,5 @@ export const HAS_COMPARE_TAB: Record<string, boolean> = {
 };
 
 export { SourcesList, ChatThread, StreamingView, HitlPending, HitlFinal };
+export type { CapturedSource, ChatMsg };
+export { COMPARE_RENDERERS };

@@ -161,7 +161,7 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = mo
     description: 'Execute the action if approved, block if rejected',
     inputSchema: GateOutputSchema,
     outputSchema: ExecuteOutputSchema,
-    execute: async ({ inputData, resumeData }) => {
+    execute: async ({ inputData }) => {
       stepStart(tracer, 'execute', { classified: inputData.classified, decision: inputData.decision });
 
       // Normalize the gate's decision to a single boolean:
@@ -271,7 +271,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
 // ─── CLI demo ────────────────────────────────────────────────────────────
 if (isMain(import.meta.url, process.argv[1])) {
-  runCliExample('06-hitl-approval', async (silentTracer) => {
+  runCliExample(async (silentTracer) => {
     console.log('=== HITL Approval demo ===\n');
 
     // 1) Low-risk action: auto-approved

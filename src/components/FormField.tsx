@@ -3,12 +3,10 @@ import type { FormField } from '../registry/examples.js';
 
 interface FormFieldProps {
   field: FormField;
-  onSample?: (fieldName: string, value: string) => void;
-  samples?: { fill: string; value: string; label: string }[];
   disabled?: boolean;
 }
 
-export function FormFieldView({ field, samples, disabled }: FormFieldProps) {
+export function FormFieldView({ field, disabled }: FormFieldProps) {
   const id = `v2-field-${field.name}`;
   switch (field.type) {
     case 'textarea':
@@ -68,7 +66,7 @@ export function FormFieldView({ field, samples, disabled }: FormFieldProps) {
             step={field.step}
             value={val}
             disabled={disabled}
-            onChange={(e) => setVal(Number(e.target.value))}
+            onInput={(event) => setVal(Number(event.currentTarget.value))}
           />
         </div>
       );

@@ -29,17 +29,10 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { resolveModel, model } from '../../shared/llm.js';
+import { resolveModel } from '../../shared/llm.js';
 import { logger } from '../../shared/mastra-logger.js';
 import type { Tracer } from '../../shared/tracer.js';
-import {
-  startRun,
-  stepStart,
-  stepEnd,
-  llmStructured,
-  timed,
-  type StepSpec,
-} from '../../shared/traced-step.js';
+import { startRun, llmStructured, timed, type StepSpec } from '../../shared/traced-step.js';
 import { finalizeRunResult } from '../../shared/run-result.js';
 import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
 
@@ -226,7 +219,7 @@ const demoTopics = [
 ];
 
 if (isMain(import.meta.url, process.argv[1])) {
-  runCliExample('08-critic-loop', async (silentTracer) => {
+  runCliExample(async (silentTracer) => {
     for (const topic of demoTopics) {
       const r = await runOne({ topic, threshold: 8, maxIterations: 3 }, silentTracer);
       console.log(`\n— Critic loop: "${topic}"`);

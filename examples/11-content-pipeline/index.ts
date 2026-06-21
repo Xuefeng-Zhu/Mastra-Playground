@@ -35,7 +35,7 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { resolveModel, model } from '../../shared/llm.js';
+import { resolveModel } from '../../shared/llm.js';
 import { logger } from '../../shared/mastra-logger.js';
 import type { Tracer } from '../../shared/tracer.js';
 import { startRun, stepStart, stepEnd, llmStructured, type StepSpec } from '../../shared/traced-step.js';
@@ -235,7 +235,7 @@ const demoTopics = [
 ];
 
 if (isMain(import.meta.url, process.argv[1])) {
-  runCliExample('11-content-pipeline', async (silentTracer) => {
+  runCliExample(async (silentTracer) => {
     for (const topic of demoTopics) {
       const r = await runOne({ topic, audience: 'technical readers' }, silentTracer);
       console.log(`\n— Content pipeline: "${topic}"`);

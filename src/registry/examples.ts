@@ -1,5 +1,5 @@
 /**
- * V2_EXAMPLES — config for each of the 11 examples.
+ * EXAMPLES — config for each of the 11 examples.
  *
  * Each example drives its own workspace: the form fields, the graph, the
  * output renderer, and the run-button label. Adding a new example is one
@@ -61,7 +61,7 @@ export interface FormSample {
   label: string;
 }
 
-export interface V2Example {
+export interface PlaygroundExample {
   num: number;
   name: string;
   primTag: string;
@@ -73,7 +73,7 @@ export interface V2Example {
   runLabel: string;
 }
 
-export const V2_EXAMPLES: Record<string, V2Example> = {
+export const EXAMPLES: Record<string, PlaygroundExample> = {
   'support-triage': {
     num: 1,
     name: 'Support Triage',
@@ -444,14 +444,14 @@ export const V2_EXAMPLES: Record<string, V2Example> = {
   },
 };
 
-export const V2_MODEL_OPTIONS = [
+export const MODEL_OPTIONS = [
   { value: 'openai/gpt-4o-mini', label: 'gpt-4o-mini · default' },
   { value: 'anthropic/claude-3-5-haiku', label: 'claude-3-5-haiku' },
   { value: 'meta-llama/llama-3.1-8b-instruct', label: 'llama-3.1-8b-instruct' },
   { value: 'google/gemini-2.0-flash-001', label: 'gemini-2.0-flash-001' },
 ];
 
-// Display order for the rail (numeric order from V2_EXAMPLES).
-export const V2_EXAMPLE_ORDER = Object.entries(V2_EXAMPLES)
+// Display order for the rail (numeric order from EXAMPLES).
+export const V2_EXAMPLE_ORDER = Object.entries(EXAMPLES)
   .sort(([, a], [, b]) => a.num - b.num)
   .map(([id]) => id);

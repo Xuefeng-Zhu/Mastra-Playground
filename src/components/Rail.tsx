@@ -1,4 +1,4 @@
-import { V2_EXAMPLES, V2_EXAMPLE_ORDER } from '../registry/examples.js';
+import { EXAMPLES, V2_EXAMPLE_ORDER } from '../registry/examples.js';
 
 interface RailProps {
   activeExampleId: string;
@@ -15,7 +15,7 @@ const PRIMITIVES = [
 ];
 
 function RailItem({ id, active, onSelect }: { id: string; active: boolean; onSelect: (id: string) => void }) {
-  const ex = V2_EXAMPLES[id];
+  const ex = EXAMPLES[id];
   if (!ex) return null;
   return (
     <li>

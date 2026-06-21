@@ -189,7 +189,7 @@ const demoMessages = [
 ];
 
 if (isMain(import.meta.url, process.argv[1])) {
-  runCliExample('01-support-triage', async (silentTracer) => {
+  runCliExample(async (silentTracer) => {
     for (const message of demoMessages) {
       const r = await runOne({ message }, silentTracer);
       console.log(`\n— IN: "${message}"`);

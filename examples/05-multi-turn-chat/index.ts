@@ -37,11 +37,11 @@ import { resolveModel, model } from '../../shared/llm.js';
 import { logger } from '../../shared/mastra-logger.js';
 import { memoryStore, type Message } from '../../shared/memory-store.js';
 import type { Tracer } from '../../shared/tracer.js';
-import { startRun, stepStart, stepEnd, toolCall, timed, type StepSpec } from '../../shared/traced-step.js';
+import { startRun, toolCall, timed, type StepSpec } from '../../shared/traced-step.js';
 import { finalizeRunResult } from '../../shared/run-result.js';
 import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
-import { escalate, escalateDirect } from './tools/escalate.js';
-import { lookupOrder, lookupOrderDirect } from './tools/lookup_order.js';
+import { escalate } from './tools/escalate.js';
+import { lookupOrder } from './tools/lookup_order.js';
 
 const STEPS: StepSpec[] = [{ id: 'chat', label: 'Chat (LLM + memory)', kind: 'llm' }];
 
@@ -216,7 +216,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
 // ─── CLI demo ────────────────────────────────────────────────────────────
 if (isMain(import.meta.url, process.argv[1])) {
-  runCliExample('05-multi-turn-chat', async (silentTracer) => {
+  runCliExample(async (silentTracer) => {
     const threadId = `thread-cli-${Date.now()}`;
     const resourceId = 'cli-user';
 

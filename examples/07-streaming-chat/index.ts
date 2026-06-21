@@ -168,7 +168,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
 // ─── CLI demo ────────────────────────────────────────────────────────────
 if (isMain(import.meta.url, process.argv[1])) {
-  runCliExample('07-streaming-chat', async (silentTracer) => {
+  runCliExample(async (silentTracer) => {
     silentTracer.subscribe((e) => {
       if (e.type === 'llm:delta') {
         process.stdout.write(e.text);

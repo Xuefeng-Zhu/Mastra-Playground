@@ -23,7 +23,7 @@ export function isMain(metaUrl: string, argv1: string | undefined): boolean {
  * logs to stderr, and exits 1. Intended to be called from a top-level
  * `if (isMain(...))` block.
  */
-export async function runCliExample(name: string, demo: CliDemo): Promise<void> {
+export async function runCliExample(demo: CliDemo): Promise<void> {
   const { Tracer } = await import('./tracer.js');
   const silentTracer = new Tracer();
   try {

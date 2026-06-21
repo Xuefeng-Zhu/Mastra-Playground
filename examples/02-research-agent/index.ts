@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { resolveModel, model } from '../../shared/llm.js';
+import { resolveModel } from '../../shared/llm.js';
 import { logger } from '../../shared/mastra-logger.js';
 import type { Tracer } from '../../shared/tracer.js';
 import { startRun, stepStart, stepEnd, type StepSpec } from '../../shared/traced-step.js';
@@ -102,7 +102,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 const demoTopics = ['Contextual Retrieval for RAG', 'hybrid search with BM25 and vector reranking'];
 
 if (isMain(import.meta.url, process.argv[1])) {
-  runCliExample('02-research-agent', async (silentTracer) => {
+  runCliExample(async (silentTracer) => {
     for (const topic of demoTopics) {
       const r = await runOne({ topic }, silentTracer);
       console.log(`\n— Researching: "${topic}"`);

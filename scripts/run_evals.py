@@ -21,7 +21,7 @@ import urllib.request
 from collections import defaultdict
 from pathlib import Path
 
-ROOT = Path("/home/azureuser/workspace/mastra-playground")
+ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "evals"
 OUT_DIR.mkdir(exist_ok=True)
 
@@ -376,7 +376,9 @@ def main() -> int:
         "topics": topics,
         "runs": runs,
     }
-    out_file.write_text(json.dumps(payload, indent=2))
+    temp_file = out_file.with_suffix(".json.tmp")
+    temp_file.write_text(json.dumps(payload, indent=2) + "\n")
+    temp_file.replace(out_file)
     print(f"\nWrote {out_file}")
     return 0
 

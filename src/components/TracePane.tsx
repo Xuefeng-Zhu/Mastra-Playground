@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Graph } from './Graph.js';
 import { formatSec } from '../registry/utils.js';
+import type { GraphDef } from '../registry/graphs.js';
 
 export interface TimelineEntry {
   id: string;
@@ -13,13 +14,11 @@ export interface TimelineEntry {
 
 interface TracePaneProps {
   graphContainerId: string;
-  graphDef: any;
+  graphDef: GraphDef;
   timeline: TimelineEntry[];
   doneCount: number;
   activeNode: string;
   totalMs: number;
-  sourceCount: number;
-  hasSources: boolean;
 }
 
 export function TracePane({
@@ -29,7 +28,6 @@ export function TracePane({
   doneCount,
   activeNode,
   totalMs,
-  sourceCount,
 }: TracePaneProps) {
   const timelineRef = useRef<HTMLDivElement>(null);
 
