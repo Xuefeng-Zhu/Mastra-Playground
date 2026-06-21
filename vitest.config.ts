@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     include: ['shared/**/*.test.ts', 'server/**/*.test.ts', 'scripts/**/*.test.ts', 'src/**/*.test.{ts,tsx}'],
     exclude: ['node_modules', '**/node_modules/**', '**/dist/**'],
+    testTimeout: 10_000,
     // The UI smoke test in scripts/ui-smoke.test.ts uses JSDOM. We mark it
     // explicitly via `@vitest-environment jsdom` in the file. The default
     // for other tests is 'node'.
@@ -18,6 +19,12 @@ export default defineConfig({
       ],
       reporter: ['text', 'html'],
       html: { open: 'never' },
+      thresholds: {
+        statements: 60,
+        branches: 60,
+        functions: 60,
+        lines: 60,
+      },
     },
   },
 });

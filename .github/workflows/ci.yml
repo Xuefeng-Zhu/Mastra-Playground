@@ -8,7 +8,7 @@ on:
 
 jobs:
   quality:
-    name: Lint + Typecheck + Build
+    name: Lint + Typecheck + Test + Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,8 +23,23 @@ jobs:
         run: npm run format:check
       - name: TypeScript type check
         run: npm run typecheck
+      - name: Unit tests
+        run: npm test
       - name: Build React app
         run: npm run build
+      - name: Build artifacts exist and are non-empty
+        run: |
+          test -f dist/index.html
+          test -s dist/index.html
+          # Vite emits a content-hashed JS and CSS bundle; assert at least
+          # one of each exists and is non-empty.
+          shopt -s nullglob
+          js=( dist/assets/*.js )
+          css=( dist/assets/*.css )
+          test "${#js[@]}" -ge 1
+          test "${#css[@]}" -ge 1
+          test -s "${js[0]}"
+          test -s "${css[0]}"
 
   smoke:
     name: Server smoke test
@@ -53,18 +68,3 @@ jobs:
           cat /tmp/serve.log
           # The server should refuse to start (exit non-zero) OR boot and return 500 on /api/run
           # We don't assert either strictly here — the goal is to catch build/import errors.
-      - name: Build artifacts exist and are non-empty
-        run: |
-          # After the `quality` job ran `npm run build`, the React bundle
-          # must exist on the artifact side of the workflow.
-          test -f dist/index.html
-          test -s dist/index.html
-          # Vite emits a content-hashed JS and CSS bundle; assert at least
-          # one of each exists and is non-empty.
-          shopt -s nullglob
-          js=( dist/assets/*.js )
-          css=( dist/assets/*.css )
-          test "${#js[@]}" -ge 1
-          test "${#css[@]}" -ge 1
-          test -s "${js[0]}"
-          test -s "${css[0]}"

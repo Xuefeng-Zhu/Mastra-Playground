@@ -80,15 +80,14 @@ Each example is <350 lines including the CLI demo. The shared modules in
 
 ## Endpoints
 
-| Method | Path                           | Purpose                                                      | Rate limit    |
-| ------ | ------------------------------ | ------------------------------------------------------------ | ------------- |
-| GET    | `/`                            | UI shell (served from `dist/index.html`)                     | none          |
-| GET    | `/style.css`, `/assets/*`      | Static assets (Vite emits `dist/style.css` + bundled JS/CSS) | none          |
-| GET    | `/api/health`                  | Liveness probe (`{ ok, uptimeSec, exampleCount }`)           | none          |
-| GET    | `/api/examples`                | List available examples                                      | none          |
-| POST   | `/api/run/:example`            | One-shot JSON result                                         | 30 req/min/IP |
-| GET    | `/api/stream/:example?input=…` | SSE trace stream                                             | 30 req/min/IP |
-| POST   | `/api/resume/:token`           | Resume a suspended workflow                                  | 30 req/min/IP |
+| Method | Path                           | Purpose                                            | Rate limit    |
+| ------ | ------------------------------ | -------------------------------------------------- | ------------- |
+| GET    | `/`, `/assets/*`               | UI shell + Vite-bundled JS/CSS (from `dist/`)      | none          |
+| GET    | `/api/health`                  | Liveness probe (`{ ok, uptimeSec, exampleCount }`) | none          |
+| GET    | `/api/examples`                | List available examples                            | none          |
+| POST   | `/api/run/:example`            | One-shot JSON result                               | 30 req/min/IP |
+| GET    | `/api/stream/:example?input=…` | SSE trace stream                                   | 30 req/min/IP |
+| POST   | `/api/resume/:token`           | Resume a suspended workflow                        | 30 req/min/IP |
 
 All API requests return JSON. Errors carry `{ error, field?, detail? }` with
 appropriate 4xx/5xx status codes. 429 responses include a `Retry-After`
@@ -176,7 +175,7 @@ every commit.
 ```
 
 The React UI lives in `src/` and is built by Vite into `dist/` (gitignored).
-The Node server reads `dist/index.html`, `dist/style.css`, and `dist/assets/*`
+The Node server reads `dist/index.html` and `dist/assets/*`
 directly — there is no separate hand-written JS bundle to ship.
 
 ## Environment variables
@@ -389,5 +388,5 @@ disabling dev-only console output). Today it has no effect.
 - [SECURITY.md](SECURITY.md) — what this project does and doesn't protect against
 - [notes/learning-log.md](notes/learning-log.md) — user-filled observations
 - [notes/comparison-to-inboxpilot.md](notes/comparison-to-inboxpilot.md) — the verdict writeup
-- [docs/audit/SUMMARY.md](docs/audit/SUMMARY.md) — 1-page code review summary (16 findings, 9 fixed)
+- [docs/audit/SUMMARY.md](docs/audit/SUMMARY.md) — 1-page code review summary (16 findings, 9 fixed; regenerate with `scripts/audit.sh`)
 - [docs/audit/2026-06-18-code-review.md](docs/audit/2026-06-18-code-review.md) — full 313-line audit report

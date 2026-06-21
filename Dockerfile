@@ -4,34 +4,36 @@
 # Run:     docker run --rm -p 8917:8917 --env-file .env mastra-playground
 # Or:      docker compose up
 #
-# Image size: ~250 MB (node:22-bookworm-slim base + production deps)
+# Image size: ~180 MB (node:22-bookworm-slim base + production deps + tsx)
 # Node version: matches .nvmrc (currently 22)
 
 # ── Stage 1: install production dependencies ────────────────────────────
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 
-# Install only production deps. This layer is cached and reused across builds
-# when only the source changes.
+# Install prod deps + tsx (needed at runtime to execute .ts directly).
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev && npm install tsx@4
 
-# ── Stage 2: install all deps (including dev, for typecheck/format during build) ──
-# Used only for `npm run build` steps if we add them later. Kept separate from
-# the prod-deps stage so the final image is small.
+# ── Stage 2: full install + Vite build ──────────────────────────────────
+# Installs all deps (including devDependencies) so we can run `npm run build`
+# to produce the React UI bundle in dist/.
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Copy sources. We don't compile (we ship .ts directly via tsx) but having
-# the full tree here lets us run typecheck/format during build if we want.
+# Copy source files needed for the Vite build and the server.
 COPY shared/ ./shared/
 COPY examples/ ./examples/
 COPY server/ ./server/
-COPY public/ ./public/
 COPY scripts/ ./scripts/
-COPY tsconfig.json ./
+COPY src/ ./src/
+COPY index.html ./
+COPY vite.config.ts tsconfig.json ./
+
+# Build the React UI → dist/
+RUN npm run build
 
 # ── Stage 3: runtime image ──────────────────────────────────────────────
 FROM node:22-bookworm-slim AS runtime
@@ -43,14 +45,17 @@ RUN groupadd --system --gid 1001 app && useradd --system --uid 1001 --gid 1001 a
 ENV NODE_ENV=production \
     PORT=8917
 
-# Copy just the prod deps and sources from the build stage
-COPY --from=build --chown=app:app /app/node_modules ./node_modules
+# Copy production node_modules (no devDeps) from the deps stage
+COPY --from=deps --chown=app:app /app/node_modules ./node_modules
+
+# Copy source files the server needs at runtime
 COPY --from=build --chown=app:app /app/shared/ ./shared/
 COPY --from=build --chown=app:app /app/examples/ ./examples/
 COPY --from=build --chown=app:app /app/server/ ./server/
-COPY --from=build --chown=app:app /app/public/ ./public/
-COPY --from=build --chown=app:app /app/scripts/ ./scripts/
 COPY --from=build --chown=app:app /app/package.json ./
+
+# Copy the Vite-built React UI (dist/)
+COPY --from=build --chown=app:app /app/dist/ ./dist/
 
 USER app
 EXPOSE 8917

@@ -13,8 +13,6 @@ and is not hardened against adversarial use.
 ## What the project does NOT do
 
 - No authentication or authorization
-- No rate limiting (yet — see [unreleased CHANGELOG entry](CHANGELOG.md))
-- No input validation beyond what the framework enforces
 - No audit log
 - No persistent storage
 - No multi-tenant isolation

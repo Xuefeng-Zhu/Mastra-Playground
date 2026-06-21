@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] - 2026-06-20
+## [Unreleased]
 
 ### Changed
 
@@ -37,6 +37,7 @@ adheres to [Semantic Versioning](https://semver.org/).
 - Model-picker preference persisted to `localStorage` (per example)
 - "Copy as Markdown" output action (clipboard with non-secure-context
   fallback)
+- `npm run ci` meta-script combining format:check + typecheck + test + build
 
 ### Fixed
 
@@ -54,27 +55,14 @@ adheres to [Semantic Versioning](https://semver.org/).
 - `vite.config.ts` `sourcemap: true` would have exposed the full React
   source to anyone fetching the public assets. Set to `false`.
 - `public/style.css` was reintroduced as dead code; removed.
-
-## [0.3.0] - 2026-06-19
-
-### Added
-
-- `examples/07-streaming-chat/` — Agent.stream() with token-by-token events
-- New `llm:start` / `llm:delta` / `llm:end` event types in `shared/tracer.ts`
-- 7th UI tab + GRAPHS entry + `appendStreamingText` / `finalizeStreamingText` helpers
-- Server-side trace logging via `?trace=true` (writes structured JSON to stderr)
-- `vitest` unit tests for shared modules (30 tests)
-- Multi-stage `Dockerfile` + `.dockerignore` + `docker-compose.yml`
-- `vitest.config.ts` with coverage config
-
-### Changed
-
-- Removed redundant `newAgent` from ex 01's `Mastra` constructor
-- Render functions (`renderTriage`, `renderResearch`, `renderCodeReview`, `renderParallel`, `renderChat`) now handle unexpected output shapes gracefully
-
-### Fixed
-
-- `Tracer.emit` was not catching subscriber errors (crashed production SSE handlers)
+- Dockerfile now builds the React UI (`npm run build`) during the Docker
+  build so `dist/` exists in the container image.
+- Dockerfile runtime stage uses prod-only `node_modules` (smaller image).
+- SECURITY.md no longer claims "no rate limiting" (rate limiting was added
+  in 0.4.0).
+- CI now runs unit tests (`npm test`) alongside format and typecheck.
+- CI build-artifact assertions moved into the same job that runs the build
+  (previously relied on cross-job filesystem which doesn't work).
 
 ## [0.4.0] - 2026-06-19
 
@@ -106,7 +94,28 @@ adheres to [Semantic Versioning](https://semver.org/).
   - Corrected the misleading "Call the server" comment on the new-conversation button — threads are localStorage-only, there is no server call to wait for (`public/app.js`)
   - Smoke test no longer asserts a hard-coded example count (it broke when example 07 was added) — now `>= 1` (`scripts/smoke.ts`)
 
-## [0.1.0] — 2026-06-19
+## [0.3.0] - 2026-06-19
+
+### Added
+
+- `examples/07-streaming-chat/` — Agent.stream() with token-by-token events
+- New `llm:start` / `llm:delta` / `llm:end` event types in `shared/tracer.ts`
+- 7th UI tab + GRAPHS entry + `appendStreamingText` / `finalizeStreamingText` helpers
+- Server-side trace logging via `?trace=true` (writes structured JSON to stderr)
+- `vitest` unit tests for shared modules (30 tests)
+- Multi-stage `Dockerfile` + `.dockerignore` + `docker-compose.yml`
+- `vitest.config.ts` with coverage config
+
+### Changed
+
+- Removed redundant `newAgent` from ex 01's `Mastra` constructor
+- Render functions (`renderTriage`, `renderResearch`, `renderCodeReview`, `renderParallel`, `renderChat`) now handle unexpected output shapes gracefully
+
+### Fixed
+
+- `Tracer.emit` was not catching subscriber errors (crashed production SSE handlers)
+
+## [0.1.0] - 2026-06-19
 
 ### Added
 
@@ -123,8 +132,7 @@ adheres to [Semantic Versioning](https://semver.org/).
 - Cloudflared quick-tunnel for public URL access
 - `.audit-findings.md` — opencode code review (16 findings, 9 actionable fixes applied)
 
-[Unreleased]: https://github.com/your-org/mastra-playground/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/your-org/mastra-playground/releases/tag/v0.1.0
-[0.2.0]: https://github.com/your-org/mastra-playground/compare/v0.1.0...v0.2.0
+[Unreleased]: https://github.com/your-org/mastra-playground/compare/v0.4.0...HEAD
 [0.4.0]: https://github.com/your-org/mastra-playground/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/your-org/mastra-playground/compare/v0.2.0...v0.3.0
+[0.3.0]: https://github.com/your-org/mastra-playground/compare/v0.1.0...v0.3.0
+[0.1.0]: https://github.com/your-org/mastra-playground/releases/tag/v0.1.0
