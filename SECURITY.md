@@ -7,7 +7,7 @@ and is not hardened against adversarial use.
 
 - Accepts HTTP requests on `localhost:8917` (or via a Cloudflared quick-tunnel)
 - Runs Mastra workflows that call LLM APIs using your `OPENAI_API_KEY`
-- Stores recent runs and settings in `localStorage` (browser side)
+- Stores model-picker preference in `localStorage` (browser side)
 - Stores in-memory conversation history and suspended runs (server side, lost on restart)
 
 ## What the project does NOT do
@@ -32,6 +32,13 @@ up to 7 days for an initial response.
 - The server refuses to start if `OPENAI_API_KEY` is missing or is the
   `.env.example` placeholder
 - User input is sanitized (control characters stripped, length capped at 4KB)
+- 30 req/min/IP rate limit across `/api/run/*`, `/api/stream/*`,
+  `/api/resume/*` (429 includes `Retry-After`)
+- 64KB body cap on all body-bearing endpoints
+- The `/assets/` static handler validates path traversal via `path.join`
+  prefix check AND `realpathSync` symlink resolution
+- Vite `sourcemap: false` — no `.map` files ship to the public (would
+  disclose the full React source)
 
 ## When you should NOT use this
 

@@ -14,14 +14,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { V2Example } from '../registry/examples.js';
 import type { TraceEvent } from '../registry/utils.js';
 import type { CapturedSource } from '../registry/renderers.js';
+import { exampleNameToId } from '../registry/utils.js';
 
 export type OutputTab = 'result' | 'sources' | 'json' | 'compare';
 
 export function useWorkspace(example: V2Example) {
-  const [output, setOutput] = useState<any>(null);
+  const [output, setOutput] = useState<unknown>(null);
   const [sources, setSources] = useState<CapturedSource[]>([]);
   const [totalMs, setTotalMs] = useState<number>(0);
-  const [priorOutput, setPriorOutput] = useState<any>(null);
+  const [priorOutput, setPriorOutput] = useState<unknown>(null);
   const [activeTab, setActiveTab] = useState<OutputTab>('result');
   const [streamingText, setStreamingText] = useState('');
   const [streamingModel, setStreamingModel] = useState('');
@@ -34,52 +35,31 @@ export function useWorkspace(example: V2Example) {
 
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  // Reset everything when the example changes (the parent re-mounts this
-  // hook by re-mounting <Workspace>, so this effect handles the cleanup).
+  // Cleanup the SSE connection on unmount (i.e. when switching rail items).
   useEffect(() => {
     return () => {
       if (eventSourceRef.current) {
         try {
           eventSourceRef.current.close();
-        } catch {}
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.debug('EventSource close failed', err);
+        }
         eventSourceRef.current = null;
       }
     };
   }, []);
 
-  // Reset for a new run
-  const reset = useCallback(() => {
-    setOutput(null);
-    setSources([]);
-    setTotalMs(0);
-    setStreamingText('');
-    setStreamingModel('');
-    setStreamingTokenCount(0);
-    setDoneCount(0);
-    setActiveNode('idle');
-    setError(null);
-  }, []);
-
-  // Snapshot the prior output for Compare (called before a new run)
-  const snapshotPrior = useCallback(() => {
-    setOutput((prev: any) => {
-      if (prev && (prev.synthesis || prev.triage || prev.formatted)) {
-        setPriorOutput(prev);
-      }
-      return null;
-    });
-  }, []);
-
-  // Handle a single SSE event
+  // Handle a single SSE event. `stepId` is the per-step identifier the
+  // example emits; fall back to `step` (legacy) only if present.
   const handleEvent = useCallback(
     (ev: TraceEvent) => {
       const t = runStart ? performance.now() - runStart : 0;
-      const stepId = ev.stepId || ev.step;
+      const stepId = 'stepId' in ev ? ev.stepId : undefined;
       switch (ev.type) {
         case 'step:start':
           if (stepId) {
             setActiveNode(stepId);
-            // Mark node active in DOM (used by the graph)
             requestAnimationFrame(() => {
               const g = document.querySelector(`#v2-graph [data-node="${stepId}"]`);
               if (g) {
@@ -103,22 +83,18 @@ export function useWorkspace(example: V2Example) {
           }
           break;
         case 'tool:call':
-          if (ev.tool) {
-            setSources((prev) => [...prev, { tool: ev.tool as string, input: ev.input, output: ev.output }]);
-          }
+          setSources((prev) => [...prev, { tool: ev.tool, input: ev.input, output: ev.output }]);
           break;
         case 'llm:start':
           if (stepId) setActiveNode(stepId);
-          if (ev.model) setStreamingModel(ev.model as string);
+          if (ev.model) setStreamingModel(ev.model);
           break;
         case 'llm:end':
           if (stepId) setActiveNode('idle');
           break;
         case 'llm:delta':
-          if (typeof ev.text === 'string') {
-            setStreamingText((s) => s + (ev.text as string));
-            setStreamingTokenCount((c) => c + 1);
-          }
+          setStreamingText((s) => s + ev.text);
+          setStreamingTokenCount((c) => c + 1);
           break;
         case 'suspend':
           // HITL: render the pending approval card immediately.
@@ -135,7 +111,7 @@ export function useWorkspace(example: V2Example) {
           if (ev.status === 'success') {
             setOutput(ev.output);
           } else {
-            setError(ev.error || (ev.output as any)?.error || 'workflow failed');
+            setError((ev.output as { error?: string } | null)?.error ?? 'workflow failed');
           }
           break;
       }
@@ -143,24 +119,32 @@ export function useWorkspace(example: V2Example) {
     [runStart],
   );
 
-  // Run the workflow
+  // Run the workflow.
   const run = useCallback(
     (requestBody: Record<string, unknown>) => {
-      // Abort any in-flight stream
+      // Abort any in-flight stream.
       if (eventSourceRef.current) {
         try {
           eventSourceRef.current.close();
-        } catch {}
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.debug('EventSource close failed', err);
+        }
         eventSourceRef.current = null;
       }
-      // Snapshot prior before overwriting
-      setOutput((prev: any) => {
-        if (prev && (prev.synthesis || prev.triage || prev.formatted || prev.draft)) {
-          setPriorOutput(prev);
+      // Snapshot prior before overwriting. We snapshot when the prior run
+      // had any of the example-specific output shapes the Compare tab
+      // knows how to render (parallel/triage/research/criticLoop, etc.).
+      setOutput((prev: unknown) => {
+        if (prev && typeof prev === 'object') {
+          const p = prev as Record<string, unknown>;
+          if (p.synthesis || p.triage || p.formatted || p.draft) {
+            setPriorOutput(prev);
+          }
         }
         return null;
       });
-      // Reset for new run
+      // Reset for new run.
       setSources([]);
       setTotalMs(0);
       setStreamingText('');
@@ -175,13 +159,7 @@ export function useWorkspace(example: V2Example) {
       const start = performance.now();
       setRunStart(start);
 
-      const url = `/api/stream/${encodeURIComponent(example.primTag ? '' : '')}${example.num === 4 ? 'parallel-research' : example.primTag === 'branch' ? 'support-triage' : ''}`;
-      // The example's "id" is the kebab-case form we use in the URL.
-      // We can derive it from the example's primTag or just hardcode the mapping.
-      // Easier: pass the example's API id via a stable key.
-      const exampleId = (example as any).__apiId || example.primTag;
-      // Fallback: build URL from example name (parallel-research, support-triage, etc.)
-      const slug = exampleNameToId(example);
+      const slug = exampleNameToId(example.num, example.name);
       const fullUrl = `/api/stream/${encodeURIComponent(slug)}?input=${encodeURIComponent(JSON.stringify(requestBody))}`;
 
       const es = new EventSource(fullUrl);
@@ -190,8 +168,10 @@ export function useWorkspace(example: V2Example) {
       es.onmessage = (e) => {
         let ev: TraceEvent;
         try {
-          ev = JSON.parse(e.data);
-        } catch {
+          ev = JSON.parse(e.data) as TraceEvent;
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn('Failed to parse SSE event', err);
           return;
         }
         handleEvent(ev);
@@ -207,10 +187,10 @@ export function useWorkspace(example: V2Example) {
         setRunning(false);
       };
     },
-    [example, handleEvent],
+    [example.num, example.name, handleEvent],
   );
 
-  // HITL: resume the suspended workflow with a decision
+  // HITL: resume the suspended workflow with a decision.
   const hitlDecide = useCallback(async (token: string, decision: 'approved' | 'rejected') => {
     try {
       const resp = await fetch(`/api/resume/${encodeURIComponent(token)}`, {
@@ -218,20 +198,38 @@ export function useWorkspace(example: V2Example) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision }),
       });
-      const json = await resp.json();
+      const json = (await resp.json()) as
+        | { ok: true; result: { status: string; output?: Record<string, unknown> } }
+        | { ok: false; error?: string };
       if (json.ok) {
-        setOutput((prev: any) => ({
-          ...(prev || {}),
-          ...(json.result.output || {}),
-          decision,
-          executed: !!json.result.output?.executed,
-          message: json.result.output?.message || '',
-        }));
+        setOutput((prev: unknown) => {
+          const out = json.result.output ?? {};
+          const prior = prev && typeof prev === 'object' ? (prev as Record<string, unknown>) : {};
+          return {
+            ...prior,
+            ...out,
+            decision,
+            executed: !!out.executed,
+            message: out.message ?? '',
+          };
+        });
       } else {
         setError(json.error || 'Resume failed');
       }
     } catch (err) {
-      setError(String(err));
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, []);
+
+  const closeStream = useCallback(() => {
+    if (eventSourceRef.current) {
+      try {
+        eventSourceRef.current.close();
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.debug('EventSource close failed', err);
+      }
+      eventSourceRef.current = null;
     }
   }, []);
 
@@ -251,36 +249,7 @@ export function useWorkspace(example: V2Example) {
     error,
     running,
     run,
-    reset,
-    snapshotPrior,
     hitlDecide,
-    closeStream: () => {
-      if (eventSourceRef.current) {
-        try {
-          eventSourceRef.current.close();
-        } catch {}
-        eventSourceRef.current = null;
-      }
-    },
+    closeStream,
   };
-}
-
-// Derive the API example id from the V2Example config. The id is the
-// kebab-case version of the example's num + name (e.g. "04-parallel-research").
-// We do a simple mapping here; could be made explicit on the config.
-function exampleNameToId(ex: V2Example): string {
-  const map: Record<string, string> = {
-    1: 'support-triage',
-    2: 'research',
-    3: 'code-review',
-    4: 'parallel-research',
-    5: 'multi-turn-chat',
-    6: 'hitl-approval',
-    7: 'streaming-chat',
-    8: 'critic-loop',
-    9: 'multi-agent-handoff',
-    10: 'mastra-memory',
-    11: 'content-pipeline',
-  };
-  return map[ex.num] || ex.name.toLowerCase().replace(/\s+/g, '-');
 }

@@ -4,6 +4,57 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] - 2026-06-20
+
+### Changed
+
+- **UI migrated from vanilla HTML/CSS/JS to React 18 + Vite.** The browser
+  app is now `src/` (TypeScript + JSX) built by Vite into `dist/`, which
+  the Node server serves. The new shell is a left-rail grouped by
+  Mastra primitive (Agent / Workflow / Tool / Memory / HITL / Stream) +
+  per-example workspace (form rail, fused graph + timeline trace,
+  Result / Sources / Raw JSON / Compare output panel).
+- **The `/assets/` static handler in `server/server.ts` was rewritten.**
+  The previous implementation constructed paths that never contained
+  `dist/` and the prefix guard accidentally blocked every request. The
+  new handler joins `ROOT/dist` with the URL path, then re-validates
+  via `realpathSync` to also block symlink escape.
+- **`src/styles.css` is the only stylesheet.** `public/style.css` was
+  removed; the Vite build emits `dist/assets/index-*.css` from the
+  React entry.
+
+### Added
+
+- `npm run build` + `npm run dev` + `npm run preview` scripts (Vite)
+- `npm run build` is required before `npm run serve` (server reads `dist/`)
+- `src/registry/renderers.tsx` per-kind renderers (parallel / triage /
+  research / codeReview / chat / streaming / hitl / criticLoop /
+  contentPipeline / mastraMemory)
+- `src/registry/examples.ts` declarative per-example config (form fields,
+  samples, graph, output kind)
+- `src/hooks/useWorkspace.ts` central state hook (SSE consumption,
+  per-run output, prior-run snapshot for Compare, HITL resume)
+- Model-picker preference persisted to `localStorage` (per example)
+- "Copy as Markdown" output action (clipboard with non-secure-context
+  fallback)
+
+### Fixed
+
+- `renderChat` operator-precedence bug — the previous expression
+  `out?.allMessages || ctx.streamingText ? [] : []` always returned
+  `[]` (empty array is truthy in JS), so chat examples 05 and 09 never
+  showed messages. Now uses `??` so `allMessages` passes through.
+- `renderTriage` template-literal bug — `className="action-${action}"`
+  was a literal JSX string, not a template. Now uses backticks.
+- `Workspace.tsx` timeline `kind` ternary always returned `'step'`,
+  ignoring the per-node kind from the example's graph def.
+- `activeWs` state in `App.tsx` was never updated, so Cmd/Ctrl+Enter
+  and `window.__mpg.run` were dead. The Workspace now registers its
+  `run` via `useEffect` against the typed `window.__mpg` global.
+- `vite.config.ts` `sourcemap: true` would have exposed the full React
+  source to anyone fetching the public assets. Set to `false`.
+- `public/style.css` was reintroduced as dead code; removed.
+
 ## [0.3.0] - 2026-06-19
 
 ### Added

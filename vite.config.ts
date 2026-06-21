@@ -3,19 +3,21 @@ import react from '@vitejs/plugin-react';
 
 // Standard Vite layout:
 //   index.html  → project root  (entry point)
-//   src/        → React source
-//   public/     → static assets (the existing style.css lives here)
+//   src/        → React source (TypeScript + JSX, bundled to dist/)
 //
-// Vite copies `public/` into the build output verbatim. Our server
-// (`server/server.ts`) serves files from the build output dir, so the
-// existing /style.css route still works without code changes.
+// The server (`server/server.ts`) reads from `dist/`. The source CSS lives
+// in `src/styles.css` (imported from src/main.tsx) and is bundled into
+// `dist/assets/index-*.css` by Vite — no separate public/stylesheet.
+//
+// `sourcemap: false` — the server is a learning playground served to the
+// public; shipping .map files would disclose the full React source.
 
 export default defineConfig({
   plugins: [react()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    sourcemap: true,
+    sourcemap: false,
     target: 'es2022',
   },
   server: {

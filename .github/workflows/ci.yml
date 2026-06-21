@@ -8,7 +8,7 @@ on:
 
 jobs:
   quality:
-    name: Lint + Typecheck
+    name: Lint + Typecheck + Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,6 +23,8 @@ jobs:
         run: npm run format:check
       - name: TypeScript type check
         run: npm run typecheck
+      - name: Build React app
+        run: npm run build
 
   smoke:
     name: Server smoke test
@@ -51,17 +53,18 @@ jobs:
           cat /tmp/serve.log
           # The server should refuse to start (exit non-zero) OR boot and return 500 on /api/run
           # We don't assert either strictly here — the goal is to catch build/import errors.
-      - name: Build React app
-        run: npm run build
-      - name: Static asset smoke check
+      - name: Build artifacts exist and are non-empty
         run: |
-          # The static files (HTML, CSS, JS) are valid — assert the file sizes are reasonable.
-          # The UI is now a React+Vite app, so the served files live in dist/ (built above)
-          # and the legacy public/style.css (still copied verbatim to dist/style.css by Vite).
-          test -f public/style.css
-          test -s public/style.css
+          # After the `quality` job ran `npm run build`, the React bundle
+          # must exist on the artifact side of the workflow.
           test -f dist/index.html
           test -s dist/index.html
-          test -d dist/assets
-          test -n "$(ls -A dist/assets/*.js 2>/dev/null)"
-          test -n "$(ls -A dist/assets/*.css 2>/dev/null)"
+          # Vite emits a content-hashed JS and CSS bundle; assert at least
+          # one of each exists and is non-empty.
+          shopt -s nullglob
+          js=( dist/assets/*.js )
+          css=( dist/assets/*.css )
+          test "${#js[@]}" -ge 1
+          test "${#css[@]}" -ge 1
+          test -s "${js[0]}"
+          test -s "${css[0]}"

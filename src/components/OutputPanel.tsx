@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import type { CapturedSource } from '../registry/renderers.js';
 import {
   RESULT_RENDERERS,
@@ -7,13 +6,13 @@ import {
   HAS_COMPARE_TAB,
   SourcesList,
 } from '../registry/renderers.js';
-import { formatSec, escapeText } from '../registry/utils.js';
+import { escapeText } from '../registry/utils.js';
 import type { OutputTab } from '../hooks/useWorkspace.js';
 
 interface OutputPanelProps {
   kind: string;
-  output: any;
-  priorOutput: any;
+  output: unknown;
+  priorOutput: unknown;
   sources: CapturedSource[];
   totalMs: number;
   streamingText: string;
@@ -26,18 +25,69 @@ interface OutputPanelProps {
   error: string | null;
 }
 
+function buildMarkdown(props: OutputPanelProps): string {
+  const lines: string[] = [];
+  lines.push(`# ${props.kind} result`);
+  lines.push('');
+  lines.push(`- **Total**: ${props.totalMs}ms`);
+  if (props.streamingModel) lines.push(`- **Model**: ${props.streamingModel}`);
+  if (props.streamingTokenCount) lines.push(`- **Tokens**: ${props.streamingTokenCount}`);
+  if (props.error) lines.push(`- **Error**: ${props.error}`);
+  lines.push('');
+  lines.push('## Output');
+  lines.push('');
+  lines.push('```json');
+  lines.push(JSON.stringify(props.output, null, 2));
+  lines.push('```');
+  if (props.sources.length > 0) {
+    lines.push('');
+    lines.push(`## Sources (${props.sources.length})`);
+    for (const [i, s] of props.sources.entries()) {
+      lines.push(`### ${i + 1}. ${s.tool}`);
+      lines.push('```json');
+      lines.push(JSON.stringify({ input: s.input, output: s.output }, null, 2));
+      lines.push('```');
+    }
+  }
+  return lines.join('\n');
+}
+
+async function copyAsMarkdown(props: OutputPanelProps): Promise<void> {
+  const md = buildMarkdown(props);
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(md);
+    } else {
+      // Fallback for non-secure-context browsers.
+      const ta = document.createElement('textarea');
+      ta.value = md;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('Copy as Markdown failed', err);
+  }
+}
+
 function OutputTabs({
   hasSources,
   hasCompare,
   active,
   onChange,
   sourceCount,
+  onCopy,
 }: {
   hasSources: boolean;
   hasCompare: boolean;
   active: OutputTab;
   onChange: (tab: OutputTab) => void;
   sourceCount: number;
+  onCopy: () => void;
 }) {
   return (
     <div className="output-tabs">
@@ -78,7 +128,12 @@ function OutputTabs({
         </button>
       )}
       <div className="output-tabs-right">
-        <button className="icon-btn" title="Copy as Markdown" aria-label="Copy as Markdown">
+        <button
+          className="icon-btn"
+          title="Copy as Markdown"
+          aria-label="Copy as Markdown"
+          onClick={onCopy}
+        >
           ⧉
         </button>
       </div>
@@ -115,54 +170,29 @@ function RenderResult({
   if (!renderer) {
     return <p className="muted">No renderer for this example.</p>;
   }
-  return (
-    <>
-      {renderer(output, {
-        totalMs,
-        sources,
-        streamingText,
-        streamingModel,
-        streamingTokenCount,
-        onHitlApprove,
-        onHitlReject,
-      })}
-    </>
-  );
+  return renderer(output, {
+    totalMs,
+    sources,
+    streamingText,
+    streamingModel,
+    streamingTokenCount,
+    onHitlApprove,
+    onHitlReject,
+  });
 }
 
-function RenderJSON({ output }: { output: any }) {
+function RenderJSON({ output }: { output: unknown }) {
   if (!output) return <p className="muted">No output yet.</p>;
   return <pre className="json-pre" dangerouslySetInnerHTML={{ __html: highlightJSON(output) }} />;
 }
 
-function RenderCompare({ kind, cur, prior }: { kind: string; cur: any; prior: any }) {
+function RenderCompare({ kind, cur, prior }: { kind: string; cur: unknown; prior: unknown }) {
   const renderer = COMPARE_RENDERERS[kind];
   if (!renderer) return <p className="muted">No compare renderer.</p>;
-  return <>{renderer(cur, prior)}</>;
+  return renderer(cur, prior);
 }
 
 export function OutputPanel(props: OutputPanelProps) {
-  const ctx = useMemo(
-    () => ({
-      totalMs: props.totalMs,
-      sources: props.sources,
-      streamingText: props.streamingText,
-      streamingModel: props.streamingModel,
-      streamingTokenCount: props.streamingTokenCount,
-      onHitlApprove: props.onHitlApprove,
-      onHitlReject: props.onHitlReject,
-    }),
-    [
-      props.totalMs,
-      props.sources,
-      props.streamingText,
-      props.streamingModel,
-      props.streamingTokenCount,
-      props.onHitlApprove,
-      props.onHitlReject,
-    ],
-  );
-
   return (
     <section className="output-v2" aria-label="Output">
       <OutputTabs
@@ -171,6 +201,7 @@ export function OutputPanel(props: OutputPanelProps) {
         active={props.activeTab}
         onChange={props.setActiveTab}
         sourceCount={props.sources.length}
+        onCopy={() => void copyAsMarkdown(props)}
       />
       <div className="output-body">
         {props.activeTab === 'result' && (
@@ -197,7 +228,3 @@ export function OutputPanel(props: OutputPanelProps) {
     </section>
   );
 }
-
-// Keep formatSec referenced (used in renderers indirectly via the
-// `output` prop). This is a no-op re-export for type-only consumers.
-export { formatSec };

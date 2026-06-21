@@ -254,7 +254,7 @@ function renderTriage(out: any, ctx: RenderContext) {
         ]}
       />
       <p className="summary-text">{t.summary}</p>
-      <p className="action-text action-${action}">
+      <p className={`action-text action-${action}`}>
         <strong>{action}</strong>
       </p>
       <p className={`response-text ${action === 'escalated' ? 'escalated' : ''}`}>
@@ -313,7 +313,13 @@ function renderParallel(out: any, ctx: RenderContext) {
 }
 
 function renderChat(out: any, ctx: RenderContext) {
-  const messages: ChatMsg[] = out?.allMessages || ctx.streamingText ? [] : [];
+  // The expression must prefer `out.allMessages` when present (post-run
+  // state). The previous code was `out?.allMessages || ctx.streamingText
+  // ? [] : []` which JS parsed as `((out?.allMessages) ||
+  // (ctx.streamingText)) ? [] : []` — empty array is truthy in JS, so the
+  // ternary ALWAYS returned `[]` and chat examples never rendered
+  // messages. Use `??` so empty arrays pass through unchanged.
+  const messages: ChatMsg[] = (out?.allMessages as ChatMsg[] | undefined) ?? [];
   // For chat, the SSE handler updates the local messages state via a
   // callback; the output's allMessages is the source of truth.
   const escalated = !!out?.escalated;

@@ -19,8 +19,8 @@
 
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { existsSync, realpathSync } from 'node:fs';
+import { join, dirname, sep } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import { Tracer, sseLine, type TraceEvent } from '../shared/tracer.js';
 import { takeSuspendedRun, HITL_DECISIONS } from '../shared/suspended-store.js';
@@ -130,11 +130,19 @@ async function serveStatic(path: string, res: http.ServerResponse): Promise<bool
   }
   // 2) React build assets: anything under `/assets/` maps to `dist/assets/…`
   //    (Vite uses content-hashed filenames so we can't enumerate them).
+  //    `path` still has its leading `/`; `join` consumes it. We resolve the
+  //    full target under ROOT/dist and verify it stays there after symlink
+  //    resolution to prevent path traversal AND symlink escape.
   if (path.startsWith('/assets/')) {
-    const rel = path.slice(1); // strip leading "/"
-    const full = join(ROOT, rel);
-    if (!full.startsWith(join(ROOT, 'dist'))) return false; // path-traversal guard
+    const full = join(ROOT, 'dist', path);
+    const distRoot = join(ROOT, 'dist') + sep;
+    // Prefix check (string form) catches `..` after `path.join` normalization.
+    if (!full.startsWith(distRoot)) return false;
     if (!existsSync(full)) return false;
+    // realpath check catches symlinks that point outside dist/ (e.g. a
+    // malicious `dist/assets/leak` symlinking to /etc/passwd).
+    const real = realpathSync(full);
+    if (!real.startsWith(distRoot)) return false;
     const content = await readFile(full);
     res.writeHead(200, { 'Content-Type': mimeFor(full) });
     res.end(content);

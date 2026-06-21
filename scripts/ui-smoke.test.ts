@@ -37,12 +37,14 @@ describe('React build artifacts', () => {
     expect(existsSync(INDEX_HTML)).toBe(true);
   });
 
-  it('dist/assets/ contains JS bundle, CSS bundle, and source map', () => {
+  it('dist/assets/ contains JS bundle and CSS bundle (no source map)', () => {
     expect(existsSync(ASSETS)).toBe(true);
     const files = readdirSync(ASSETS);
     expect(files.some((f) => f.endsWith('.js'))).toBe(true);
     expect(files.some((f) => f.endsWith('.css'))).toBe(true);
-    expect(files.some((f) => f.endsWith('.js.map'))).toBe(true);
+    // vite.config.ts sets `sourcemap: false` — the bundle must not ship
+    // .map files to the public (would disclose the React source).
+    expect(files.some((f) => f.endsWith('.js.map'))).toBe(false);
   });
 
   it('index.html references the React bundle via /assets/', () => {

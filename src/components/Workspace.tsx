@@ -5,7 +5,7 @@ import { FormFieldView, SamplesGroup } from './FormField.js';
 import { TracePane, type TimelineEntry } from './TracePane.js';
 import { OutputPanel } from './OutputPanel.js';
 import { useWorkspace, type OutputTab } from '../hooks/useWorkspace.js';
-import { formatSec, escapeText } from '../registry/utils.js';
+import { formatSec } from '../registry/utils.js';
 
 interface WorkspaceProps {
   example: V2Example;
@@ -14,39 +14,74 @@ interface WorkspaceProps {
 export function Workspace({ example }: WorkspaceProps) {
   const ws = useWorkspace(example);
   const [model, setModel] = useState(V2_MODEL_OPTIONS[0].value);
-  const [traceTab, setTraceTab] = useState<'trace' | 'graph' | 'events'>('trace');
+  const [traceTab] = useState<'trace' | 'graph' | 'events'>('trace');
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
 
-  // Trace timeline updates driven by the workspace state
+  // Persist the model picker across reloads. README "per-example settings"
+  // promise — the OLD vanilla app.js did this via localStorage; the new
+  // shell had silently dropped it.
   useEffect(() => {
+    const saved = localStorage.getItem('mpg:model');
+    if (saved && V2_MODEL_OPTIONS.some((o) => o.value === saved)) {
+      setModel(saved);
+    }
+  }, []);
+  useEffect(() => {
+    localStorage.setItem('mpg:model', model);
+  }, [model]);
+
+  // Register the active run() handler with the global so App.tsx's Cmd+Enter
+  // shortcut can call it. The handler closes over `ws.run`, which is stable
+  // per example.
+  useEffect(() => {
+    window.__mpg = { run: () => ws.run(getFormBody()) };
+    return () => {
+      if (window.__mpg?.run) {
+        delete window.__mpg.run;
+      }
+    };
+  }, [ws.run, example.num, model]);
+
+  // Trace timeline updates driven by the workspace state. We add one row
+  // per activeNode transition; the previous ternary `kind: ... === 'idle'
+  // ? 'step' : 'step'` always returned 'step', so timeline pills never
+  // differentiated node kinds. Map the active node id back to the
+  // example's GRAPH definition so the pill picks up the kind colors.
+  useEffect(() => {
+    if (ws.activeNode === 'idle') return; // skip initial-mount idle
+    const graphNode = example.graph.nodes.find((n) => n.id === ws.activeNode);
+    const kind = graphNode?.kind ?? 'step';
     setTimeline((prev) => [
       ...prev,
       {
         id: String(prev.length + 1),
         ts: ws.runStart ? performance.now() - ws.runStart : 0,
-        kind: ws.activeNode === 'idle' ? 'step' : 'step',
-        msg: ws.activeNode === 'suspended' ? 'suspended' : ws.activeNode,
+        kind: kind === 'passthrough' ? 'step' : (kind as TimelineEntry['kind']),
+        msg: ws.activeNode,
         step: ws.activeNode,
-        active: ws.activeNode !== 'idle' && ws.activeNode !== 'suspended',
+        active: ws.activeNode !== 'suspended',
       },
     ]);
-    // We only want a single entry per activeNode change
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ws.activeNode]);
+  }, [ws.activeNode, ws.runStart, example.graph]);
+
+  const getFormBody = (): Record<string, unknown> => {
+    const form = formRef.current;
+    const body: Record<string, unknown> = {};
+    if (form) {
+      const fd = new FormData(form);
+      for (const [k, v] of fd.entries()) {
+        body[k] = v;
+      }
+    }
+    body.model = model;
+    return body;
+  };
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const form = formRef.current;
-    if (!form) return;
-    const formData = new FormData(form);
-    const body: Record<string, unknown> = {};
-    for (const [k, v] of formData.entries()) {
-      body[k] = v;
-    }
-    body.model = model;
     setTimeline([]); // reset timeline on new run
-    ws.run(body);
+    ws.run(getFormBody());
   };
 
   // The graph container uses a single id (`v2-graph`) so the trace
@@ -72,7 +107,16 @@ export function Workspace({ example }: WorkspaceProps) {
         <div className="ex-header-controls">
           <label className="model-picker">
             <span className="model-label">Model</span>
-            <select className="v2-model-select" value={model} onChange={(e) => setModel(e.target.value)}>
+            <select
+              className="v2-model-select"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              title={
+                model.includes('/')
+                  ? 'Requires OPENAI_BASE_URL=https://openrouter.ai/api/v1 — see README.'
+                  : undefined
+              }
+            >
               {V2_MODEL_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
@@ -80,9 +124,6 @@ export function Workspace({ example }: WorkspaceProps) {
               ))}
             </select>
           </label>
-          <button className="icon-btn" title="Settings" aria-label="Settings">
-            ⚙
-          </button>
         </div>
       </div>
 

@@ -35,10 +35,20 @@ nvm use                  # Node 22
 npm install
 cp .env.example .env
 # Edit .env — set OPENAI_API_KEY (or OpenRouter key)
-npm run serve            # http://localhost:8917
+npm run build            # builds the React UI to dist/
+npm run serve            # http://localhost:8917 (serves dist/)
 ```
 
-Open <http://localhost:8917> in a browser. Eleven tabs, one per example.
+Open <http://localhost:8917> in a browser. The UI shows 11 examples in a
+left rail (grouped by Mastra primitive — agent / workflow / tool / memory /
+HITL / stream), with the active example's workspace (form, trace, output)
+in the main pane. `npm run build` is required before `npm run serve` —
+the server reads from `dist/`, not from source.
+
+> **Local-only dev loop:** `npm run dev` starts the Vite dev server on
+> `:5173` with HMR if you'd rather not rebuild between edits. Note that
+> the Node server (`npm run serve` on `:8917`) reads `dist/`, not the
+> Vite dev server, so use one or the other.
 
 ## Why this exists
 
@@ -222,7 +232,7 @@ mastra-playground/
     10-mastra-memory/
     11-content-pipeline/
   server/
-    server.ts                       # static + JSON + SSE endpoints (641 lines)
+    server.ts                       # static + JSON + SSE endpoints (~670 lines)
   src/                              # React 18 + Vite UI
     main.tsx                        # ReactDOM.createRoot entry
     App.tsx                         # top-level shell
@@ -231,8 +241,6 @@ mastra-playground/
     hooks/useWorkspace.ts           # SSE EventSource consumer
     registry/                       # examples.ts, renderers.tsx, graphs.ts, utils.ts
     styles.css                      # bundled into dist/assets/index-*.css by Vite
-  public/
-    style.css                       # copied verbatim to dist/style.css by Vite
   scripts/                          # smoke, eval, ui-smoke, diagnostics
   notes/
     learning-log.md                 # user fills this in
