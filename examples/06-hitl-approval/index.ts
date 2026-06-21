@@ -25,55 +25,24 @@
  * Run: npm run example:06
  */
 
-import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
 import { resolveModel, model, getModel } from '../../shared/llm.js';
 import { logger } from '../../shared/mastra-logger.js';
-import { unwrapWorkflowOutput } from '../../shared/workflow-helpers.js';
+import { finalizeRunResult } from '../../shared/run-result.js';
 import { registerSuspendedRun } from '../../shared/suspended-store.js';
 import type { Tracer } from '../../shared/tracer.js';
-import { stepStart, stepEnd, llmStructured, type StepSpec } from '../../shared/traced-step.js';
+import { startRun, stepStart, stepEnd, llmStructured, type StepSpec } from '../../shared/traced-step.js';
 import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
-
-// ─── Schemas ──────────────────────────────────────────────────────────────
-// The action the user is proposing (what they typed in the form)
-const InputSchema = z.object({
-  action: z.string(), // e.g. "Refund $200 to customer #12345"
-  actionType: z.enum(['refund', 'send', 'delete']),
-});
-
-// What the LLM extracts from the action
-const ClassifiedSchema = z.object({
-  amount: z.number().describe('The dollar amount of the action, 0 if not applicable'),
-  urgency: z.enum(['low', 'medium', 'high', 'critical']),
-  reasoning: z.string().describe('1-2 sentences explaining the risk assessment'),
-});
-
-// What the gate step returns:
-//   - 'auto-approved'  : the gate decided the action is safe; no human needed
-//   - 'approved'       : the gate was resumed with a human approve decision
-//   - 'rejected'       : the gate was resumed with a human reject decision
-const GateOutputSchema = z.object({
-  classified: ClassifiedSchema,
-  decision: z.enum(['auto-approved', 'approved', 'rejected']),
-  token: z.string().nullable(), // resumption token if pending
-});
-
-// What the resume() call passes back. The gate step's resumeSchema
-// constrains this — without it, Mastra rejects the resume data.
-const GateResumeSchema = z.object({
-  decision: z.enum(['approved', 'rejected']),
-});
-
-// What the execute step returns (final outcome)
-const ExecuteOutputSchema = z.object({
-  classified: ClassifiedSchema,
-  decision: z.enum(['approved', 'rejected']),
-  executed: z.boolean(),
-  message: z.string(),
-});
+import { z } from 'zod';
+import {
+  InputSchema,
+  ClassifiedSchema,
+  GateOutputSchema,
+  GateResumeSchema,
+  ExecuteOutputSchema,
+} from './schemas.js';
 
 // ─── Tracer events for the suspend/resume lifecycle ─────────────────────
 const STEPS: StepSpec[] = [
@@ -266,8 +235,7 @@ export interface RunOptions {
 }
 
 export async function runOne(input: RunOptions, tracer: Tracer) {
-  const t0 = Date.now();
-  tracer.emit({ type: 'start', workflow: 'hitl-approval', input, steps: STEPS });
+  const t0 = startRun(tracer, 'hitl-approval', input, STEPS);
 
   const useModel = resolveModel(input.model);
 
@@ -298,42 +266,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   );
   built.captureMastra(built.mastra);
   const result = await run.start({ inputData: { action: input.action, actionType: input.actionType } });
-
-  // The workflow may have suspended, succeeded, or failed. We cast result to
-  // a wider type because the suspended state isn't in the WorkflowResult union
-  // (the type system assumes the workflow ran to completion; the suspend/resume
-  // pattern is a runtime concept).
-  const wideResult = result as typeof result & {
-    status: 'success' | 'failed' | 'suspended' | 'running' | 'waiting' | 'pending' | 'canceled';
-    suspendedAt?: number;
-    suspendedStep?: { id?: string };
-    suspendPayload?: unknown;
-  };
-
-  if (wideResult.status === 'suspended') {
-    const token = run.runId;
-    tracer.emit({
-      type: 'done',
-      status: 'suspended',
-      output: { token, suspendedStep: wideResult.suspendedStep, suspendedPayload: wideResult.suspendPayload },
-      totalMs: Date.now() - t0,
-    });
-    return {
-      status: 'suspended',
-      input,
-      output: { token, suspendedStep: wideResult.suspendedStep, suspendedPayload: wideResult.suspendPayload },
-      error: null,
-    };
-  }
-
-  const output = wideResult.status === 'success' ? unwrapWorkflowOutput(wideResult.result) : null;
-  tracer.emit({ type: 'done', status: wideResult.status, output, totalMs: Date.now() - t0 });
-  return {
-    status: wideResult.status,
-    input,
-    output,
-    error: wideResult.status !== 'success' ? String(wideResult) : null,
-  };
+  return finalizeRunResult(result, tracer, t0, input, run.runId);
 }
 
 // ─── CLI demo ────────────────────────────────────────────────────────────
@@ -363,8 +296,5 @@ if (isMain(import.meta.url, process.argv[1])) {
     if (r2.status === 'suspended' && o2) {
       console.log(`  resumption token: ${o2.token ?? '?'}`);
     }
-  }).catch((err) => {
-    console.error(err);
-    process.exit(1);
   });
 }

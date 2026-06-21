@@ -31,6 +31,39 @@ describe('finalizeRunResult', () => {
     expect(finalizeRunResult({ status: 'paused' }, tracer, 0, null).status).toBe('failed');
   });
 
+  it('returns suspended status with token and suspended metadata when result is suspended', () => {
+    const tracer = new Tracer();
+    const events: unknown[] = [];
+    tracer.subscribe((e) => events.push(e));
+    const result = {
+      status: 'suspended',
+      suspendedStep: { id: 'gate' },
+      suspendPayload: { action: 'refund $500' },
+    };
+    const r = finalizeRunResult(result, tracer, 100, { action: 'test' }, 'run-abc-123');
+    expect(r.status).toBe('suspended');
+    expect(r.output).toEqual({
+      token: 'run-abc-123',
+      suspendedStep: { id: 'gate' },
+      suspendedPayload: { action: 'refund $500' },
+    });
+    expect(r.error).toBeNull();
+    expect(r.input).toEqual({ action: 'test' });
+    const done = events.find((e) => (e as { type: string }).type === 'done') as
+      | { status: string; output: unknown }
+      | undefined;
+    expect(done).toBeDefined();
+    expect(done!.status).toBe('suspended');
+  });
+
+  it('returns suspended status with null token when runId is omitted', () => {
+    const tracer = new Tracer();
+    const result = { status: 'suspended', suspendedStep: { id: 'gate' } };
+    const r = finalizeRunResult(result, tracer, 0, null);
+    expect(r.status).toBe('suspended');
+    expect((r.output as { token: unknown }).token).toBeNull();
+  });
+
   it('emits done event with computed totalMs', () => {
     const tracer = new Tracer();
     const events: unknown[] = [];

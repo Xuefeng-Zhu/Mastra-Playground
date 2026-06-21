@@ -16,12 +16,24 @@ describe('isMain', () => {
 });
 
 describe('runCliExample', () => {
-  it('invokes the demo with a silent Tracer', async () => {
+  it('invokes the demo with a silent Tracer without forcing process exit', async () => {
+    const exit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
     const demo = vi.fn().mockResolvedValue(undefined);
     await runCliExample('test', demo);
     expect(demo).toHaveBeenCalledTimes(1);
-    // The arg is a Tracer; assert by class name
     const arg = demo.mock.calls[0][0];
     expect(arg.constructor.name).toBe('Tracer');
+    expect(exit).not.toHaveBeenCalled();
+    exit.mockRestore();
+  });
+
+  it('calls process.exit(1) when the demo throws', async () => {
+    const exit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    const demo = vi.fn().mockRejectedValue(new Error('boom'));
+    const result = runCliExample('test', demo);
+    // The promise resolves because process.exit is mocked
+    await result;
+    expect(exit).toHaveBeenCalledWith(1);
+    exit.mockRestore();
   });
 });

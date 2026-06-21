@@ -58,7 +58,7 @@ import { Memory } from '@mastra/memory';
 import { resolveModel, model, getModel } from '../../shared/llm.js';
 import { logger } from '../../shared/mastra-logger.js';
 import type { Tracer } from '../../shared/tracer.js';
-import { stepStart, stepEnd, timed, type StepSpec } from '../../shared/traced-step.js';
+import { startRun, stepStart, stepEnd, timed, type StepSpec } from '../../shared/traced-step.js';
 import { finalizeRunResult } from '../../shared/run-result.js';
 import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
 
@@ -214,16 +214,9 @@ export interface RunOptions {
 }
 
 export async function runOne(input: RunOptions, tracer: Tracer) {
-  const t0 = Date.now();
   const turn1 = input.turn1 ?? 'My name is Ada and my favorite color is teal.';
   const turn2 = input.turn2 ?? 'What is my name and what is my favorite color?';
-
-  tracer.emit({
-    type: 'start',
-    workflow: 'mastra-memory',
-    input: { ...input, turn1, turn2 },
-    steps: STEPS,
-  });
+  const t0 = startRun(tracer, 'mastra-memory', { ...input, turn1, turn2 }, STEPS);
 
   const useModel = resolveModel(input.model);
   const mastra = buildMastra(tracer, useModel);
@@ -277,8 +270,5 @@ if (isMain(import.meta.url, process.argv[1])) {
     } else {
       console.log(`\nError: ${r.error}`);
     }
-  }).catch((err) => {
-    console.error(err);
-    process.exit(1);
   });
 }

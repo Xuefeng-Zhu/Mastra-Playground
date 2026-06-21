@@ -39,6 +39,7 @@ import {
   toolCall,
   timed,
   type StepSpec,
+  startRun,
 } from '../../shared/traced-step.js';
 import { finalizeRunResult } from '../../shared/run-result.js';
 import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
@@ -196,8 +197,7 @@ export interface RunOptions {
 }
 
 export async function runOne(input: RunOptions, tracer: Tracer) {
-  const t0 = Date.now();
-  tracer.emit({ type: 'start', workflow: 'parallel-research', input, steps: STEPS });
+  const t0 = startRun(tracer, 'parallel-research', input, STEPS);
 
   const useModel = resolveModel(input.model);
   const plannerAgent = new Agent({
@@ -249,12 +249,5 @@ if (isMain(import.meta.url, process.argv[1])) {
         console.log(`  workflow ${r.status}: ${r.error}`);
       }
     }
-  }).catch((err) => {
-    console.error(err);
-    process.exit(1);
   });
 }
-
-void webSearch;
-void arxivSearch;
-void wiki;

@@ -29,10 +29,17 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { resolveModel, model, getModel } from '../../shared/llm.js';
+import { resolveModel, model } from '../../shared/llm.js';
 import { logger } from '../../shared/mastra-logger.js';
 import type { Tracer } from '../../shared/tracer.js';
-import { stepStart, stepEnd, llmStructured, timed, type StepSpec } from '../../shared/traced-step.js';
+import {
+  startRun,
+  stepStart,
+  stepEnd,
+  llmStructured,
+  timed,
+  type StepSpec,
+} from '../../shared/traced-step.js';
 import { finalizeRunResult } from '../../shared/run-result.js';
 import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
 
@@ -166,8 +173,7 @@ export interface RunOptions {
 }
 
 export async function runOne(input: RunOptions, tracer: Tracer) {
-  const t0 = Date.now();
-  tracer.emit({ type: 'start', workflow: 'critic-loop', input, steps: STEPS });
+  const t0 = startRun(tracer, 'critic-loop', input, STEPS);
 
   const useModel = resolveModel(input.model);
   const generator = new Agent({
@@ -240,8 +246,5 @@ if (isMain(import.meta.url, process.argv[1])) {
         console.log(`  workflow ${r.status}: ${r.error}`);
       }
     }
-  }).catch((err) => {
-    console.error(err);
-    process.exit(1);
   });
 }

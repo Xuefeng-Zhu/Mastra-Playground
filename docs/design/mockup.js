@@ -50,7 +50,7 @@
   function findNodeByStep(step) {
     const map = {
       plan: 'plan',
-      fanout: 'web',     // any of the parallel tools
+      fanout: 'web', // any of the parallel tools
       synthesize: 'synthesize',
     };
     const id = map[step] || step;

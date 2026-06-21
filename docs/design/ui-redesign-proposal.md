@@ -26,21 +26,21 @@ To not throw out work that already works:
 
 Honest critique, ranked by severity:
 
-| # | Problem | Where | Severity |
-|---|---|---|---|
-| 1 | **11 tabs in a flat horizontal bar** with no grouping, no filter, no way to discover which example teaches what | `<nav class="tabs">` | HIGH |
-| 2 | **Trace is two stacked panels (graph + event log) but they're not linked** — clicking an event does nothing, the graph doesn't highlight the step an event belongs to | `trace-graph` + `trace-events` | HIGH |
-| 3 | **Output column has no structure** — sometimes a chat, sometimes JSON, sometimes a list of items, no consistent pattern, no collapsible sections | `col-output` | HIGH |
-| 4 | **Form column is busy but generic** — same `<form>` block copied 11 times with no shared abstraction | `index.html` lines 137–1064 | MEDIUM |
-| 5 | **No way to compare two runs** — the history panel shows past runs but you can't pin two and diff them | `history-panel` | MEDIUM |
-| 6 | **Settings is buried in a `⚙` toggle behind the Run button** — easy to miss, especially the model selector, which is the single most impactful lever for learning | `.settings-panel` | MEDIUM |
-| 7 | **No metadata about each example visible from the tab** — "what primitive does this teach?" is buried in `panel-desc` paragraphs | `.tab` | MEDIUM |
-| 8 | **No dark/light toggle, no font-size control** — accessibility floor only (per the 0.4.0 a11y work); not yet a real preference surface | n/a | LOW |
-| 9 | **Trace event log scrolls independently of the graph** — when you scroll the log to see earlier events, the graph stays put | `.trace-events` | LOW |
-| 10 | **No keyboard shortcut to switch tabs** (`g` `g` or `Cmd+K` would be nice) | `.tabs` | LOW |
-| 11 | **Empty states are 7 different sentences** instead of one `<EmptyState>` component | `output-empty` × 11 | LOW |
+| #   | Problem                                                                                                                                                               | Where                          | Severity |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | -------- |
+| 1   | **11 tabs in a flat horizontal bar** with no grouping, no filter, no way to discover which example teaches what                                                       | `<nav class="tabs">`           | HIGH     |
+| 2   | **Trace is two stacked panels (graph + event log) but they're not linked** — clicking an event does nothing, the graph doesn't highlight the step an event belongs to | `trace-graph` + `trace-events` | HIGH     |
+| 3   | **Output column has no structure** — sometimes a chat, sometimes JSON, sometimes a list of items, no consistent pattern, no collapsible sections                      | `col-output`                   | HIGH     |
+| 4   | **Form column is busy but generic** — same `<form>` block copied 11 times with no shared abstraction                                                                  | `index.html` lines 137–1064    | MEDIUM   |
+| 5   | **No way to compare two runs** — the history panel shows past runs but you can't pin two and diff them                                                                | `history-panel`                | MEDIUM   |
+| 6   | **Settings is buried in a `⚙` toggle behind the Run button** — easy to miss, especially the model selector, which is the single most impactful lever for learning     | `.settings-panel`              | MEDIUM   |
+| 7   | **No metadata about each example visible from the tab** — "what primitive does this teach?" is buried in `panel-desc` paragraphs                                      | `.tab`                         | MEDIUM   |
+| 8   | **No dark/light toggle, no font-size control** — accessibility floor only (per the 0.4.0 a11y work); not yet a real preference surface                                | n/a                            | LOW      |
+| 9   | **Trace event log scrolls independently of the graph** — when you scroll the log to see earlier events, the graph stays put                                           | `.trace-events`                | LOW      |
+| 10  | **No keyboard shortcut to switch tabs** (`g` `g` or `Cmd+K` would be nice)                                                                                            | `.tabs`                        | LOW      |
+| 11  | **Empty states are 7 different sentences** instead of one `<EmptyState>` component                                                                                    | `output-empty` × 11            | LOW      |
 
-The biggest miss is **#2** — the trace is the *entire reason this app exists* and currently the graph and event log are two unconnected panes. That's the redesign's center of gravity.
+The biggest miss is **#2** — the trace is the _entire reason this app exists_ and currently the graph and event log are two unconnected panes. That's the redesign's center of gravity.
 
 ---
 
@@ -87,6 +87,7 @@ For the redesign. Every layout decision should defend itself against these four:
 ```
 
 **Why a left rail, not top tabs:**
+
 - 11 items in a top tab bar overflows at ~1024px; you currently rely on `overflow-x: auto` which is a smell.
 - A vertical rail lets us **group by Mastra primitive** (Agent, Workflow, Tool, Memory, HITL, Streaming, Parallel, Loop). Pedagogically this is the whole point of the project — "I want to see the `branch()` primitive, which examples?" becomes one click instead of reading 11 panel-desc paragraphs.
 - A rail gives room for a **per-example chip** showing: primitive, LOC, and a 1-line "what it teaches". You can skim 11 of those in 2 seconds; you can't skim 11 horizontal tabs.
@@ -145,11 +146,11 @@ For the redesign. Every layout decision should defend itself against these four:
 
 Three example types need small layout overrides:
 
-| Example type | Override |
-|---|---|
-| **Chat-style** (05, 07, 09, 10) | Output column becomes a chat thread (already partially done). Timeline shows message-level events instead of step-level. |
-| **HITL** (06) | Output shows Approve/Reject buttons inline when workflow is suspended. Timeline highlights the suspend point. (Already partially done — preserve it.) |
-| **Streaming** (07) | Timeline shows `llm:delta` events at token granularity. Add a `tokens/sec` readout. Currently the events fire but they're indistinguishable from any other event. |
+| Example type                    | Override                                                                                                                                                          |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Chat-style** (05, 07, 09, 10) | Output column becomes a chat thread (already partially done). Timeline shows message-level events instead of step-level.                                          |
+| **HITL** (06)                   | Output shows Approve/Reject buttons inline when workflow is suspended. Timeline highlights the suspend point. (Already partially done — preserve it.)             |
+| **Streaming** (07)              | Timeline shows `llm:delta` events at token granularity. Add a `tokens/sec` readout. Currently the events fire but they're indistinguishable from any other event. |
 
 ### 4.4 The command palette (⌘K)
 
@@ -180,17 +181,17 @@ Three example types need small layout overrides:
 
 Pull these out of the 1064-line HTML and into shared components. None of these are new abstractions; they're all things the current code copies 11 times.
 
-| Component | Used by | Replaces |
-|---|---|---|
-| `<ExampleHeader>` | all 11 | per-example `<h2>` + `<p class="panel-desc">` + model picker |
-| `<InputPanel>` | all 11 | `.col-form` (form + samples + settings toggle) |
-| `<TracePane>` | all 11 | fused graph + timeline (`trace-graph` + `trace-events`) |
-| `<OutputPanel>` | all 11 | `.col-output` (renders one of: chat thread, structured output, suspended HITL card, streaming prose) |
-| `<StepNode>` | inside TracePane | the SVG node (reused from current renderer, but as a named component) |
-| `<EventRow>` | inside TracePane | one row of the timeline (with kind pill, timestamp, expand-to-JSON) |
-| `<SampleChip>` | inside InputPanel | the existing `.sample-btn` |
-| `<RecentRuns>` | inside InputPanel | the existing `.recent-runs` chips |
-| `<EmptyState>` | OutputPanel when no run | replaces 11 different `output-empty` strings |
+| Component         | Used by                 | Replaces                                                                                             |
+| ----------------- | ----------------------- | ---------------------------------------------------------------------------------------------------- |
+| `<ExampleHeader>` | all 11                  | per-example `<h2>` + `<p class="panel-desc">` + model picker                                         |
+| `<InputPanel>`    | all 11                  | `.col-form` (form + samples + settings toggle)                                                       |
+| `<TracePane>`     | all 11                  | fused graph + timeline (`trace-graph` + `trace-events`)                                              |
+| `<OutputPanel>`   | all 11                  | `.col-output` (renders one of: chat thread, structured output, suspended HITL card, streaming prose) |
+| `<StepNode>`      | inside TracePane        | the SVG node (reused from current renderer, but as a named component)                                |
+| `<EventRow>`      | inside TracePane        | one row of the timeline (with kind pill, timestamp, expand-to-JSON)                                  |
+| `<SampleChip>`    | inside InputPanel       | the existing `.sample-btn`                                                                           |
+| `<RecentRuns>`    | inside InputPanel       | the existing `.recent-runs` chips                                                                    |
+| `<EmptyState>`    | OutputPanel when no run | replaces 11 different `output-empty` strings                                                         |
 
 No build step. This stays vanilla HTML/CSS/JS (matching the project's "small isolated TypeScript repo" mandate). Components are factory functions returning DOM nodes — same pattern as the existing `renderGraph()`.
 
@@ -201,6 +202,7 @@ No build step. This stays vanilla HTML/CSS/JS (matching the project's "small iso
 Tighten the current palette and spacing. Specifically:
 
 **Type scale** (current is ad-hoc 11/12/13/14):
+
 ```
 --fs-xs:   11px  ← chips, micro labels
 --fs-sm:   12px  ← event rows, secondary
@@ -209,11 +211,15 @@ Tighten the current palette and spacing. Specifically:
 --fs-xl:   18px  ← panel headings
 --fs-2xl:  24px  ← page title
 ```
+
 **Spacing scale** (4px base):
+
 ```
 --sp-1: 4px   --sp-2: 8px   --sp-3: 12px   --sp-4: 16px   --sp-5: 24px   --sp-6: 32px   --sp-7: 48px
 ```
+
 **Color** — keep dark theme but introduce **semantic colors per Mastra primitive**, applied consistently across graph nodes, event pills, AND chip badges:
+
 ```
 --c-agent:     var(--accent)      #58a6ff  (blue)
 --c-workflow:  var(--text-bright) #f0f6fc  (white)
@@ -224,6 +230,7 @@ Tighten the current palette and spacing. Specifically:
 --c-stream:    var(--accent-2)    #79c0ff  (light blue)
 --c-error:     var(--red)         #f85149  (red)
 ```
+
 Currently `llm` is green and `tool` is yellow but `branch` is purple and `start/step/done` are all the same dim gray. Promote these to the primitive colors and the graph becomes readable at a glance.
 
 **Elevation** — keep 2 levels (elev-1 panel, elev-2 inset) but add a subtle 1px highlight on the top edge of active panels (like Linear / Vercel dashboards). Tells you where focus is without a heavy border.
@@ -283,6 +290,6 @@ Three questions, in order of how much they'd change the plan:
 
 1. **Build Wave 1 first, or do you want me to also produce ASCII wireframes for the chat-style and HITL variants?** (Chat + HITL are the awkward ones — the proposal describes them but a wireframe would catch mismatches earlier. Cheap to do, ~30min, asks before I commit to Wave 1.)
 2. **⌘K palette — keep or drop?** It's nice-to-have. Easy to defer.
-3. **Visual language section — does the primitive-color mapping match how *you* mentally categorize the examples?** I picked these from `STEPS[].kind` in the example code (llm / tool / branch). If your mental model is different (e.g. you think of HITL as a tool, not a primitive), the palette changes.
+3. **Visual language section — does the primitive-color mapping match how _you_ mentally categorize the examples?** I picked these from `STEPS[].kind` in the example code (llm / tool / branch). If your mental model is different (e.g. you think of HITL as a tool, not a primitive), the palette changes.
 
 Default if you say "go": I'll build Wave 1 (shell + 04 only, behind `?newui=1`) and come back with a screenshot + diff for review before touching anything else.

@@ -26,5 +26,10 @@ export function isMain(metaUrl: string, argv1: string | undefined): boolean {
 export async function runCliExample(name: string, demo: CliDemo): Promise<void> {
   const { Tracer } = await import('./tracer.js');
   const silentTracer = new Tracer();
-  await demo(silentTracer);
+  try {
+    await demo(silentTracer);
+  } catch (err) {
+    console.error(err);
+    process.exit(1);
+  }
 }

@@ -40,7 +40,7 @@ import { Mastra } from '@mastra/core';
 import { resolveModel, model, getModel } from '../../shared/llm.js';
 import { logger } from '../../shared/mastra-logger.js';
 import type { Tracer } from '../../shared/tracer.js';
-import { stepStart, stepEnd, toolCall, timed, type StepSpec } from '../../shared/traced-step.js';
+import { startRun, stepStart, stepEnd, toolCall, timed, type StepSpec } from '../../shared/traced-step.js';
 import { finalizeRunResult } from '../../shared/run-result.js';
 import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
 
@@ -229,8 +229,7 @@ export interface RunOptions {
 }
 
 export async function runOne(input: RunOptions, tracer: Tracer) {
-  const t0 = Date.now();
-  tracer.emit({ type: 'start', workflow: 'multi-agent-handoff', input, steps: STEPS });
+  const t0 = startRun(tracer, 'multi-agent-handoff', input, STEPS);
 
   const useModel = resolveModel(input.model);
   const mastra = buildMastra(tracer, useModel);
@@ -275,8 +274,5 @@ if (isMain(import.meta.url, process.argv[1])) {
       console.log(`  agent path: ${o.agentPath.join(' -> ')}`);
       console.log(`  final: ${o.message}`);
     }
-  }).catch((err) => {
-    console.error(err);
-    process.exit(1);
   });
 }

@@ -48,6 +48,11 @@ export function branchEvaluate(tracer: Tracer, stepId: string, matched: boolean,
   tracer.emit({ type: 'branch:evaluate', stepId, matched, predicate });
 }
 
+export function startRun(tracer: Tracer, workflow: string, input: unknown, steps: StepSpec[]): number {
+  tracer.emit({ type: 'start', workflow, input, steps });
+  return Date.now();
+}
+
 /** Helper: time a step's execute. Returns a wrapped execute that emits events. */
 export async function timed<T>(
   tracer: Tracer,

@@ -251,27 +251,32 @@ mastra-playground/
 
 ## Adding a new example
 
-The 7 touchpoints (one entry in the React registry drives the new tab):
+The 9 touchpoints (one entry in the React registry drives the new tab):
 
 1. Create `examples/0N-short-name/` with `index.ts` + `README.md`. The example
    must export `async function runOne(input, tracer)` returning
    `{ status, input, output, error, totalMs }`.
 2. Use `stepStart` / `stepEnd` / `llmStructured` / `toolCall` from
-   `shared/traced-step.ts` to emit trace events. Do NOT call raw
-   `tracer.emit` — the helpers exist for grep-ability.
-3. Register the example in `server/server.ts` `EXAMPLES` map (the file path
+   `shared/traced-step.ts` to emit trace events, and `startRun` to emit
+   the initial `start` event. Do NOT call raw `tracer.emit` — the helpers
+   exist for grep-ability.
+3. At the bottom of `runOne()`, call `finalizeRunResult(result, tracer, t0, input)`
+   from `shared/run-result.ts` to emit the terminal `done` event and shape
+   the return value. (Ex 06's suspend path uses the same function with a `runId`.)
+4. Use `resolveModel(input.model)` from `shared/llm.ts` to pick the LLM.
+5. Use `runCliExample(name, demo)` + `isMain(import.meta.url, process.argv[1])`
+   from `shared/cli-bootstrap.ts` for the CLI demo block.
+6. Register the example in `server/server.ts` `EXAMPLES` map (the file path
    is what `dynamic import()` reads at request time) and add a case to
    `validateExampleInput()` if its input shape is new.
-4. Add an entry in `src/registry/examples.ts` — title, form fields, defaults,
+7. Add an entry in `src/registry/examples.ts` — title, form fields, defaults,
    and the `output.kind` that picks a renderer.
-5. If the new example uses an `output.kind` that no existing renderer in
+8. If the new example uses an `output.kind` that no existing renderer in
    `src/registry/renderers.tsx` handles, add a renderer branch there.
-6. Add an `example:0N` script in `package.json` so the CLI demo (`npm run
+9. Add an `example:0N` script in `package.json` so the CLI demo (`npm run
 example:0N`) and CI work.
-7. Keep each example's `index.ts` under 350 lines (CONTRIBUTING) — split
-   before growing.
 
-After all seven: `npm run build` regenerates `dist/` and the new tab appears
+After all nine: `npm run build` regenerates `dist/` and the new tab appears
 in the served UI without any manual HTML edit.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for code style and commit conventions.

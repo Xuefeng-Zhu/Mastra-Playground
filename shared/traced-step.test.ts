@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Tracer } from './tracer.js';
-import { stepStart, stepEnd, llmStructured, toolCall, branchEvaluate } from './traced-step.js';
+import { stepStart, stepEnd, llmStructured, toolCall, branchEvaluate, startRun } from './traced-step.js';
 
 describe('traced-step helpers', () => {
   function newTracer() {
@@ -60,6 +60,15 @@ describe('traced-step helpers', () => {
       matched: true,
       predicate: 'urgency === "critical"',
     });
+  });
+
+  it('startRun emits a start event and returns a number timestamp', () => {
+    const { tracer, events } = newTracer();
+    const steps = [{ id: 'a', label: 'Step A', kind: 'llm' as const }];
+    const t0 = startRun(tracer, 'test-workflow', { foo: 'bar' }, steps);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toEqual({ type: 'start', workflow: 'test-workflow', input: { foo: 'bar' }, steps });
+    expect(typeof t0).toBe('number');
   });
 
   it('stepStart and stepEnd are emitted in order from a real traced run', () => {

@@ -47,7 +47,8 @@ in addition to `npm run serve`.
    for grep-ability.
 4. At the bottom of `runOne()`, call `finalizeRunResult(result, tracer, t0, input)`
    from `shared/run-result.ts` to emit the terminal `done` event and shape
-   the return value. (Ex 06's suspend path is bespoke — keep its custom tail.)
+   the return value. For suspended workflows (ex 06), pass the `runId` as the
+   fifth argument — `finalizeRunResult(result, tracer, t0, input, run.runId)`.
 5. Use `resolveModel(input.model)` from `shared/llm.ts` to pick the LLM.
 6. Use `runCliExample(name, demo)` + `isMain(import.meta.url, process.argv[1])`
    from `shared/cli-bootstrap.ts` for the CLI demo block.

@@ -15,6 +15,7 @@ import { resolveModel, model } from '../../shared/llm.js';
 import { logger } from '../../shared/mastra-logger.js';
 import type { Tracer } from '../../shared/tracer.js';
 import {
+  startRun,
   stepStart,
   stepEnd,
   llmStructured,
@@ -123,8 +124,7 @@ export interface RunOptions {
 }
 
 export async function runOne(input: RunOptions, tracer: Tracer) {
-  const t0 = Date.now();
-  tracer.emit({ type: 'start', workflow: 'support-triage', input, steps: STEPS });
+  const t0 = startRun(tracer, 'support-triage', input, STEPS);
 
   // Build per-request model if overridden
   const useModel = resolveModel(input.model);
@@ -200,8 +200,5 @@ if (isMain(import.meta.url, process.argv[1])) {
         console.log(`  ← ${r.status}: ${r.error}`);
       }
     }
-  }).catch((err) => {
-    console.error(err);
-    process.exit(1);
   });
 }

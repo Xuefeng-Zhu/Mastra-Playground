@@ -37,7 +37,7 @@ import { resolveModel, model } from '../../shared/llm.js';
 import { logger } from '../../shared/mastra-logger.js';
 import { memoryStore, type Message } from '../../shared/memory-store.js';
 import type { Tracer } from '../../shared/tracer.js';
-import { stepStart, stepEnd, toolCall, timed, type StepSpec } from '../../shared/traced-step.js';
+import { startRun, stepStart, stepEnd, toolCall, timed, type StepSpec } from '../../shared/traced-step.js';
 import { finalizeRunResult } from '../../shared/run-result.js';
 import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
 import { escalate, escalateDirect } from './tools/escalate.js';
@@ -169,8 +169,7 @@ export interface RunOptions {
 }
 
 export async function runOne(input: RunOptions, tracer: Tracer) {
-  const t0 = Date.now();
-  tracer.emit({ type: 'start', workflow: 'multi-turn-chat', input, steps: STEPS });
+  const t0 = startRun(tracer, 'multi-turn-chat', input, STEPS);
 
   // Action: 'new' returns a fresh threadId; 'clear' wipes an existing thread
   if (input.action === 'new') {
@@ -183,8 +182,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
       messages: [] as Message[],
       escalated: false,
     };
-    tracer.emit({ type: 'done', status: 'success', output: out, totalMs: Date.now() - t0 });
-    return { status: 'success', input, output: out, error: null };
+    return finalizeRunResult({ status: 'success', result: out }, tracer, t0, input);
   }
 
   if (input.action === 'clear') {
@@ -196,8 +194,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
       messages: [] as Message[],
       escalated: false,
     };
-    tracer.emit({ type: 'done', status: 'success', output: out, totalMs: Date.now() - t0 });
-    return { status: 'success', input, output: out, error: null };
+    return finalizeRunResult({ status: 'success', result: out }, tracer, t0, input);
   }
 
   // Default: process one turn of the conversation
@@ -239,13 +236,5 @@ if (isMain(import.meta.url, process.argv[1])) {
         console.log(`  workflow ${r.status}: ${r.error ?? 'no output'}`);
       }
     }
-  }).catch((err) => {
-    console.error(err);
-    process.exit(1);
   });
 }
-
-void escalate;
-void lookupOrder;
-void escalateDirect;
-void lookupOrderDirect;

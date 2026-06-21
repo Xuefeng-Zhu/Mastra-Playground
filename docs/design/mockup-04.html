@@ -112,10 +112,10 @@
             <div class="ex-kicker">Example 04</div>
             <h1 class="ex-title">Parallel Research</h1>
             <p class="ex-desc">
-              One step fans out to <strong>3 sources in parallel</strong> via <code>Promise.all</code>,
-              then an LLM synthesizes the results. Watch the trace light up
-              <em>one</em> <code>step:start</code> → <em>three</em> <code>tool:call</code>
-              events in quick succession → <em>one</em> <code>step:end</code>.
+              One step fans out to <strong>3 sources in parallel</strong> via <code>Promise.all</code>, then
+              an LLM synthesizes the results. Watch the trace light up <em>one</em> <code>step:start</code> →
+              <em>three</em> <code>tool:call</code> events in quick succession → <em>one</em>
+              <code>step:end</code>.
             </p>
           </div>
           <div class="ex-header-controls">
@@ -192,23 +192,63 @@
             <div class="trace-graph" id="graph">
               <svg viewBox="0 0 720 220" width="100%" height="220">
                 <defs>
-                  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <marker
+                    id="arrow"
+                    viewBox="0 0 10 10"
+                    refX="9"
+                    refY="5"
+                    markerWidth="6"
+                    markerHeight="6"
+                    orient="auto-start-reverse"
+                  >
                     <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--c-workflow-edge-done)" />
                   </marker>
-                  <marker id="arrow-active" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <marker
+                    id="arrow-active"
+                    viewBox="0 0 10 10"
+                    refX="9"
+                    refY="5"
+                    markerWidth="6"
+                    markerHeight="6"
+                    orient="auto-start-reverse"
+                  >
                     <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--c-accent)" />
                   </marker>
                 </defs>
 
                 <!-- edges from plan to 3 parallel -->
-                <path class="edge edge-done" d="M 200 60 C 260 60, 260 110, 320 110" marker-end="url(#arrow)" />
-                <path class="edge edge-done" d="M 200 60 C 260 60, 260 110, 440 110" marker-end="url(#arrow)" />
-                <path class="edge edge-done" d="M 200 60 C 260 60, 260 110, 560 110" marker-end="url(#arrow)" />
+                <path
+                  class="edge edge-done"
+                  d="M 200 60 C 260 60, 260 110, 320 110"
+                  marker-end="url(#arrow)"
+                />
+                <path
+                  class="edge edge-done"
+                  d="M 200 60 C 260 60, 260 110, 440 110"
+                  marker-end="url(#arrow)"
+                />
+                <path
+                  class="edge edge-done"
+                  d="M 200 60 C 260 60, 260 110, 560 110"
+                  marker-end="url(#arrow)"
+                />
 
                 <!-- edges from 3 parallel down to synthesize -->
-                <path class="edge edge-done" d="M 320 140 C 320 180, 420 180, 420 195" marker-end="url(#arrow)" />
-                <path class="edge edge-done" d="M 440 140 C 440 180, 420 180, 420 195" marker-end="url(#arrow)" />
-                <path class="edge edge-done" d="M 560 140 C 560 180, 460 180, 460 195" marker-end="url(#arrow)" />
+                <path
+                  class="edge edge-done"
+                  d="M 320 140 C 320 180, 420 180, 420 195"
+                  marker-end="url(#arrow)"
+                />
+                <path
+                  class="edge edge-done"
+                  d="M 440 140 C 440 180, 420 180, 420 195"
+                  marker-end="url(#arrow)"
+                />
+                <path
+                  class="edge edge-done"
+                  d="M 560 140 C 560 180, 460 180, 460 195"
+                  marker-end="url(#arrow)"
+                />
 
                 <!-- node: plan (LLM, done) -->
                 <g class="node node-done node-llm" tabindex="0">
@@ -301,8 +341,8 @@
                 <span class="tl-ts">1.31s</span>
                 <span class="tl-kind tl-kind-llm">llm</span>
                 <span class="tl-msg">
-                  Hybrid search combines BM25's lexical matching with vector reranking. BM25 scores
-                  documents by term frequency saturation and document length normalization…<span class="cursor">▌</span>
+                  Hybrid search combines BM25's lexical matching with vector reranking. BM25 scores documents
+                  by term frequency saturation and document length normalization…<span class="cursor">▌</span>
                 </span>
                 <span class="tl-step">llm:delta</span>
               </div>
@@ -324,11 +364,10 @@
           <div class="output-body">
             <article class="prose">
               <p>
-                <strong>Hybrid search</strong> combines BM25's lexical matching with a vector
-                reranking stage. BM25 handles rare-term recall and exact-match intent; the cross-encoder
-                reranker then re-scores the top-K candidates for semantic relevance. The trick is in
-                the candidate set — BM25 over the full corpus, then the reranker narrows to 20-50
-                chunks the LLM actually reads.
+                <strong>Hybrid search</strong> combines BM25's lexical matching with a vector reranking stage.
+                BM25 handles rare-term recall and exact-match intent; the cross-encoder reranker then
+                re-scores the top-K candidates for semantic relevance. The trick is in the candidate set —
+                BM25 over the full corpus, then the reranker narrows to 20-50 chunks the LLM actually reads.
               </p>
               <p class="muted">
                 Sources synthesized from <code>web-search</code>, <code>arxiv-search</code>, and
