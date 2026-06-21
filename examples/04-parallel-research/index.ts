@@ -29,9 +29,9 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { resolveModel } from '../../shared/llm.js';
-import { logger } from '../../shared/mastra-logger.js';
-import type { Tracer } from '../../shared/tracer.js';
+import { resolveModel } from '../../shared/llm';
+import { logger } from '../../shared/mastra-logger';
+import type { Tracer } from '../../shared/tracer';
 import {
   stepStart,
   stepEnd,
@@ -40,12 +40,12 @@ import {
   timed,
   type StepSpec,
   startRun,
-} from '../../shared/traced-step.js';
-import { finalizeRunResult } from '../../shared/run-result.js';
-import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
-import { webSearch } from '../02-research-agent/tools/web-search.js';
-import { arxivSearch } from '../02-research-agent/tools/arxiv.js';
-import { wikiDirect } from './tools/wiki.js';
+} from '../../shared/traced-step';
+import { finalizeRunResult } from '../../shared/run-result';
+import { isMain, runCliExample } from '../../shared/cli-bootstrap';
+import { webSearch } from '../02-research-agent/tools/web-search';
+import { arxivSearch } from '../02-research-agent/tools/arxiv';
+import { wikiDirect } from './tools/wiki';
 
 // ─── Two agents: one for planning, one for synthesis ──────────────────────
 // These are built per-request inside runOne() with the model specified by the request.

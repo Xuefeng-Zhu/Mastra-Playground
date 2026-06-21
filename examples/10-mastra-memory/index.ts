@@ -55,12 +55,12 @@ import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
 import { InMemoryStore } from '@mastra/core/storage';
 import { Memory } from '@mastra/memory';
-import { resolveModel, model, getModel } from '../../shared/llm.js';
-import { logger } from '../../shared/mastra-logger.js';
-import type { Tracer } from '../../shared/tracer.js';
-import { startRun, stepStart, stepEnd, timed, type StepSpec } from '../../shared/traced-step.js';
-import { finalizeRunResult } from '../../shared/run-result.js';
-import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
+import { resolveModel, model, getModel } from '../../shared/llm';
+import { logger } from '../../shared/mastra-logger';
+import type { Tracer } from '../../shared/tracer';
+import { startRun, stepStart, stepEnd, timed, type StepSpec } from '../../shared/traced-step';
+import { finalizeRunResult } from '../../shared/run-result';
+import { isMain, runCliExample } from '../../shared/cli-bootstrap';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────
 const InputSchema = z.object({

@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import type { PlaygroundExample } from '../registry/examples.js';
-import { MODEL_OPTIONS } from '../registry/examples.js';
-import { FormFieldView, SamplesGroup } from './FormField.js';
-import { TracePane, type TimelineEntry } from './TracePane.js';
-import { OutputPanel } from './OutputPanel.js';
-import { useWorkspace } from '../hooks/useWorkspace.js';
+import type { PlaygroundExample } from '../registry/examples';
+import { MODEL_OPTIONS } from '../registry/examples';
+import { FormFieldView, SamplesGroup } from './FormField';
+import { TracePane, type TimelineEntry } from './TracePane';
+import { OutputPanel } from './OutputPanel';
+import { useWorkspace } from '../hooks/useWorkspace';
 
 interface WorkspaceProps {
   example: PlaygroundExample;
@@ -98,7 +98,9 @@ export function Workspace({ example }: WorkspaceProps) {
           <div className="ex-kicker">
             Example {example.num}{' '}
             {example.primTags.map((tag) => (
-              <span key={tag} className={`prim-tag prim-tag-${tag}`}>{tag}</span>
+              <span key={tag} className={`prim-tag prim-tag-${tag}`}>
+                {tag}
+              </span>
             ))}
           </div>
           <h1 className="ex-title">{example.name}</h1>

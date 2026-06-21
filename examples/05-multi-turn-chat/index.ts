@@ -33,15 +33,15 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { resolveModel, model } from '../../shared/llm.js';
-import { logger } from '../../shared/mastra-logger.js';
-import { memoryStore, type Message } from '../../shared/memory-store.js';
-import type { Tracer } from '../../shared/tracer.js';
-import { startRun, toolCall, timed, type StepSpec } from '../../shared/traced-step.js';
-import { finalizeRunResult } from '../../shared/run-result.js';
-import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
-import { escalate } from './tools/escalate.js';
-import { lookupOrder } from './tools/lookup_order.js';
+import { resolveModel, model } from '../../shared/llm';
+import { logger } from '../../shared/mastra-logger';
+import { memoryStore, type Message } from '../../shared/memory-store';
+import type { Tracer } from '../../shared/tracer';
+import { startRun, toolCall, timed, type StepSpec } from '../../shared/traced-step';
+import { finalizeRunResult } from '../../shared/run-result';
+import { isMain, runCliExample } from '../../shared/cli-bootstrap';
+import { escalate } from './tools/escalate';
+import { lookupOrder } from './tools/lookup_order';
 
 const STEPS: StepSpec[] = [{ id: 'chat', label: 'Chat (LLM + memory)', kind: 'llm' }];
 

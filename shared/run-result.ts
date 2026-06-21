@@ -5,8 +5,8 @@
  * example's runOne().
  */
 
-import { unwrapWorkflowOutput } from './workflow-helpers.js';
-import type { Tracer } from './tracer.js';
+import { unwrapWorkflowOutput } from './workflow-helpers';
+import type { Tracer } from './tracer';
 
 export type RunResultStatus = 'success' | 'failed' | 'suspended';
 

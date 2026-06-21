@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Tracer } from './tracer.js';
-import { stepStart, stepEnd, llmStructured, toolCall, branchEvaluate, startRun } from './traced-step.js';
+import { Tracer } from './tracer';
+import { stepStart, stepEnd, llmStructured, toolCall, branchEvaluate, startRun } from './traced-step';
 
 describe('traced-step helpers', () => {
   function newTracer() {

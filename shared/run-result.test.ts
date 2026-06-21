@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Tracer } from './tracer.js';
-import { finalizeRunResult } from './run-result.js';
+import { Tracer } from './tracer';
+import { finalizeRunResult } from './run-result';
 
 describe('finalizeRunResult', () => {
   it('returns success status, output, null error for success result', () => {

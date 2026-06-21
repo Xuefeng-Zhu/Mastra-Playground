@@ -7,8 +7,8 @@
  * output shape doesn't fit an existing renderer).
  */
 
-import type { GraphDef } from './graphs.js';
-import { GRAPHS } from './graphs.js';
+import type { GraphDef } from './graphs';
+import { GRAPHS } from './graphs';
 
 export type OutputKind =
   | 'parallel'

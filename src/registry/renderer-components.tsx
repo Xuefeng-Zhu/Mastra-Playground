@@ -1,4 +1,4 @@
-import { formatSec, escapeText } from './utils.js';
+import { formatSec, escapeText } from './utils';
 
 export interface CapturedSource {
   tool: string;

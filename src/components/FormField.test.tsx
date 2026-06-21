@@ -2,7 +2,7 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { FormFieldView } from './FormField.js';
+import { FormFieldView } from './FormField';
 
 describe('FormFieldView', () => {
   let container: HTMLDivElement;

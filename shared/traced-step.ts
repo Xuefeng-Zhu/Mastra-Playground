@@ -12,7 +12,7 @@
  *   tracer.emit({ type: 'step:end', stepId, output, durationMs })
  */
 
-import type { Tracer } from './tracer.js';
+import type { Tracer } from './tracer';
 
 type StepKind = 'llm' | 'tool' | 'branch' | 'passthrough';
 

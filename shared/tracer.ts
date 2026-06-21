@@ -34,7 +34,7 @@ export type TraceEvent =
   | { type: 'resume'; decision: string; payload: unknown }
   | { type: 'done'; status: 'success' | 'failed' | 'suspended'; output: unknown; totalMs: number };
 
-import { logger } from './logger.js';
+import { logger } from './logger';
 
 export class Tracer {
   private listeners: Array<(e: TraceEvent) => void> = [];

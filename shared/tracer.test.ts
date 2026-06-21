@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Tracer, sseLine, type TraceEvent } from './tracer.js';
+import { Tracer, sseLine, type TraceEvent } from './tracer';
 
 describe('Tracer', () => {
   it('emits events to all subscribers in order', () => {

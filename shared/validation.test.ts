@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeText, isPlainObject, ValidationError, RateLimitError } from './validation.js';
+import { sanitizeText, isPlainObject, ValidationError, RateLimitError } from './validation';
 
 describe('sanitizeText', () => {
   it('returns empty string for non-strings', () => {

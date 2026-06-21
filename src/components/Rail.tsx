@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { EXAMPLES, EXAMPLE_IDS } from '../registry/examples.js';
+import { EXAMPLES, EXAMPLE_IDS } from '../registry/examples';
 
 interface RailProps {
   activeExampleId: string;

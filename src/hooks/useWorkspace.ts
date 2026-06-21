@@ -11,10 +11,10 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PlaygroundExample } from '../registry/examples.js';
-import type { TraceEvent } from '../registry/utils.js';
-import type { CapturedSource } from '../registry/renderers.js';
-import { exampleNameToId } from '../registry/utils.js';
+import type { PlaygroundExample } from '../registry/examples';
+import type { TraceEvent } from '../registry/utils';
+import type { CapturedSource } from '../registry/renderers';
+import { exampleNameToId } from '../registry/utils';
 
 export type OutputTab = 'result' | 'sources' | 'json' | 'compare';
 

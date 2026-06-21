@@ -7,7 +7,7 @@
  * you might actually point at a tunnel" hardening, not a substitute for it.
  */
 
-import { logger } from './logger.js';
+import { logger } from './logger';
 
 // ─── Input sanitization ───────────────────────────────────────────────────
 /** Strip control characters and cap length. User-facing strings only. */

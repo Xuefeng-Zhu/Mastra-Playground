@@ -7,7 +7,7 @@
 
 A small, isolated TypeScript repo for learning [Mastra](https://mastra.ai) by
 example. Eleven real workflows exercising the framework's primitives, with a
-React + Vite browser UI that visualizes the execution trace in real time.
+React + Next.js browser UI that visualizes the execution trace in real time.
 
 **Not for production. Not part of InboxPilot.**
 
@@ -35,20 +35,18 @@ nvm use                  # Node 22
 npm install
 cp .env.example .env
 # Edit .env — set OPENAI_API_KEY (or OpenRouter key)
-npm run build            # builds the React UI to dist/
-npm run serve            # http://localhost:8917 (serves dist/)
+npm run build            # builds the Next.js app
+npm run start            # http://localhost:8917
 ```
 
 Open <http://localhost:8917> in a browser. The UI shows 11 examples in a
 left rail (grouped by Mastra primitive — agent / workflow / tool / memory /
 HITL / stream), with the active example's workspace (form, trace, output)
-in the main pane. `npm run build` is required before `npm run serve` —
-the server reads from `dist/`, not from source.
+in the main pane.
 
-> **Local-only dev loop:** `npm run dev` starts the Vite dev server on
-> `:5173` with HMR if you'd rather not rebuild between edits. Note that
-> the Node server (`npm run serve` on `:8917`) reads `dist/`, not the
-> Vite dev server, so use one or the other.
+> **Local-only dev loop:** `npm run dev` starts the Next.js dev server on
+> `:8917` with fast refresh. Changes to React code in `src/` and API routes
+> in `app/api/` are reflected immediately.
 
 ## Why this exists
 
@@ -82,7 +80,7 @@ Each example is <350 lines including the CLI demo. The shared modules in
 
 | Method | Path                           | Purpose                                            | Rate limit    |
 | ------ | ------------------------------ | -------------------------------------------------- | ------------- |
-| GET    | `/`, `/assets/*`               | UI shell + Vite-bundled JS/CSS (from `dist/`)      | none          |
+| GET    | `/`, `/_next/static/*`         | UI shell + Next.js bundled JS/CSS                  | none          |
 | GET    | `/api/health`                  | Liveness probe (`{ ok, uptimeSec, exampleCount }`) | none          |
 | GET    | `/api/examples`                | List available examples                            | none          |
 | POST   | `/api/run/:example`            | One-shot JSON result                               | 30 req/min/IP |
@@ -133,12 +131,12 @@ every commit.
 
 ```
 ┌─────────────────┐    SSE /api/stream/:example    ┌─────────────────┐
-│   Browser       │ ◄──────────────────────────── │  Node http srv  │
-│  (React + Vite  │                                │  (server/)      │
-│   UI from dist/)│    POST /api/run/:example     │                 │
+│   Browser       │ ◄──────────────────────────── │  Next.js server │
+│  (React client  │                                │  (app/api/)     │
+│   components)   │    POST /api/run/:example     │                 │
 │  11 tabs        │ ────────────────────────────► │  loads example  │
-│  1 graph each   │                                │  via dynamic    │
-│  trace events   │    POST /api/resume/:token    │  import()       │
+│  1 graph each   │                                │  via static     │
+│  trace events   │    POST /api/resume/:token    │  import map     │
 │  recent runs    │ ◄──────────────────────────── │                 │
 └────────┬────────┘                                └────────┬────────┘
          │                                                 │
@@ -174,9 +172,9 @@ every commit.
 └─────────────────┘                              └─────────────────┘
 ```
 
-The React UI lives in `src/` and is built by Vite into `dist/` (gitignored).
-The Node server reads `dist/index.html` and `dist/assets/*`
-directly — there is no separate hand-written JS bundle to ship.
+The React UI lives in `src/` and is served by Next.js (App Router).
+The `app/` directory contains the layout, page, and API route handlers.
+There is no separate hand-written JS bundle to ship.
 
 ## Environment variables
 
@@ -203,20 +201,30 @@ OPENAI_MODEL=openrouter/free
 
 ```
 mastra-playground/
-  package.json, tsconfig.json, vite.config.ts, .env.example
-  index.html                        # Vite entry (<script src="/src/main.tsx">)
+  package.json, tsconfig.json, next.config.ts, .env.example
   README.md, CHANGELOG.md, CONTRIBUTING.md, SECURITY.md, LICENSE
   .editorconfig, .nvmrc, .prettierrc
-  .github/workflows/ci.yml           # typecheck + format check + smoke
+  .github/workflows/ci.yml           # typecheck + format check + test + build
+  app/                              # Next.js App Router
+    layout.tsx                      # root layout (fonts, metadata, styles)
+    page.tsx                        # single-page client shell (loads src/App)
+    api/                            # API route handlers
+      health/route.ts               # GET /api/health
+      examples/route.ts             # GET /api/examples
+      run/[example]/route.ts        # POST /api/run/:example
+      stream/[example]/route.ts     # GET /api/stream/:example (SSE)
+      resume/[token]/route.ts       # POST /api/resume/:token
   shared/                           # cross-example helpers (<135 lines each)
+    examples-registry.ts            # example metadata + static import map
+    example-inputs.ts               # Zod schemas + validation per example
     llm.ts                          # getModel(id) factory
-    observability.ts                # shared Mastra logger (ConsoleLogger)
+    mastra-logger.ts                # shared Mastra logger (ConsoleLogger)
     tracer.ts                       # Tracer class + TraceEvent types
     traced-step.ts                  # stepStart/stepEnd/llmStructured/toolCall helpers
     workflow-helpers.ts             # unwrapWorkflowOutput
     memory-store.ts                 # (ex 05) in-memory conversation store
     suspended-store.ts              # (ex 06) suspended-run registry
-    validation.ts                   # body parsing + rate limit + sanitization
+    validation.ts                   # rate limit + sanitization + error classes
     logger.ts                       # structured stdout/stderr logger
   examples/                         # 11 numbered workflows
     01-support-triage/              # + README.md
@@ -230,27 +238,24 @@ mastra-playground/
     09-multi-agent-handoff/
     10-mastra-memory/
     11-content-pipeline/
-  server/
-    server.ts                       # static + JSON + SSE endpoints (~670 lines)
-  src/                              # React 18 + Vite UI
-    main.tsx                        # ReactDOM.createRoot entry
+  src/                              # React 18 client components
     App.tsx                         # top-level shell
+    global.d.ts                     # ambient type declarations
+    styles.css                      # bundled by Next.js
     components/                     # FormField, Graph, OutputPanel, Rail, Topbar,
-                                    # TracePane, Workspace
+                                    # TracePane, Workspace, CommandPalette
     hooks/useWorkspace.ts           # SSE EventSource consumer
     registry/                       # examples.ts, renderers.tsx, graphs.ts, utils.ts
-    styles.css                      # bundled into dist/assets/index-*.css by Vite
   scripts/                          # smoke, eval, ui-smoke, diagnostics
   notes/
     learning-log.md                 # user fills this in
     comparison-to-inboxpilot.md     # the verdict writeup
-  docs/audit/                       # code review artifacts (opencode)
-  dist/                             # gitignored — Vite build output, served by Node
+  .next/                            # gitignored — Next.js build output
 ```
 
 ## Adding a new example
 
-The 9 touchpoints (one entry in the React registry drives the new tab):
+The 8 touchpoints (one entry in the React registry drives the new tab):
 
 1. Create `examples/0N-short-name/` with `index.ts` + `README.md`. The example
    must export `async function runOne(input, tracer)` returning
@@ -265,18 +270,18 @@ The 9 touchpoints (one entry in the React registry drives the new tab):
 4. Use `resolveModel(input.model)` from `shared/llm.ts` to pick the LLM.
 5. Use `runCliExample(name, demo)` + `isMain(import.meta.url, process.argv[1])`
    from `shared/cli-bootstrap.ts` for the CLI demo block.
-6. Register the example in `server/server.ts` `EXAMPLES` map (the file path
-   is what `dynamic import()` reads at request time) and add a case to
-   `validateExampleInput()` if its input shape is new.
-7. Add an entry in `src/registry/examples.ts` — title, form fields, defaults,
-   and the `output.kind` that picks a renderer.
-8. If the new example uses an `output.kind` that no existing renderer in
-   `src/registry/renderers.tsx` handles, add a renderer branch there.
+6. Register the example in `shared/examples-registry.ts`: add it to the
+   `EXAMPLES` map and to the `EXAMPLE_LOADERS` static import map.
+7. Add validation in `shared/example-inputs.ts` (the `EXAMPLE_INPUT_SCHEMAS` map).
+8. Add an entry in `src/registry/examples.ts` — title, form fields, defaults,
+   and the `output.kind` that picks a renderer. If the new example uses an
+   `output.kind` that no existing renderer in `src/registry/renderers.tsx`
+   handles, add a renderer branch there.
 9. Add an `example:0N` script in `package.json` so the CLI demo (`npm run
-example:0N`) and CI work.
+example:0N`) works.
 
-After all nine: `npm run build` regenerates `dist/` and the new tab appears
-in the served UI without any manual HTML edit.
+After all steps: `npm run build` confirms the app compiles. `npm run dev`
+picks up the new example immediately via fast refresh.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for code style and commit conventions.
 
@@ -306,9 +311,10 @@ don't use a tunnel and run the server on `localhost` directly.
 ### The HITL gate node doesn't show the orange "suspended" glow
 
 Hard-refresh the page (`Ctrl+Shift+R` / `Cmd+Shift+R`) to pick up the latest
-`dist/assets/*` bundle. There was a known bug where the wrong DOM attribute
+bundle. There was a known bug where the wrong DOM attribute
 selector was used; it's been fixed but your browser may have cached the
-old version. If you changed React code, re-run `npm run build` first.
+old version. If you changed React code and are running `npm run start`,
+re-run `npm run build` first.
 
 ### TypeScript errors after `npm install`
 
@@ -317,11 +323,10 @@ features that older Node versions can't transpile.
 
 ### Stale UI after editing React code
 
-The Node server serves files from `dist/`, which is only regenerated by
-`npm run build`. After editing anything in `src/`, run `npm run build` and
-hard-refresh the browser. For live HMR during development, use `npm run dev`
-in a separate terminal — Vite serves `src/` directly on :5173 with HMR, but
-the Node server (port 8917) still reads from `dist/`.
+In development, `npm run dev` uses Next.js Fast Refresh — changes to React
+components in `src/` are reflected immediately in the browser without a full
+page reload. If you're running the production build (`npm run start`), you
+need to rebuild first with `npm run build`.
 
 ## Caveats
 
@@ -372,14 +377,12 @@ plan to point a real tunnel at it:
   a load balancer, each replica enforces its own limit. Use Redis or a
   proper API gateway for shared limits.
 
-**To run in production-ish mode:**
+**To run in production mode:**
 
 ```bash
-NODE_ENV=production npm run start:prod   # alias for the same serve command
+npm run build            # builds the Next.js app
+npm run start            # starts the production server on :8917
 ```
-
-`NODE_ENV=production` is reserved for future behavioral changes (e.g.
-disabling dev-only console output). Today it has no effect.
 
 ## See also
 

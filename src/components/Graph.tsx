@@ -8,7 +8,7 @@
  * light up nodes as events stream in.
  */
 
-import type { GraphDef } from '../registry/graphs.js';
+import type { GraphDef } from '../registry/graphs';
 
 const NODE_W = 180;
 const NODE_H = 56;

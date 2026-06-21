@@ -11,9 +11,9 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { resolveModel, model } from '../../shared/llm.js';
-import { logger } from '../../shared/mastra-logger.js';
-import type { Tracer } from '../../shared/tracer.js';
+import { resolveModel, model } from '../../shared/llm';
+import { logger } from '../../shared/mastra-logger';
+import type { Tracer } from '../../shared/tracer';
 import {
   startRun,
   stepStart,
@@ -21,9 +21,9 @@ import {
   llmStructured,
   branchEvaluate,
   type StepSpec,
-} from '../../shared/traced-step.js';
-import { finalizeRunResult } from '../../shared/run-result.js';
-import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
+} from '../../shared/traced-step';
+import { finalizeRunResult } from '../../shared/run-result';
+import { isMain, runCliExample } from '../../shared/cli-bootstrap';
 
 // ─── 1. The structured-output schema ────────────────────────────────────────
 const TriageSchema = z.object({

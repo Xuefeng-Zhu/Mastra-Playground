@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { isMain, runCliExample } from './cli-bootstrap.js';
+import { isMain, runCliExample } from './cli-bootstrap';
 
 describe('isMain', () => {
   it('matches when metaUrl equals file:// + argv1', () => {

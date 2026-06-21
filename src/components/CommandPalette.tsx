@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { EXAMPLES, EXAMPLE_IDS, type PlaygroundExample } from '../registry/examples.js';
+import { EXAMPLES, EXAMPLE_IDS, type PlaygroundExample } from '../registry/examples';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -98,7 +98,13 @@ export function CommandPalette({ open, onClose, onSelect, activeId }: CommandPal
   if (!open) return null;
 
   return (
-    <div className="cp-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Command palette">
+    <div
+      className="cp-overlay"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Command palette"
+    >
       <div className="cp-container" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
         <div className="cp-input-row">
           <span className="cp-search-icon">⌕</span>

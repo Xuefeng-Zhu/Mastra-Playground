@@ -6,7 +6,7 @@
  * guard, and the catch-to-exit-1 error handling.
  */
 
-import type { Tracer } from './tracer.js';
+import type { Tracer } from './tracer';
 
 export type CliDemo = (tracer: Tracer) => Promise<void>;
 
@@ -24,7 +24,7 @@ export function isMain(metaUrl: string, argv1: string | undefined): boolean {
  * `if (isMain(...))` block.
  */
 export async function runCliExample(demo: CliDemo): Promise<void> {
-  const { Tracer } = await import('./tracer.js');
+  const { Tracer } = await import('./tracer');
   const silentTracer = new Tracer();
   try {
     await demo(silentTracer);

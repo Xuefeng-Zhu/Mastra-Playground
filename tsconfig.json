@@ -18,8 +18,25 @@
     "rootDir": ".",
     "declaration": false,
     "sourceMap": true,
-    "types": ["node"]
+    "incremental": true,
+    "isolatedModules": true,
+    "types": ["node"],
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "allowJs": true
   },
-  "include": ["shared/**/*.ts", "examples/**/*.ts", "server/**/*.ts", "src/**/*"],
-  "exclude": ["node_modules", "dist", "public"]
+  "include": [
+    "shared/**/*.ts",
+    "examples/**/*.ts",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "src/**/*",
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": ["node_modules", ".next"]
 }

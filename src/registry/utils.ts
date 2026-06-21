@@ -7,12 +7,12 @@
  * server.
  */
 
-export { formatSec, escapeText } from './utils-shared.js';
+export { formatSec, escapeText } from './utils-shared';
 
 // Re-export the canonical TraceEvent union. The browser switches on
 // `event.type`, so the union members' shape is load-bearing. Importing it
 // from shared/ keeps the SSE contract authoritative in one place.
-export type { TraceEvent } from '../../shared/tracer.js';
+export type { TraceEvent } from '../../shared/tracer';
 
 // Map example.num → the API id the server's EXAMPLES map expects. Lives
 // here (not inside useWorkspace) so it's easy to grep when adding a new

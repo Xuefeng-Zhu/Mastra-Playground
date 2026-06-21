@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ValidationError, isPlainObject, sanitizeText } from './validation.js';
+import { ValidationError, isPlainObject, sanitizeText } from './validation';
 
 const model = z.string().trim().min(1).optional();
 const text = (field: string, maxLength = 4096) =>

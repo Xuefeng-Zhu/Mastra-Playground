@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MODEL_OPTIONS } from './examples.js';
+import { MODEL_OPTIONS } from './examples';
 
 describe('MODEL_OPTIONS', () => {
   it('defaults to OpenRouter free routing and only offers free models', () => {

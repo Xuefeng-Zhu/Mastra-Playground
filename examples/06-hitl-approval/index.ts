@@ -28,13 +28,13 @@
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { resolveModel, model, getModel } from '../../shared/llm.js';
-import { logger } from '../../shared/mastra-logger.js';
-import { finalizeRunResult } from '../../shared/run-result.js';
-import { registerSuspendedRun } from '../../shared/suspended-store.js';
-import type { Tracer } from '../../shared/tracer.js';
-import { startRun, stepStart, stepEnd, llmStructured, type StepSpec } from '../../shared/traced-step.js';
-import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
+import { resolveModel, model, getModel } from '../../shared/llm';
+import { logger } from '../../shared/mastra-logger';
+import { finalizeRunResult } from '../../shared/run-result';
+import { registerSuspendedRun } from '../../shared/suspended-store';
+import type { Tracer } from '../../shared/tracer';
+import { startRun, stepStart, stepEnd, llmStructured, type StepSpec } from '../../shared/traced-step';
+import { isMain, runCliExample } from '../../shared/cli-bootstrap';
 import { z } from 'zod';
 import {
   InputSchema,
@@ -42,7 +42,7 @@ import {
   GateOutputSchema,
   GateResumeSchema,
   ExecuteOutputSchema,
-} from './schemas.js';
+} from './schemas';
 
 // ─── Tracer events for the suspend/resume lifecycle ─────────────────────
 const STEPS: StepSpec[] = [

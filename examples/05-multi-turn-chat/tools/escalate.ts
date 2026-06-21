@@ -11,7 +11,7 @@
 
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { memoryStore } from '../../../shared/memory-store.js';
+import { memoryStore } from '../../../shared/memory-store';
 
 const params = z.object({
   threadId: z.string().describe('The conversation thread to escalate'),

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { Graph } from './Graph.js';
-import { formatSec } from '../registry/utils.js';
-import type { GraphDef } from '../registry/graphs.js';
+import { Graph } from './Graph';
+import { formatSec } from '../registry/utils';
+import type { GraphDef } from '../registry/graphs';
 
 export interface TimelineEntry {
   id: string;

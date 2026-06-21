@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { unwrapWorkflowOutput } from './workflow-helpers.js';
+import { unwrapWorkflowOutput } from './workflow-helpers';
 
 describe('unwrapWorkflowOutput', () => {
   it('returns the object as-is when it has a known top-level key', () => {

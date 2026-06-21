@@ -1,13 +1,13 @@
-import type { CapturedSource } from '../registry/renderers.js';
+import type { CapturedSource } from '../registry/renderers';
 import {
   RESULT_RENDERERS,
   COMPARE_RENDERERS,
   HAS_SOURCES_TAB,
   HAS_COMPARE_TAB,
   SourcesList,
-} from '../registry/renderers.js';
-import { escapeText } from '../registry/utils.js';
-import type { OutputTab } from '../hooks/useWorkspace.js';
+} from '../registry/renderers';
+import { escapeText } from '../registry/utils';
+import type { OutputTab } from '../hooks/useWorkspace';
 
 interface OutputPanelProps {
   kind: string;
@@ -128,12 +128,7 @@ function OutputTabs({
         </button>
       )}
       <div className="output-tabs-right">
-        <button
-          className="icon-btn"
-          title="Copy as Markdown"
-          aria-label="Copy as Markdown"
-          onClick={onCopy}
-        >
+        <button className="icon-btn" title="Copy as Markdown" aria-label="Copy as Markdown" onClick={onCopy}>
           ⧉
         </button>
       </div>

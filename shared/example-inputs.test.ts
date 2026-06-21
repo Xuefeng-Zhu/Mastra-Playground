@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ValidationError } from './validation.js';
-import { validateExampleInput } from './example-inputs.js';
+import { ValidationError } from './validation';
+import { validateExampleInput } from './example-inputs';
 
 describe('validateExampleInput', () => {
   it('coerces critic-loop form values and preserves the selected model', () => {

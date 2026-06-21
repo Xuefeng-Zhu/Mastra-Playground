@@ -5,6 +5,7 @@ node_modules/
 dist/
 build/
 *.tsbuildinfo
+.next/
 
 # Environment
 .env
@@ -43,6 +44,8 @@ coverage/
 .omo/
 .playwright-mcp/
 .review-brief.md
+AGENTS.md
+**/AGENTS.md
 
 # Design-iteration screenshots (root, never tracked, transient)
 # Wildcards cover: v1-*.png, v2-*.png, current-v*-*.png, scroll-*.png

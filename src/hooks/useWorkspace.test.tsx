@@ -2,8 +2,8 @@
 import { act, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EXAMPLES } from '../registry/examples.js';
-import { useWorkspace } from './useWorkspace.js';
+import { EXAMPLES } from '../registry/examples';
+import { useWorkspace } from './useWorkspace';
 
 class MockEventSource {
   static instances: MockEventSource[] = [];

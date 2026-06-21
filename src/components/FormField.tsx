@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { FormField } from '../registry/examples.js';
+import type { FormField } from '../registry/examples';
 
 interface FormFieldProps {
   field: FormField;

@@ -11,30 +11,28 @@ nvm use                        # use Node 22
 npm install
 cp .env.example .env
 # edit .env — add OPENAI_API_KEY (or OpenRouter key)
-npm run build                  # Vite build → dist/ (the server reads from here)
-npm run serve                  # starts the server on :8917
+npm run dev                    # starts Next.js dev server on :8917
 ```
 
 Open <http://localhost:8917> in a browser.
 
-For development with HMR on the React UI, run `npm run dev` (Vite at :5173)
-in addition to `npm run serve`.
+For a production build: `npm run build && npm run start`.
 
 ## Useful scripts
 
-| Command                   | What it does                                  |
-| ------------------------- | --------------------------------------------- |
-| `npm run typecheck`       | TypeScript type-check (no emit)               |
-| `npm run format`          | Format all files with Prettier                |
-| `npm run format:check`    | Check formatting without writing              |
-| `npm run serve`           | Start the dev server (port 8917)              |
-| `npm run health`          | Curl `/api/health`                            |
-| `npm run build`           | Vite build → `dist/` (server reads from here) |
-| `npm run dev`             | Vite dev server (HMR, port 5173)              |
-| `npm run preview`         | Vite preview of the production build          |
-| `npm run example:01`–`11` | Run a single example as a CLI demo            |
-| `npm run smoke`           | End-to-end smoke against running server       |
-| `npm test`                | Vitest run (shared/ + scripts/)               |
+| Command                   | What it does                                 |
+| ------------------------- | -------------------------------------------- |
+| `npm run typecheck`       | TypeScript type-check (no emit)              |
+| `npm run format`          | Format all files with Prettier               |
+| `npm run format:check`    | Check formatting without writing             |
+| `npm run dev`             | Next.js dev server (Fast Refresh, port 8917) |
+| `npm run build`           | Next.js production build                     |
+| `npm run start`           | Start the production server (port 8917)      |
+| `npm run ci`              | format:check + typecheck + test + build      |
+| `npm run health`          | Curl `/api/health`                           |
+| `npm run example:01`–`11` | Run a single example as a CLI demo           |
+| `npm run smoke`           | End-to-end smoke against running server      |
+| `npm test`                | Vitest run (shared/ + scripts/)              |
 
 ## Adding a new example
 
@@ -52,14 +50,14 @@ in addition to `npm run serve`.
 5. Use `resolveModel(input.model)` from `shared/llm.ts` to pick the LLM.
 6. Use `runCliExample(name, demo)` + `isMain(import.meta.url, process.argv[1])`
    from `shared/cli-bootstrap.ts` for the CLI demo block.
-7. Register the example in `server/server.ts` `EXAMPLES` map AND add a
-   `case` to `validateExampleInput()` — falling through `default: return body`
-   means accepting any garbage.
-8. Add the example to `src/registry/examples.ts` (`EXAMPLES`) with form
+7. Register the example in `shared/examples-registry.ts`: add it to both
+   the `EXAMPLES` map and the `EXAMPLE_LOADERS` static import map.
+8. Add a Zod schema in `shared/example-inputs.ts` (`EXAMPLE_INPUT_SCHEMAS`).
+9. Add the example to `src/registry/examples.ts` (`EXAMPLES`) with form
    fields, graph, output kind, run label. If the new output kind is novel,
    add a renderer branch in `src/registry/renderers.tsx` and update the
    `OutputKind` union.
-9. Add an `example:0N` script in `package.json`.
+10. Add an `example:0N` script in `package.json`.
 
 ## Code style
 

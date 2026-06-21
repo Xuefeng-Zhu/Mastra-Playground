@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Topbar } from './components/Topbar.js';
-import { Rail } from './components/Rail.js';
-import { Workspace } from './components/Workspace.js';
-import { CommandPalette } from './components/CommandPalette.js';
-import { EXAMPLES } from './registry/examples.js';
+import { Topbar } from './components/Topbar';
+import { Rail } from './components/Rail';
+import { Workspace } from './components/Workspace';
+import { CommandPalette } from './components/CommandPalette';
+import { EXAMPLES } from './registry/examples';
 
 function getInitialExample(): string {
   const hash = window.location.hash.slice(1);

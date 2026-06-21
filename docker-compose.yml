@@ -1,4 +1,4 @@
-# Docker Compose for the Mastra playground.
+# Docker Compose for the Mastra playground (Next.js).
 #
 # Usage:
 #   cp .env.example .env
@@ -18,10 +18,9 @@ services:
     env_file:
       - .env
     environment:
-      # Sensible defaults; .env overrides
       NODE_ENV: production
       PORT: 8917
-      LOG_LEVEL: info
+      NEXT_TELEMETRY_DISABLED: 1
     healthcheck:
       test:
         [
@@ -34,13 +33,3 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-    # The server uses dynamic imports of the example modules. We don't need
-    # to mount the source as a volume in dev mode — the build copies it in.
-    # For live-reload, uncomment the volumes block and the command override.
-    #
-    # volumes:
-    #   - ./shared:/app/shared:ro
-    #   - ./examples:/app/examples:ro
-    #   - ./server:/app/server:ro
-    #   - ./public:/app/public:ro
-    # command: ['npx', 'tsx', 'watch', 'server/server.ts']

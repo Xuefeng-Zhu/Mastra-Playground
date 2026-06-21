@@ -11,8 +11,8 @@
  * in <OutputPanel>.
  */
 
-import { formatSec } from './utils.js';
-import { COMPARE_RENDERERS } from './compare-renderers.js';
+import { formatSec } from './utils';
+import { COMPARE_RENDERERS } from './compare-renderers';
 import {
   ChatThread,
   HitlFinal,
@@ -22,7 +22,7 @@ import {
   SummaryGrid,
   type CapturedSource,
   type ChatMsg,
-} from './renderer-components.js';
+} from './renderer-components';
 
 export interface RenderContext {
   totalMs: number;

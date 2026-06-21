@@ -6,9 +6,9 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { resolveModel } from '../../shared/llm.js';
-import { logger } from '../../shared/mastra-logger.js';
-import type { Tracer } from '../../shared/tracer.js';
+import { resolveModel } from '../../shared/llm';
+import { logger } from '../../shared/mastra-logger';
+import type { Tracer } from '../../shared/tracer';
 import {
   startRun,
   stepStart,
@@ -16,11 +16,11 @@ import {
   branchEvaluate,
   toolCall,
   type StepSpec,
-} from '../../shared/traced-step.js';
-import { finalizeRunResult } from '../../shared/run-result.js';
-import { isMain, runCliExample } from '../../shared/cli-bootstrap.js';
-import { readFileDirect } from './tools/read-file.js';
-import { runCheckDirect } from './tools/run-check.js';
+} from '../../shared/traced-step';
+import { finalizeRunResult } from '../../shared/run-result';
+import { isMain, runCliExample } from '../../shared/cli-bootstrap';
+import { readFileDirect } from './tools/read-file';
+import { runCheckDirect } from './tools/run-check';
 
 // Hoisted: declared 3x in the original (steps + workflow). Hoisting keeps the
 // shape single-sourced so a change is one edit, not three.
