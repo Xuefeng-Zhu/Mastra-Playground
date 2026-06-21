@@ -4,8 +4,28 @@ import { Rail } from './components/Rail.js';
 import { Workspace } from './components/Workspace.js';
 import { EXAMPLES } from './registry/examples.js';
 
+function getInitialExample(): string {
+  const hash = window.location.hash.slice(1);
+  if (hash && hash in EXAMPLES) return hash;
+  return 'support-triage';
+}
+
 export function App() {
-  const [activeId, setActiveId] = useState<string>('parallel-research');
+  const [activeId, setActiveId] = useState<string>(getInitialExample);
+
+  // Sync hash ↔ active example
+  useEffect(() => {
+    window.location.hash = activeId;
+  }, [activeId]);
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const hash = window.location.hash.slice(1);
+      if (hash && hash in EXAMPLES) setActiveId(hash);
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   // Cmd/Ctrl+Enter triggers the active Workspace's run(). The Workspace
   // component registers `window.__mpg.run` on mount via useEffect.
