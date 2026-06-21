@@ -62,7 +62,7 @@ export function useWorkspace(example: PlaygroundExample) {
         if (stepId) {
           setActiveNode(stepId);
           requestAnimationFrame(() => {
-            const g = document.querySelector(`#v2-graph [data-node="${stepId}"]`);
+            const g = document.querySelector(`#mp-graph [data-node="${stepId}"]`);
             if (g) {
               g.classList.remove('active', 'done', 'skipped');
               g.classList.add('active');
@@ -75,7 +75,7 @@ export function useWorkspace(example: PlaygroundExample) {
           setActiveNode('idle');
           setDoneCount((c) => c + 1);
           requestAnimationFrame(() => {
-            const g = document.querySelector(`#v2-graph [data-node="${stepId}"]`);
+            const g = document.querySelector(`#mp-graph [data-node="${stepId}"]`);
             if (g) {
               g.classList.remove('active', 'skipped');
               g.classList.add('done');

@@ -125,10 +125,10 @@ export function HitlPending({
         <span className="pad-value">{classified.reasoning ?? ''}</span>
       </div>
       <div className="pending-approval-actions">
-        <button type="button" className="btn-approve v2-btn-approve" onClick={onApprove}>
+        <button type="button" className="btn-approve" onClick={onApprove}>
           ✅ Approve
         </button>
-        <button type="button" className="btn-reject v2-btn-reject" onClick={onReject}>
+        <button type="button" className="btn-reject" onClick={onReject}>
           ❌ Reject
         </button>
       </div>

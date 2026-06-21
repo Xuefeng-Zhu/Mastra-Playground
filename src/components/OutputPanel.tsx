@@ -94,7 +94,7 @@ function OutputTabs({
       <button
         type="button"
         className={`output-tab ${active === 'result' ? 'output-tab-active' : ''}`}
-        data-v2-output-tab="result"
+        data-output-tab="result"
         onClick={() => onChange('result')}
       >
         Result
@@ -103,16 +103,16 @@ function OutputTabs({
         <button
           type="button"
           className={`output-tab ${active === 'sources' ? 'output-tab-active' : ''}`}
-          data-v2-output-tab="sources"
+          data-output-tab="sources"
           onClick={() => onChange('sources')}
         >
-          Sources (<span className="v2-source-count">{sourceCount}</span>)
+          Sources (<span className="source-count">{sourceCount}</span>)
         </button>
       )}
       <button
         type="button"
         className={`output-tab ${active === 'json' ? 'output-tab-active' : ''}`}
-        data-v2-output-tab="json"
+        data-output-tab="json"
         onClick={() => onChange('json')}
       >
         Raw JSON
@@ -121,7 +121,7 @@ function OutputTabs({
         <button
           type="button"
           className={`output-tab ${active === 'compare' ? 'output-tab-active' : ''}`}
-          data-v2-output-tab="compare"
+          data-output-tab="compare"
           onClick={() => onChange('compare')}
         >
           Compare with prior
@@ -194,7 +194,7 @@ function RenderCompare({ kind, cur, prior }: { kind: string; cur: unknown; prior
 
 export function OutputPanel(props: OutputPanelProps) {
   return (
-    <section className="output-v2" aria-label="Output">
+    <section className="output-panel" aria-label="Output">
       <OutputTabs
         hasSources={HAS_SOURCES_TAB[props.kind] || false}
         hasCompare={HAS_COMPARE_TAB[props.kind] || false}
@@ -205,22 +205,22 @@ export function OutputPanel(props: OutputPanelProps) {
       />
       <div className="output-body">
         {props.activeTab === 'result' && (
-          <div className="v2-output-body prose">
+          <div className="output-content prose">
             <RenderResult {...props} />
           </div>
         )}
         {props.activeTab === 'sources' && (
-          <div className="v2-output-body prose">
+          <div className="output-content prose">
             <SourcesList sources={props.sources} />
           </div>
         )}
         {props.activeTab === 'json' && (
-          <div className="v2-output-body prose">
+          <div className="output-content prose">
             <RenderJSON output={props.output} />
           </div>
         )}
         {props.activeTab === 'compare' && (
-          <div className="v2-output-body prose">
+          <div className="output-content prose">
             <RenderCompare kind={props.kind} cur={props.output} prior={props.priorOutput} />
           </div>
         )}

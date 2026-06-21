@@ -33,7 +33,7 @@ Each line shows: the LLM's structured output, which branch the workflow took, an
 
 ## What this example does NOT show
 
-- Pre-LLM escalation rules (InboxPilot's hard guard). Mastra's `branch` runs _after_ the LLM; InboxPilot's escalation runs _before_. If you need hard pre-LLM guards, you have to put them in a step that _precedes_ the LLM call. (The v2 escalation spec is exactly that pattern.)
+- Pre-LLM escalation rules (InboxPilot's hard guard). Mastra's `branch` runs _after_ the LLM; InboxPilot's escalation runs _before_. If you need hard pre-LLM guards, you have to put them in a step that _precedes_ the LLM call. (The escalation spec is exactly that pattern.)
 - Conversation history. Mastra Agent supports memory; this example omits it.
 - Streaming. `agent.generate` returns a full result; use `agent.stream` for tokens-as-they-arrive.
 

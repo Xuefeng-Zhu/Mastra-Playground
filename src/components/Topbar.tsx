@@ -1,5 +1,5 @@
 /**
- * Topbar — the 48px header above the v2 layout.
+ * Topbar — the 48px header above the layout.
  *
  * Brand + Cmd+K command palette trigger button.
  */
@@ -14,7 +14,6 @@ export function Topbar({ onCmdK }: TopbarProps) {
       <div className="brand">
         <span className="brand-mark">◆</span>
         <span className="brand-name">Mastra Playground</span>
-        <span className="brand-tag">v2</span>
       </div>
       <div className="topbar-center">
         <button

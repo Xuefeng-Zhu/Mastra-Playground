@@ -7,7 +7,7 @@ interface FormFieldProps {
 }
 
 export function FormFieldView({ field, disabled }: FormFieldProps) {
-  const id = `v2-field-${field.name}`;
+  const id = `field-${field.name}`;
   switch (field.type) {
     case 'textarea':
       return (
@@ -55,7 +55,7 @@ export function FormFieldView({ field, disabled }: FormFieldProps) {
       return (
         <div className="field-group">
           <label htmlFor={id}>
-            {field.label}: <span className="v2-slider-value">{val}</span>
+            {field.label}: <span className="slider-value">{val}</span>
           </label>
           <input
             id={id}
@@ -93,7 +93,7 @@ export function SamplesGroup({
             className="chip"
             disabled={disabled}
             onClick={() => {
-              const target = document.getElementById(`v2-field-${s.fill}`);
+              const target = document.getElementById(`field-${s.fill}`);
               if (target) (target as HTMLInputElement | HTMLTextAreaElement).value = s.value;
             }}
           >

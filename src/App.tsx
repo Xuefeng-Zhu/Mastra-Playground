@@ -56,7 +56,7 @@ export function App() {
   return (
     <>
       <Topbar onCmdK={() => setPaletteOpen(true)} />
-      <div className="v2-layout">
+      <div className="app-layout">
         <Rail activeExampleId={activeId} onSelect={setActiveId} />
         <main>{example ? <Workspace key={activeId} example={example} /> : null}</main>
       </div>

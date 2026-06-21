@@ -82,15 +82,15 @@ export function Workspace({ example }: WorkspaceProps) {
     ws.run(getFormBody());
   };
 
-  // The graph container uses a single id (`v2-graph`) so the trace
+  // The graph container uses a single id (`mp-graph`) so the trace
   // event handler in useWorkspace can mark nodes with a stable selector.
   // The Graph component is keyed by example.num so it remounts on switch.
-  const graphContainerId = 'v2-graph';
+  const graphContainerId = 'mp-graph';
 
   return (
     <article
-      className="workspace-v2 workspace-v2-active"
-      id="v2-workspace"
+      className="workspace workspace-active"
+      id="mp-workspace"
       data-example={`prim-tag-${example.primTags[0]}`}
     >
       <div className="ex-header">
@@ -108,7 +108,7 @@ export function Workspace({ example }: WorkspaceProps) {
           <label className="model-picker">
             <span className="model-label">Model</span>
             <select
-              className="v2-model-select"
+              className="model-select"
               value={model}
               onChange={(e) => setModel(e.target.value)}
               title={
@@ -127,12 +127,12 @@ export function Workspace({ example }: WorkspaceProps) {
         </div>
       </div>
 
-      <div className="v2-grid">
+      <div className="main-grid">
         <aside className="input-rail">
           <form
             key={example.num}
-            className="v2-form"
-            data-form-v2={`prim-tag-${example.primTags[0]}`}
+            className="input-form"
+            data-form-tag={`prim-tag-${example.primTags[0]}`}
             ref={formRef}
             onSubmit={onSubmit}
           >

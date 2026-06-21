@@ -1,7 +1,7 @@
 /**
  * <OutputBody> and the per-kind renderers.
  *
- * The renderers are the React equivalent of the v2.js V2_RENDERERS table.
+ * The renderers are the React equivalent of the RENDERERS table.
  * Each renderer is a small component that takes the workflow's output
  * (and the surrounding context: totalMs, sources, streamingText) and
  * returns the JSX for the active output tab.

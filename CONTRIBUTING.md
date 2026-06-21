@@ -55,7 +55,7 @@ in addition to `npm run serve`.
 7. Register the example in `server/server.ts` `EXAMPLES` map AND add a
    `case` to `validateExampleInput()` — falling through `default: return body`
    means accepting any garbage.
-8. Add the example to `src/registry/examples.ts` (`V2_EXAMPLES`) with form
+8. Add the example to `src/registry/examples.ts` (`EXAMPLES`) with form
    fields, graph, output kind, run label. If the new output kind is novel,
    add a renderer branch in `src/registry/renderers.tsx` and update the
    `OutputKind` union.

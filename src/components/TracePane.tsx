@@ -38,27 +38,27 @@ export function TracePane({
   }, [timeline.length]);
 
   return (
-    <section className="trace-v2" aria-label="Trace">
+    <section className="trace-pane" aria-label="Trace">
       <div className="trace-tabs">
-        <button type="button" className="trace-tab trace-tab-active" data-v2-tab="trace">
+        <button type="button" className="trace-tab trace-tab-active" data-tab="trace">
           Trace
         </button>
-        <button type="button" className="trace-tab" data-v2-tab="graph">
+        <button type="button" className="trace-tab" data-tab="graph">
           Graph
         </button>
-        <button type="button" className="trace-tab" data-v2-tab="events">
+        <button type="button" className="trace-tab" data-tab="events">
           Events
         </button>
         <div className="trace-tabs-right">
           <span className="trace-stat">
             <span className="dot dot-green"></span>
-            <span className="v2-stat-done">{doneCount} done</span>
+            <span className="stat-done">{doneCount} done</span>
           </span>
           <span className="trace-stat">
             <span className="dot dot-blue"></span>
-            <span className="v2-stat-active">{activeNode}</span>
+            <span className="stat-active">{activeNode}</span>
           </span>
-          <span className="trace-stat trace-stat-time v2-stat-time">
+          <span className="trace-stat trace-stat-time stat-time">
             {formatSec(totalMs)} · {totalMs > 0 ? 'done' : '—'}
           </span>
         </div>
