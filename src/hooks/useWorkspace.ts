@@ -18,6 +18,12 @@ import { exampleNameToId } from '../registry/utils';
 
 export type OutputTab = 'result' | 'sources' | 'json' | 'compare';
 
+export interface ReceivedTraceEvent {
+  id: string;
+  ts: number;
+  event: TraceEvent;
+}
+
 export function useWorkspace(example: PlaygroundExample) {
   const [output, setOutput] = useState<unknown>(null);
   const [sources, setSources] = useState<CapturedSource[]>([]);
@@ -32,9 +38,11 @@ export function useWorkspace(example: PlaygroundExample) {
   const [activeNode, setActiveNode] = useState<string>('idle');
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [traceEvents, setTraceEvents] = useState<ReceivedTraceEvent[]>([]);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const runStartRef = useRef(0);
+  const traceEventIdRef = useRef(0);
 
   const disposeStream = useCallback((stream: EventSource) => {
     stream.onmessage = null;
@@ -148,6 +156,8 @@ export function useWorkspace(example: PlaygroundExample) {
       setError(null);
       setActiveTab('result');
       setRunning(true);
+      setTraceEvents([]);
+      traceEventIdRef.current = 0;
 
       const start = performance.now();
       runStartRef.current = start;
@@ -169,6 +179,9 @@ export function useWorkspace(example: PlaygroundExample) {
           console.warn('Failed to parse SSE event', err);
           return;
         }
+        const ts = runStartRef.current ? performance.now() - runStartRef.current : 0;
+        const id = String(++traceEventIdRef.current);
+        setTraceEvents((prev) => [...prev, { id, ts, event: ev }]);
         handleEvent(ev);
         if (ev.type === 'done') {
           disposeStream(es);
@@ -238,6 +251,7 @@ export function useWorkspace(example: PlaygroundExample) {
     activeNode,
     error,
     running,
+    traceEvents,
     run,
     hitlDecide,
   };

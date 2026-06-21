@@ -1,10 +1,70 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import type { PlaygroundExample } from '../registry/examples';
 import { MODEL_OPTIONS } from '../registry/examples';
 import { FormFieldView, SamplesGroup } from './FormField';
 import { TracePane, type TimelineEntry } from './TracePane';
 import { OutputPanel } from './OutputPanel';
-import { useWorkspace } from '../hooks/useWorkspace';
+import { useWorkspace, type ReceivedTraceEvent } from '../hooks/useWorkspace';
+
+export function traceEventToTimelineEntry(received: ReceivedTraceEvent, active: boolean): TimelineEntry {
+  const { event } = received;
+  const step = 'stepId' in event ? event.stepId : event.type;
+  let kind: TimelineEntry['kind'] = 'step';
+  let msg: string;
+
+  switch (event.type) {
+    case 'start':
+      msg = `Workflow started: ${event.workflow}`;
+      break;
+    case 'step:start':
+      msg = 'Step started';
+      break;
+    case 'step:end':
+      msg = `Step completed${event.durationMs === undefined ? '' : ` in ${event.durationMs}ms`}`;
+      break;
+    case 'branch:evaluate':
+      kind = 'branch';
+      msg = `Branch ${event.matched ? 'matched' : 'did not match'}${event.predicate ? `: ${event.predicate}` : ''}`;
+      break;
+    case 'llm:structured':
+      kind = 'llm';
+      msg = `Structured output: ${event.schema}`;
+      break;
+    case 'llm:start':
+      kind = 'llm';
+      msg = `LLM started${event.model ? `: ${event.model}` : ''}`;
+      break;
+    case 'llm:delta':
+      kind = 'llm';
+      msg = `LLM delta #${event.index}: ${event.text}`;
+      break;
+    case 'llm:end':
+      kind = 'llm';
+      msg = `LLM completed: ${event.totalChars} chars in ${event.durationMs}ms`;
+      break;
+    case 'tool:call':
+      kind = 'tool';
+      msg = `Tool called: ${event.tool}`;
+      break;
+    case 'suspend':
+      kind = 'hitl';
+      msg = 'Workflow suspended';
+      break;
+    case 'resume':
+      kind = 'hitl';
+      msg = `Workflow resumed: ${event.decision}`;
+      break;
+    case 'done':
+      msg = `Workflow ${event.status}`;
+      break;
+    default: {
+      const exhaustive: never = event;
+      return exhaustive;
+    }
+  }
+
+  return { id: received.id, ts: received.ts, kind, msg, step, active };
+}
 
 interface WorkspaceProps {
   example: PlaygroundExample;
@@ -13,8 +73,14 @@ interface WorkspaceProps {
 export function Workspace({ example }: WorkspaceProps) {
   const ws = useWorkspace(example);
   const [model, setModel] = useState(MODEL_OPTIONS[0].value);
-  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
+  const timeline = useMemo(
+    () =>
+      ws.traceEvents.map((event, index) =>
+        traceEventToTimelineEntry(event, ws.running && index === ws.traceEvents.length - 1),
+      ),
+    [ws.running, ws.traceEvents],
+  );
 
   // Persist the model picker across reloads. README "per-example settings"
   // promise — the OLD vanilla app.js did this via localStorage; the new
@@ -41,28 +107,6 @@ export function Workspace({ example }: WorkspaceProps) {
     };
   }, [ws.run, example.num, model]);
 
-  // Trace timeline updates driven by the workspace state. We add one row
-  // per activeNode transition; the previous ternary `kind: ... === 'idle'
-  // ? 'step' : 'step'` always returned 'step', so timeline pills never
-  // differentiated node kinds. Map the active node id back to the
-  // example's GRAPH definition so the pill picks up the kind colors.
-  useEffect(() => {
-    if (ws.activeNode === 'idle') return; // skip initial-mount idle
-    const graphNode = example.graph.nodes.find((n) => n.id === ws.activeNode);
-    const kind = graphNode?.kind ?? 'step';
-    setTimeline((prev) => [
-      ...prev,
-      {
-        id: String(prev.length + 1),
-        ts: ws.runStart ? performance.now() - ws.runStart : 0,
-        kind: kind === 'passthrough' ? 'step' : (kind as TimelineEntry['kind']),
-        msg: ws.activeNode,
-        step: ws.activeNode,
-        active: ws.activeNode !== 'suspended',
-      },
-    ]);
-  }, [ws.activeNode, ws.runStart, example.graph]);
-
   const getFormBody = (): Record<string, unknown> => {
     const form = formRef.current;
     const body: Record<string, unknown> = {};
@@ -78,7 +122,6 @@ export function Workspace({ example }: WorkspaceProps) {
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setTimeline([]); // reset timeline on new run
     ws.run(getFormBody());
   };
 

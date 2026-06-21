@@ -94,4 +94,37 @@ describe('useWorkspace stream lifecycle', () => {
     expect(container.firstElementChild?.getAttribute('data-running')).toBe('false');
     expect(container.textContent).toBe('12');
   });
+
+  it('records every parsed SSE event in receipt order', async () => {
+    let workspace: ReturnType<typeof useWorkspace> | undefined;
+    await act(async () => root.render(<Harness expose={(value) => (workspace = value)} />));
+    act(() => workspace!.run({ topic: 'events' }));
+    const stream = MockEventSource.instances[0];
+    const events = [
+      { type: 'start', workflow: 'research', input: {}, steps: [] },
+      { type: 'branch:evaluate', stepId: 'branch.route', matched: true, predicate: 'has sources' },
+      { type: 'llm:delta', stepId: 'synthesize', text: 'Hello', index: 0 },
+      { type: 'llm:delta', stepId: 'synthesize', text: ' world', index: 1 },
+      { type: 'done', status: 'success', output: { formatted: 'ok' }, totalMs: 12 },
+    ];
+
+    for (const event of events) {
+      act(() =>
+        stream.onmessage?.(
+          new MessageEvent('message', {
+            data: JSON.stringify(event),
+          }),
+        ),
+      );
+    }
+
+    expect(workspace!.traceEvents.map(({ event }) => event.type)).toEqual([
+      'start',
+      'branch:evaluate',
+      'llm:delta',
+      'llm:delta',
+      'done',
+    ]);
+    expect(workspace!.traceEvents.map(({ id }) => id)).toEqual(['1', '2', '3', '4', '5']);
+  });
 });
