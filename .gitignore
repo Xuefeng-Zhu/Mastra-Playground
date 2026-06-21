@@ -42,7 +42,6 @@ coverage/
 # .review-brief.md  - one-off opencode dispatch brief
 .omo/
 .playwright-mcp/
-AGENTS.md
 .review-brief.md
 
 # Design-iteration screenshots (root, never tracked, transient)
