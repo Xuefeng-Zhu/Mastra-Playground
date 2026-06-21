@@ -64,8 +64,7 @@ export interface FormSample {
 export interface PlaygroundExample {
   num: number;
   name: string;
-  primTag: string;
-  primTagClass: string;
+  primTags: string[];
   description: string;
   graph: GraphDef;
   form: { fields: FormField[]; samples: FormSample[] };
@@ -77,8 +76,7 @@ export const EXAMPLES: Record<string, PlaygroundExample> = {
   'support-triage': {
     num: 1,
     name: 'Support Triage',
-    primTag: 'branch',
-    primTagClass: 'prim-tag-branch',
+    primTags: ['workflow', 'agent'],
     description:
       'Classify a customer message, then branch by intent. Watch the LLM call fire <code>classify</code>, then the framework test each branch predicate in order until one matches.',
     graph: GRAPHS['support-triage'],
@@ -113,8 +111,7 @@ export const EXAMPLES: Record<string, PlaygroundExample> = {
   research: {
     num: 2,
     name: 'Research Agent',
-    primTag: 'agent',
-    primTagClass: 'prim-tag-agent',
+    primTags: ['agent', 'tool'],
     description:
       'The agent has two tools (<code>web-search</code>, <code>arxiv-search</code>) and decides when to use them.',
     graph: GRAPHS['research'],
@@ -140,8 +137,7 @@ export const EXAMPLES: Record<string, PlaygroundExample> = {
   'code-review': {
     num: 3,
     name: 'Code Review',
-    primTag: 'workflow',
-    primTagClass: 'prim-tag-workflow',
+    primTags: ['workflow', 'tool'],
     description:
       'Deterministic pipeline: read file → run lint → if issues, the LLM writes a review; otherwise the file is auto-approved.',
     graph: GRAPHS['code-review'],
@@ -166,8 +162,7 @@ export const EXAMPLES: Record<string, PlaygroundExample> = {
   'parallel-research': {
     num: 4,
     name: 'Parallel Research',
-    primTag: 'parallel',
-    primTagClass: 'prim-tag-tool',
+    primTags: ['workflow', 'tool'],
     description:
       'One step fans out to <strong>3 sources in parallel</strong> via <code>Promise.all</code>, then an LLM synthesizes the results.',
     graph: GRAPHS['parallel-research'],
@@ -193,8 +188,7 @@ export const EXAMPLES: Record<string, PlaygroundExample> = {
   'multi-turn-chat': {
     num: 5,
     name: 'Multi-turn Chat',
-    primTag: 'agent',
-    primTagClass: 'prim-tag-agent',
+    primTags: ['agent', 'tool', 'memory'],
     description: 'Send multiple messages on the same <code>threadId</code> — the agent sees prior context.',
     graph: GRAPHS['multi-turn-chat'],
     form: {
@@ -224,8 +218,7 @@ export const EXAMPLES: Record<string, PlaygroundExample> = {
   'hitl-approval': {
     num: 6,
     name: 'Human-in-the-Loop Approval',
-    primTag: 'hitl',
-    primTagClass: 'prim-tag-hitl',
+    primTags: ['hitl', 'workflow', 'agent'],
     description:
       'Submit a proposed action. The workflow classifies it with an LLM, then the gate step decides whether to <strong>auto-approve</strong> (low risk) or <strong>suspend</strong> for human review.',
     graph: GRAPHS['hitl-approval'],
@@ -264,8 +257,7 @@ export const EXAMPLES: Record<string, PlaygroundExample> = {
   'streaming-chat': {
     num: 7,
     name: 'Streaming Chat',
-    primTag: 'stream',
-    primTagClass: 'prim-tag-stream',
+    primTags: ['stream', 'agent'],
     description:
       'Watch the LLM generate tokens one at a time. This is the same <code>Agent</code> as the other examples, but uses <code>stream()</code> instead of <code>generate()</code>.',
     graph: GRAPHS['streaming-chat'],
@@ -296,8 +288,7 @@ export const EXAMPLES: Record<string, PlaygroundExample> = {
   'critic-loop': {
     num: 8,
     name: 'Critic Loop',
-    primTag: 'loop',
-    primTagClass: 'prim-tag-loop',
+    primTags: ['workflow', 'agent'],
     description:
       'The evaluator-optimizer pattern. A <em>generator</em> drafts an answer, a <em>critic</em> scores it 0-10, and the loop regenerates using the feedback until the score meets the threshold.',
     graph: GRAPHS['critic-loop'],
@@ -345,8 +336,7 @@ export const EXAMPLES: Record<string, PlaygroundExample> = {
   'multi-agent-handoff': {
     num: 9,
     name: 'Multi-Agent Handoff',
-    primTag: 'agent',
-    primTagClass: 'prim-tag-agent',
+    primTags: ['agent', 'tool'],
     description:
       "A <strong>triage agent</strong> handles the customer's first message. If the question is about billing, it calls a tool that <strong>hands off</strong> to a specialist agent.",
     graph: GRAPHS['multi-agent-handoff'],
@@ -373,8 +363,7 @@ export const EXAMPLES: Record<string, PlaygroundExample> = {
   'mastra-memory': {
     num: 10,
     name: 'Mastra Memory',
-    primTag: 'memory',
-    primTagClass: 'prim-tag-memory',
+    primTags: ['memory', 'agent'],
     description:
       'Uses the real <code>@mastra/memory</code> <code>Memory</code> class. The same <code>threadId</code> across two turns → second turn recalls what was said in the first.',
     graph: GRAPHS['mastra-memory'],
@@ -405,8 +394,7 @@ export const EXAMPLES: Record<string, PlaygroundExample> = {
   'content-pipeline': {
     num: 11,
     name: 'Content Pipeline',
-    primTag: 'workflow',
-    primTagClass: 'prim-tag-workflow',
+    primTags: ['agent', 'workflow'],
     description:
       'Three agents run in sequence as separate workflow steps: <strong>researcher</strong> gathers facts, <strong>writer</strong> drafts, and <strong>editor</strong> polishes and scores 0-10.',
     graph: GRAPHS['content-pipeline'],
@@ -452,7 +440,5 @@ export const MODEL_OPTIONS = [
   { value: 'nvidia/nemotron-nano-9b-v2:free', label: 'Nemotron Nano 9B v2 · free' },
 ];
 
-// Display order for the rail (numeric order from EXAMPLES).
-export const V2_EXAMPLE_ORDER = Object.entries(EXAMPLES)
-  .sort(([, a], [, b]) => a.num - b.num)
-  .map(([id]) => id);
+// Ordered example IDs (declaration order matches numeric order).
+export const EXAMPLE_IDS = Object.keys(EXAMPLES);

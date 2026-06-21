@@ -91,13 +91,15 @@ export function Workspace({ example }: WorkspaceProps) {
     <article
       className="workspace-v2 workspace-v2-active"
       id="v2-workspace"
-      data-example={example.primTagClass}
+      data-example={`prim-tag-${example.primTags[0]}`}
     >
       <div className="ex-header">
         <div className="ex-header-titles">
           <div className="ex-kicker">
             Example {example.num}{' '}
-            <span className={`prim-tag ${example.primTagClass}`}>{example.primTag}</span>
+            {example.primTags.map((tag) => (
+              <span key={tag} className={`prim-tag prim-tag-${tag}`}>{tag}</span>
+            ))}
           </div>
           <h1 className="ex-title">{example.name}</h1>
           <p className="ex-desc" dangerouslySetInnerHTML={{ __html: example.description }} />
@@ -130,7 +132,7 @@ export function Workspace({ example }: WorkspaceProps) {
           <form
             key={example.num}
             className="v2-form"
-            data-form-v2={example.primTagClass}
+            data-form-v2={`prim-tag-${example.primTags[0]}`}
             ref={formRef}
             onSubmit={onSubmit}
           >
