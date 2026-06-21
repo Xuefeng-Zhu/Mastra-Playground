@@ -445,10 +445,11 @@ export const EXAMPLES: Record<string, PlaygroundExample> = {
 };
 
 export const MODEL_OPTIONS = [
-  { value: 'openai/gpt-4o-mini', label: 'gpt-4o-mini · default' },
-  { value: 'anthropic/claude-3-5-haiku', label: 'claude-3-5-haiku' },
-  { value: 'meta-llama/llama-3.1-8b-instruct', label: 'llama-3.1-8b-instruct' },
-  { value: 'google/gemini-2.0-flash-001', label: 'gemini-2.0-flash-001' },
+  { value: 'openrouter/free', label: 'Free Models Router · default' },
+  { value: 'nvidia/nemotron-3-super-120b-a12b:free', label: 'Nemotron 3 Super 120B · free' },
+  { value: 'qwen/qwen3-next-80b-a3b-instruct:free', label: 'Qwen3 Next 80B · free' },
+  { value: 'openai/gpt-oss-20b:free', label: 'GPT-OSS 20B · free' },
+  { value: 'nvidia/nemotron-nano-9b-v2:free', label: 'Nemotron Nano 9B v2 · free' },
 ];
 
 // Display order for the rail (numeric order from EXAMPLES).

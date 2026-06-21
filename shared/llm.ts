@@ -22,11 +22,11 @@ if (!apiKey) {
 
 const openai = createOpenAI({
   apiKey,
-  baseURL: process.env.OPENAI_BASE_URL || undefined,
+  baseURL: process.env.OPENAI_BASE_URL || 'https://openrouter.ai/api/v1',
 });
 
 /** Default model used when no override is supplied. */
-const modelId = process.env.OPENAI_MODEL || 'openai/gpt-4o-mini';
+const modelId = process.env.OPENAI_MODEL || 'openrouter/free';
 
 /** The default model — used by CLI examples without settings. */
 export const model = openai(modelId);

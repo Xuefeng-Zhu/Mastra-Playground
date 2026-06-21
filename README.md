@@ -120,8 +120,8 @@ every commit.
 - **Markdown export** — "Copy as Markdown" button on every result. Produces
   a Slack/PR-friendly summary with input, structured output, steps taken, and
   the human-readable response block.
-- **Per-example settings** — model dropdown (gpt-4o-mini / claude-3-5-haiku /
-  llama-3.1-8b / gemini-flash) on every example, confidence threshold slider
+- **Per-example settings** — OpenRouter free-model dropdown on every example,
+  confidence threshold slider
   on Ex 01. Persisted to `localStorage`. The server actually swaps the model
   per request, so the LLM behavior changes visibly in the trace timing.
 - **Multi-turn chat UI** — Ex 05 renders the conversation as chat bubbles with
@@ -184,20 +184,20 @@ directly — there is no separate hand-written JS bundle to ship.
 All variables are read at server startup. None are required for `npm run
 typecheck` or `npm run format:check` (CI runs those without secrets).
 
-| Variable          | Default       | Required? | Purpose                                                                                                               |
-| ----------------- | ------------- | --------- | --------------------------------------------------------------------------------------------------------------------- |
-| `OPENAI_API_KEY`  | _(none)_      | Yes       | API key for the LLM. The server refuses to start without it.                                                          |
-| `OPENAI_BASE_URL` | _(OpenAI)_    | No        | Override for any OpenAI-compatible endpoint. Set to `https://openrouter.ai/api/v1` for OpenRouter.                    |
-| `OPENAI_MODEL`    | `gpt-4o-mini` | No        | Default model. Can be overridden per-request via the UI's model picker.                                               |
-| `PORT`            | `8917`        | No        | Server port.                                                                                                          |
-| `NODE_ENV`        | _(unset)_     | No        | Set to `production` for `start:prod` script (no behavioral change today, but reserved for future prod-mode behavior). |
+| Variable          | Default                        | Required? | Purpose                                                                                                               |
+| ----------------- | ------------------------------ | --------- | --------------------------------------------------------------------------------------------------------------------- |
+| `OPENAI_API_KEY`  | _(none)_                       | Yes       | API key for the LLM. The server refuses to start without it.                                                          |
+| `OPENAI_BASE_URL` | `https://openrouter.ai/api/v1` | No        | OpenRouter's OpenAI-compatible endpoint.                                                                              |
+| `OPENAI_MODEL`    | `openrouter/free`              | No        | Default free-model router. Can be overridden per request via the UI picker.                                           |
+| `PORT`            | `8917`                         | No        | Server port.                                                                                                          |
+| `NODE_ENV`        | _(unset)_                      | No        | Set to `production` for `start:prod` script (no behavioral change today, but reserved for future prod-mode behavior). |
 
 For OpenRouter (recommended — one key for many models):
 
 ```bash
 OPENAI_API_KEY=sk-or-...
 OPENAI_BASE_URL=https://openrouter.ai/api/v1
-OPENAI_MODEL=openai/gpt-4o-mini
+OPENAI_MODEL=openrouter/free
 ```
 
 ## Project layout
@@ -331,10 +331,10 @@ the Node server (port 8917) still reads from `dist/`.
   file.
 - **trycloudflare.com tunnel URLs rotate** on cloudflared restarts. The
   server works fine locally without a tunnel.
-- **Model picker is real but model-specific prompt quality varies.**
-  gpt-4o-mini works well with the current prompts; claude-3-5-haiku returns
-  non-conforming structured output (the framework catches it cleanly).
-  Lesson: structured outputs need prompt engineering per model family.
+- **Model picker is real but free-model availability and prompt quality vary.**
+  `openrouter/free` selects a currently available free model that supports
+  request features such as tools and structured outputs. Specific free models
+  may be rate-limited or temporarily unavailable.
 - **The playground is per-session.** To make it survive reboots, pin the
   server + cloudflared as systemd services.
 - **This is a learning project, not a product.** No authentication, no
