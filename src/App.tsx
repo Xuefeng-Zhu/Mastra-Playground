@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Topbar } from './components/Topbar.js';
 import { Rail } from './components/Rail.js';
 import { Workspace } from './components/Workspace.js';
+import { CommandPalette } from './components/CommandPalette.js';
 import { EXAMPLES } from './registry/examples.js';
 
 function getInitialExample(): string {
@@ -12,6 +13,7 @@ function getInitialExample(): string {
 
 export function App() {
   const [activeId, setActiveId] = useState<string>(getInitialExample);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   // Sync hash ↔ active example
   useEffect(() => {
@@ -27,18 +29,23 @@ export function App() {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
-  // Cmd/Ctrl+Enter triggers the active Workspace's run(). The Workspace
-  // component registers `window.__mpg.run` on mount via useEffect.
+  // Global keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
+
+      // Cmd/Ctrl+K → toggle command palette
+      if (isMod && e.key === 'k') {
+        e.preventDefault();
+        setPaletteOpen((prev) => !prev);
+        return;
+      }
+
+      // Cmd/Ctrl+Enter → run active workspace
       if (isMod && e.key === 'Enter') {
         e.preventDefault();
         window.__mpg?.run?.();
       }
-      // Cmd/Ctrl+K is reserved for a future command palette (proposal §4.4).
-      // The previous "flash the search bar" implementation was visual noise
-      // with no real behavior; it has been removed pending the palette.
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
@@ -48,11 +55,17 @@ export function App() {
 
   return (
     <>
-      <Topbar />
+      <Topbar onCmdK={() => setPaletteOpen(true)} />
       <div className="v2-layout">
         <Rail activeExampleId={activeId} onSelect={setActiveId} />
         <main>{example ? <Workspace key={activeId} example={example} /> : null}</main>
       </div>
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onSelect={setActiveId}
+        activeId={activeId}
+      />
     </>
   );
 }
