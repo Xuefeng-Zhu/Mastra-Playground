@@ -56,7 +56,7 @@ import { Mastra } from '@mastra/core';
 import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
 import { InMemoryStore } from '@mastra/core/storage';
 import { Memory } from '@mastra/memory';
-import { resolveModel, model, getModel } from '../../shared/llm';
+import { resolveModel, model, getModel, type LlmProvider } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import type { Tracer } from '../../shared/tracer';
 import { startRun, stepStart, stepEnd, timed, type StepSpec } from '../../shared/traced-step';
@@ -211,6 +211,7 @@ export interface RunOptions {
   resourceId?: string;
   turn1?: string;
   turn2?: string;
+  provider?: LlmProvider;
   model?: string;
 }
 
@@ -219,7 +220,7 @@ export async function runOne(input: RunOptions, tracer: Tracer, context?: RunCon
   const turn2 = input.turn2 ?? 'What is my name and what is my favorite color?';
   const t0 = startRun(tracer, 'mastra-memory', { ...input, turn1, turn2 }, STEPS);
 
-  const useModel = resolveModel(input.model);
+  const useModel = resolveModel(input.model, input.provider);
   const mastra = buildMastra(tracer, useModel);
   const wf = mastra.getWorkflow('mastra-memory');
   const run = await wf.createRun();

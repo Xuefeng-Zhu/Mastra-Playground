@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { MODEL_OPTIONS } from './examples';
+import { MODEL_OPTIONS_BY_PROVIDER, PROVIDER_OPTIONS } from './examples';
 
-describe('MODEL_OPTIONS', () => {
-  it('defaults to OpenRouter free routing and only offers free models', () => {
-    expect(MODEL_OPTIONS[0].value).toBe('openai/gpt-oss-20b:free');
-    expect(MODEL_OPTIONS.every(({ value }) => value === 'openrouter/free' || value.endsWith(':free'))).toBe(
-      true,
-    );
+describe('provider model options', () => {
+  it('defaults to Gemini with provider-specific model lists', () => {
+    expect(PROVIDER_OPTIONS[0].value).toBe('google');
+    expect(MODEL_OPTIONS_BY_PROVIDER.google[0].value).toBe('gemini-2.5-flash-lite');
+    expect(MODEL_OPTIONS_BY_PROVIDER.google.every(({ value }) => value.startsWith('gemini-'))).toBe(true);
+    expect(
+      MODEL_OPTIONS_BY_PROVIDER.openrouter.every(
+        ({ value }) => value === 'openrouter/free' || value.endsWith(':free'),
+      ),
+    ).toBe(true);
   });
 });

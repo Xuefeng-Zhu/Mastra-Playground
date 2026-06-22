@@ -2,7 +2,7 @@
 #
 # Usage:
 #   cp .env.example .env
-#   # edit .env to set OPENAI_API_KEY (or OpenRouter key)
+#   # edit .env to set GOOGLE_GENERATIVE_AI_API_KEY (or configure OpenRouter)
 #   docker compose up --build
 #
 # Then open http://localhost:8917

@@ -38,7 +38,7 @@ import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
 import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
-import { resolveModel, model, getModel } from '../../shared/llm';
+import { resolveModel, model, getModel, type LlmProvider } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import type { Tracer } from '../../shared/tracer';
 import { startRun, toolCall, timed, type StepSpec } from '../../shared/traced-step';
@@ -227,13 +227,14 @@ function buildMastra(tracer: Tracer, useModel: ReturnType<typeof getModel> = mod
 
 export interface RunOptions {
   message: string;
+  provider?: LlmProvider;
   model?: string;
 }
 
 export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'multi-agent-handoff', input, STEPS);
 
-  const useModel = resolveModel(input.model);
+  const useModel = resolveModel(input.model, input.provider);
   const mastra = buildMastra(tracer, useModel);
   const wf = mastra.getWorkflow('multi-agent-handoff');
   const run = await wf.createRun();

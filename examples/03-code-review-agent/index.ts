@@ -7,7 +7,7 @@ import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
 import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
-import { resolveModel } from '../../shared/llm';
+import { resolveModel, type LlmProvider } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import type { Tracer } from '../../shared/tracer';
 import {
@@ -170,13 +170,14 @@ function makeWorkflow(tracer: Tracer, reviewerAgent: Agent) {
 
 export interface RunOptions {
   path: string;
+  provider?: LlmProvider;
   model?: string;
 }
 
 export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'code-review', input, STEPS);
 
-  const useModel = resolveModel(input.model);
+  const useModel = resolveModel(input.model, input.provider);
   const reviewerAgent = new Agent({
     id: 'code-reviewer',
     name: 'Code Reviewer',

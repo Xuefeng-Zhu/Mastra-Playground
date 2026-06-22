@@ -12,7 +12,7 @@ import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
 import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
-import { resolveModel, model } from '../../shared/llm';
+import { resolveModel, model, type LlmProvider } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import type { Tracer } from '../../shared/tracer';
 import {
@@ -121,6 +121,7 @@ const STEPS: StepSpec[] = [
 // ─── 6. Traced runOne ──────────────────────────────────────────────────────
 export interface RunOptions {
   message: string;
+  provider?: LlmProvider;
   model?: string;
   threshold?: number;
 }
@@ -129,7 +130,7 @@ export async function runOne(input: RunOptions, tracer: Tracer, context?: RunCon
   const t0 = startRun(tracer, 'support-triage', input, STEPS);
 
   // Build per-request model if overridden
-  const useModel = resolveModel(input.model);
+  const useModel = resolveModel(input.model, input.provider);
   const classifyStep = makeClassifyStep(tracer, useModel);
   const respondStep = makeRespondStep(tracer);
   const escalateStep = makeEscalateStep(tracer);

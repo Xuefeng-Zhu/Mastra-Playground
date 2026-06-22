@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import type { PlaygroundExample } from '../registry/examples';
-import { MODEL_OPTIONS } from '../registry/examples';
+import { MODEL_OPTIONS_BY_PROVIDER, PROVIDER_OPTIONS, type ModelProvider } from '../registry/examples';
 import { FormFieldView, SamplesGroup } from './FormField';
 import { TracePane, type TimelineEntry } from './TracePane';
 import { OutputPanel } from './OutputPanel';
 import { SourceViewer } from './SourceViewer';
 import { useWorkspace, type ReceivedTraceEvent } from '../hooks/useWorkspace';
 
-const MODEL_PREFERENCE_KEY = 'mpg:model:v2';
+const LLM_PREFERENCE_KEY = 'mpg:llm:v1';
+const DEFAULT_PROVIDER = PROVIDER_OPTIONS[0].value;
+const DEFAULT_MODEL = MODEL_OPTIONS_BY_PROVIDER[DEFAULT_PROVIDER][0].value;
 
 export function traceEventToTimelineEntry(received: ReceivedTraceEvent, active: boolean): TimelineEntry {
   const { event } = received;
@@ -75,9 +77,12 @@ interface WorkspaceProps {
 
 export function Workspace({ example }: WorkspaceProps) {
   const ws = useWorkspace(example);
-  const [model, setModel] = useState(MODEL_OPTIONS[0].value);
+  const [provider, setProvider] = useState<ModelProvider>(DEFAULT_PROVIDER);
+  const [model, setModel] = useState(DEFAULT_MODEL);
   const [showSource, setShowSource] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const skipInitialPreferenceWrite = useRef(true);
+  const modelOptions = MODEL_OPTIONS_BY_PROVIDER[provider];
   const timeline = useMemo(
     () =>
       ws.traceEvents.map((event, index) =>
@@ -86,18 +91,28 @@ export function Workspace({ example }: WorkspaceProps) {
     [ws.running, ws.traceEvents],
   );
 
-  // Version the preference key when the project default changes so a value
-  // automatically saved by an older release does not pin users to that old
-  // default forever.
   useEffect(() => {
-    const saved = localStorage.getItem(MODEL_PREFERENCE_KEY);
-    if (saved && MODEL_OPTIONS.some((o) => o.value === saved)) {
-      setModel(saved);
+    const saved = localStorage.getItem(LLM_PREFERENCE_KEY);
+    if (!saved) return;
+    try {
+      const preference = JSON.parse(saved) as { provider?: unknown; model?: unknown };
+      const savedProvider = PROVIDER_OPTIONS.find(({ value }) => value === preference.provider)?.value;
+      if (!savedProvider || typeof preference.model !== 'string') return;
+      if (!MODEL_OPTIONS_BY_PROVIDER[savedProvider].some(({ value }) => value === preference.model)) return;
+      setProvider(savedProvider);
+      setModel(preference.model);
+    } catch {
+      localStorage.removeItem(LLM_PREFERENCE_KEY);
     }
   }, []);
+
   useEffect(() => {
-    localStorage.setItem(MODEL_PREFERENCE_KEY, model);
-  }, [model]);
+    if (skipInitialPreferenceWrite.current) {
+      skipInitialPreferenceWrite.current = false;
+      return;
+    }
+    localStorage.setItem(LLM_PREFERENCE_KEY, JSON.stringify({ provider, model }));
+  }, [provider, model]);
 
   // Register the active run() handler with the global so App.tsx's Cmd+Enter
   // shortcut can call it. The handler closes over `ws.run`, which is stable
@@ -109,7 +124,7 @@ export function Workspace({ example }: WorkspaceProps) {
         delete window.__mpg.run;
       }
     };
-  }, [ws.run, example.num, model]);
+  }, [ws.run, example.num, provider, model]);
 
   const getFormBody = (): Record<string, unknown> => {
     const form = formRef.current;
@@ -120,6 +135,7 @@ export function Workspace({ example }: WorkspaceProps) {
         body[k] = v;
       }
     }
+    body.provider = provider;
     body.model = model;
     return body;
   };
@@ -166,18 +182,39 @@ export function Workspace({ example }: WorkspaceProps) {
             Source
           </button>
           <label className="model-picker">
+            <span className="model-label">Provider</span>
+            <select
+              className="model-select"
+              value={provider}
+              onChange={(event) => {
+                const nextProvider = PROVIDER_OPTIONS.find(
+                  ({ value }) => value === event.target.value,
+                )?.value;
+                if (!nextProvider) return;
+                setProvider(nextProvider);
+                setModel(MODEL_OPTIONS_BY_PROVIDER[nextProvider][0].value);
+              }}
+            >
+              {PROVIDER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="model-picker">
             <span className="model-label">Model</span>
             <select
               className="model-select"
               value={model}
               onChange={(e) => setModel(e.target.value)}
               title={
-                model.includes('/')
-                  ? 'Requires OPENAI_BASE_URL=https://openrouter.ai/api/v1 — see README.'
-                  : undefined
+                provider === 'google'
+                  ? 'Uses GOOGLE_GENERATIVE_AI_API_KEY — see README.'
+                  : 'Uses OPENAI_API_KEY with the OpenRouter endpoint — see README.'
               }
             >
-              {MODEL_OPTIONS.map((o) => (
+              {modelOptions.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
@@ -235,7 +272,11 @@ export function Workspace({ example }: WorkspaceProps) {
       />
 
       {showSource && (
-        <SourceViewer exampleNum={example.num} exampleName={example.name} onClose={() => setShowSource(false)} />
+        <SourceViewer
+          exampleNum={example.num}
+          exampleName={example.name}
+          onClose={() => setShowSource(false)}
+        />
       )}
     </article>
   );

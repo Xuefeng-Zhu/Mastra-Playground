@@ -432,13 +432,30 @@ export const EXAMPLES: Record<string, PlaygroundExample> = {
   },
 };
 
-export const MODEL_OPTIONS = [
-  { value: 'openai/gpt-oss-20b:free', label: 'GPT-OSS 20B · free · default' },
-  { value: 'openrouter/free', label: 'Free Models Router' },
-  { value: 'nvidia/nemotron-3-super-120b-a12b:free', label: 'Nemotron 3 Super 120B · free' },
-  { value: 'qwen/qwen3-next-80b-a3b-instruct:free', label: 'Qwen3 Next 80B · free' },
-  { value: 'nvidia/nemotron-nano-9b-v2:free', label: 'Nemotron Nano 9B v2 · free' },
+export type ModelProvider = 'google' | 'openrouter';
+
+export const PROVIDER_OPTIONS: ReadonlyArray<{ value: ModelProvider; label: string }> = [
+  { value: 'google', label: 'Gemini · default' },
+  { value: 'openrouter', label: 'OpenRouter' },
 ];
+
+export const MODEL_OPTIONS_BY_PROVIDER: Record<
+  ModelProvider,
+  ReadonlyArray<{ value: string; label: string }>
+> = {
+  google: [
+    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite · default' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+  ],
+  openrouter: [
+    { value: 'openai/gpt-oss-20b:free', label: 'GPT-OSS 20B · free · default' },
+    { value: 'openrouter/free', label: 'Free Models Router' },
+    { value: 'nvidia/nemotron-3-super-120b-a12b:free', label: 'Nemotron 3 Super 120B · free' },
+    { value: 'qwen/qwen3-next-80b-a3b-instruct:free', label: 'Qwen3 Next 80B · free' },
+    { value: 'nvidia/nemotron-nano-9b-v2:free', label: 'Nemotron Nano 9B v2 · free' },
+  ],
+};
 
 // Ordered example IDs (declaration order matches numeric order).
 export const EXAMPLE_IDS = Object.keys(EXAMPLES);

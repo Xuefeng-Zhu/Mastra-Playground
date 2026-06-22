@@ -6,43 +6,60 @@
  * you'd want to support per-request model swaps — getModel(modelId) lets
  * the server pick a different model for each example run.
  *
- * For the playground, we use OpenRouter via the @ai-sdk/openai OpenAI-compatible
- * endpoint. The default model is set by OPENAI_MODEL env var.
+ * The playground supports Gemini and OpenRouter. The provider and model can be
+ * selected per request, while environment variables define CLI defaults.
  */
 
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 
-const apiKey = process.env.OPENAI_API_KEY;
-if (!apiKey) {
-  throw new Error(
-    'OPENAI_API_KEY is not set. Copy .env.example to .env and add your key. ' +
-      'OpenRouter works too: set OPENAI_BASE_URL=https://openrouter.ai/api/v1 and use your OpenRouter key.',
-  );
-}
+export type LlmProvider = 'google' | 'openrouter';
 
-const openai = createOpenAI({
-  apiKey,
+const DEFAULT_PROVIDER: LlmProvider = 'google';
+const DEFAULT_MODELS: Record<LlmProvider, string> = {
+  google: 'gemini-2.5-flash-lite',
+  openrouter: 'openai/gpt-oss-20b:free',
+};
+
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY,
+});
+const openrouter = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
   baseURL: process.env.OPENAI_BASE_URL || 'https://openrouter.ai/api/v1',
 });
 
-/** Default model used when no override is supplied. */
-const modelId = process.env.OPENAI_MODEL || 'openai/gpt-oss-20b:free';
+function parseProvider(value: string | undefined): LlmProvider {
+  return value === 'openrouter' ? 'openrouter' : DEFAULT_PROVIDER;
+}
+
+/** Default provider and model used when no per-request override is supplied. */
+export const providerId = parseProvider(process.env.LLM_PROVIDER);
+export const modelId =
+  providerId === 'google'
+    ? process.env.GOOGLE_MODEL || DEFAULT_MODELS.google
+    : process.env.OPENAI_MODEL || DEFAULT_MODELS.openrouter;
 
 /** The default model — used by CLI examples without settings. */
-export const model = openai(modelId);
+export const model = getModel(modelId, providerId);
 
 /**
  * Build a model instance for a specific model ID.
  * Used by the server when the UI requests a different model.
  */
-export function getModel(id: string) {
-  return openai(id);
+export function getModel(id: string, provider: LlmProvider = providerId) {
+  if (provider === 'google') {
+    return google(id);
+  }
+  return openrouter(id);
 }
 
 /**
  * Resolve the LLM model to use for a request. Falls back to the project
  * default (env-derived) when no per-request id is provided.
  */
-export function resolveModel(inputModel?: string) {
-  return inputModel ? getModel(inputModel) : model;
+export function resolveModel(inputModel?: string, inputProvider?: LlmProvider) {
+  if (!inputModel && !inputProvider) return model;
+  const provider = inputProvider ?? providerId;
+  return getModel(inputModel ?? DEFAULT_MODELS[provider], provider);
 }

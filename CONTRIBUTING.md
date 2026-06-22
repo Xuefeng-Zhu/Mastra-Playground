@@ -10,7 +10,7 @@ example** and reuse the shared helpers in `shared/`.
 nvm use                        # use Node 22
 npm install
 cp .env.example .env
-# edit .env — add OPENAI_API_KEY (or OpenRouter key)
+# edit .env — add GOOGLE_GENERATIVE_AI_API_KEY (or configure OpenRouter)
 npm run dev                    # starts Next.js dev server on :8917
 ```
 

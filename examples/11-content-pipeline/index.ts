@@ -36,7 +36,7 @@ import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
 import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
-import { resolveModel } from '../../shared/llm';
+import { resolveModel, type LlmProvider } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import type { Tracer } from '../../shared/tracer';
 import { startRun, stepStart, stepEnd, llmStructured, type StepSpec } from '../../shared/traced-step';
@@ -172,13 +172,14 @@ function makeWorkflow(tracer: Tracer, researcher: Agent, writer: Agent, editor: 
 export interface RunOptions {
   topic: string;
   audience?: string;
+  provider?: LlmProvider;
   model?: string;
 }
 
 export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'content-pipeline', input, STEPS);
 
-  const useModel = resolveModel(input.model);
+  const useModel = resolveModel(input.model, input.provider);
   const researcher = new Agent({
     id: 'researcher',
     name: 'Researcher',

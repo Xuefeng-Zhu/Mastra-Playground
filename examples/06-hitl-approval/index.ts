@@ -29,7 +29,7 @@ import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
 import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
-import { resolveModel, model, getModel } from '../../shared/llm';
+import { resolveModel, model, getModel, type LlmProvider } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import { finalizeRunResult } from '../../shared/run-result';
 import { registerSuspendedRun } from '../../shared/suspended-store';
@@ -230,6 +230,7 @@ function buildMastra(tracer: Tracer, useModel: ReturnType<typeof getModel> = mod
 export interface RunOptions {
   action: string;
   actionType: 'refund' | 'send' | 'delete';
+  provider?: LlmProvider;
   model?: string;
   /** For resume: the runId (token) + the human's decision. */
   resume?: { token: string; decision: 'approved' | 'rejected' };
@@ -238,7 +239,7 @@ export interface RunOptions {
 export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'hitl-approval', input, STEPS);
 
-  const useModel = resolveModel(input.model);
+  const useModel = resolveModel(input.model, input.provider);
 
   // Resume path: continue a previously-suspended run.
   // (Mastra doesn't expose a getRun by id; the run is captured at suspend

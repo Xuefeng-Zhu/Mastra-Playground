@@ -34,7 +34,7 @@ git clone <this-repo> mastra-playground && cd mastra-playground
 nvm use                  # Node 22
 npm install
 cp .env.example .env
-# Edit .env — set OPENAI_API_KEY (or OpenRouter key)
+# Edit .env — set GOOGLE_GENERATIVE_AI_API_KEY
 npm run build            # builds the Next.js app
 npm run start            # http://localhost:8917
 ```
@@ -111,8 +111,9 @@ running server. CI boots the production build and runs this same suite.
 - **Markdown export** — "Copy as Markdown" button on every result. Produces
   a Slack/PR-friendly summary with structured output, timing, and captured
   sources.
-- **Model preference** — the model dropdown is persisted in `localStorage`.
-  The server swaps the model per request, so LLM behavior changes visibly.
+- **Provider-aware model preference** — provider and model selections are
+  persisted together in `localStorage`. Switching providers immediately swaps
+  the available model list, and the server uses both values per request.
 - **Multi-turn chat UI** — Ex 05 renders the conversation as chat bubbles with
   the agent's tool calls visible inline.
 - **HITL approval panel** — Ex 06 shows an orange pulsing "PENDING APPROVAL"
@@ -133,7 +134,7 @@ running server. CI boots the production build and runs this same suite.
 └────────┬────────┘                                └────────┬────────┘
          │                                                 │
          │ localStorage                                    │ Mastra
-         │ (model preference)                              │ runtime
+         │ (provider + model preference)                   │ runtime
          │                                                 ▼
          │                                       ┌─────────────────┐
          │                                       │  examples/*/    │
@@ -158,8 +159,8 @@ running server. CI boots the production build and runs this same suite.
          │                                                │
          ▼                                                ▼
 ┌─────────────────┐                              ┌─────────────────┐
-│  user clicks    │                              │  OpenRouter /    │
-│  Approve        │                              │  OpenAI API      │
+│  user clicks    │                              │  Gemini /        │
+│  Approve        │                              │  OpenRouter API  │
 │  (HITL)         │                              │  (your key)     │
 └─────────────────┘                              └─────────────────┘
 ```
@@ -173,17 +174,29 @@ There is no separate hand-written JS bundle to ship.
 All variables are read at server startup. None are required for `npm run
 typecheck` or `npm run format:check` (CI runs those without secrets).
 
-| Variable          | Default                        | Required? | Purpose                                                                                                             |
-| ----------------- | ------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------- |
-| `OPENAI_API_KEY`  | _(none)_                       | For runs  | API key for the LLM. Static UI and health routes load without it; LLM-backed examples reject runs until configured. |
-| `OPENAI_BASE_URL` | `https://openrouter.ai/api/v1` | No        | OpenRouter's OpenAI-compatible endpoint.                                                                            |
-| `OPENAI_MODEL`    | `openai/gpt-oss-20b:free`      | No        | Default GPT-OSS 20B free model. Can be overridden per request via the UI picker.                                    |
-| `PORT`            | `8917`                         | No        | Server port.                                                                                                        |
-| `NODE_ENV`        | _(unset)_                      | No        | Set automatically by Next.js for development and production commands.                                               |
+| Variable                       | Default                        | Required?           | Purpose                                                               |
+| ------------------------------ | ------------------------------ | ------------------- | --------------------------------------------------------------------- |
+| `LLM_PROVIDER`                 | `google`                       | No                  | CLI default provider: `google` or `openrouter`.                       |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | _(none)_                       | For Gemini runs     | Gemini API key. Never expose it in browser code or commit it.         |
+| `GOOGLE_MODEL`                 | `gemini-2.5-flash-lite`        | No                  | Default Gemini model for CLI runs.                                    |
+| `OPENAI_API_KEY`               | _(none)_                       | For OpenRouter runs | OpenRouter API key.                                                   |
+| `OPENAI_BASE_URL`              | `https://openrouter.ai/api/v1` | No                  | OpenRouter's OpenAI-compatible endpoint.                              |
+| `OPENAI_MODEL`                 | `openai/gpt-oss-20b:free`      | No                  | Default OpenRouter model for CLI runs.                                |
+| `PORT`                         | `8917`                         | No                  | Server port.                                                          |
+| `NODE_ENV`                     | _(unset)_                      | No                  | Set automatically by Next.js for development and production commands. |
 
-For OpenRouter (recommended — one key for many models):
+For Gemini (the default provider):
 
 ```bash
+LLM_PROVIDER=google
+GOOGLE_GENERATIVE_AI_API_KEY=your-new-key
+GOOGLE_MODEL=gemini-2.5-flash-lite
+```
+
+For OpenRouter:
+
+```bash
+LLM_PROVIDER=openrouter
 OPENAI_API_KEY=sk-or-...
 OPENAI_BASE_URL=https://openrouter.ai/api/v1
 OPENAI_MODEL=openai/gpt-oss-20b:free
@@ -276,13 +289,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for code style and commit conventions.
 
 ## Troubleshooting
 
-### "OPENAI_API_KEY is not set"
+### "API key is not set"
 
 You need to copy `.env.example` to `.env` and fill in your key:
 
 ```bash
 cp .env.example .env
-# Edit .env, set OPENAI_API_KEY=sk-or-... (or sk-...)
+# Edit .env and set GOOGLE_GENERATIVE_AI_API_KEY for Gemini,
+# or OPENAI_API_KEY for OpenRouter.
 ```
 
 ### "Configuration is not valid JSON" when starting
@@ -323,9 +337,9 @@ need to rebuild first with `npm run build`.
   file.
 - **trycloudflare.com tunnel URLs rotate** on cloudflared restarts. The
   server works fine locally without a tunnel.
-- **Model picker is real but free-model availability and prompt quality vary.**
-  GPT-OSS 20B Free is the default; `openrouter/free` remains available as a
-  router option. Free models may be rate-limited or temporarily unavailable.
+- **Provider and model pickers are real.** Gemini 2.5 Flash-Lite is the default.
+  Switching providers replaces the model list with valid choices for that
+  provider. Provider quotas and model availability may vary.
 - **The playground is per-session.** To make it survive reboots, pin the
   server + cloudflared as systemd services.
 - **This is a learning project, not a product.** No authentication, no
@@ -338,7 +352,7 @@ plan to point a real tunnel at it:
 
 **What the server enforces automatically:**
 
-- **Rejects LLM runs** if `OPENAI_API_KEY` is missing. The UI and health route
+- **Rejects LLM runs** if the selected provider's API key is missing. The UI and health route
   can still load so configuration problems remain diagnosable.
 - **Structured helper logging** for validation/tracing internals. Next.js also
   writes its normal request log in development.

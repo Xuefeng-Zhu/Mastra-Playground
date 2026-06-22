@@ -6,7 +6,7 @@ and is not hardened against adversarial use.
 ## What the project does
 
 - Accepts HTTP requests on `localhost:8917` (or via a Cloudflared quick-tunnel)
-- Runs Mastra workflows that call LLM APIs using your `OPENAI_API_KEY`
+- Runs Mastra workflows that call Gemini or OpenRouter using the selected provider's server-side API key
 - Stores model-picker preference in `localStorage` (browser side)
 - Stores in-memory conversation history and suspended runs (server side, lost on restart)
 
@@ -27,7 +27,7 @@ and reproduction steps.
 
 - All tool calls are mocked (no real APIs are called)
 - The `.env` file (containing your API key) is gitignored
-- LLM-backed routes reject runs when `OPENAI_API_KEY` is missing
+- LLM-backed runs fail when the selected provider's API key is missing
 - User input is sanitized (control characters stripped, length capped at 4KB)
 - 30 req/min/IP rate limit across `/api/run/*`, `/api/stream/*`,
   `/api/resume/*` (429 includes `Retry-After`)

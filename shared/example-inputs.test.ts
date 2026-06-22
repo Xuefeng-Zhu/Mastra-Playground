@@ -9,12 +9,14 @@ describe('validateExampleInput', () => {
         topic: 'Testing agents',
         threshold: '8',
         maxIterations: '4',
+        provider: 'google',
         model: 'openai/gpt-4.1-mini',
       }),
     ).toEqual({
       topic: 'Testing agents',
       threshold: 8,
       maxIterations: 4,
+      provider: 'google',
       model: 'openai/gpt-4.1-mini',
     });
   });
@@ -44,6 +46,12 @@ describe('validateExampleInput', () => {
 
   it('reports the first invalid field as a ValidationError', () => {
     expect(() => validateExampleInput('critic-loop', { topic: 'x', threshold: 'nope' })).toThrow(
+      ValidationError,
+    );
+  });
+
+  it('rejects unsupported providers', () => {
+    expect(() => validateExampleInput('research', { topic: 'agents', provider: 'unknown' })).toThrow(
       ValidationError,
     );
   });

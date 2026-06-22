@@ -34,7 +34,7 @@ import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
 import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
-import { resolveModel, model } from '../../shared/llm';
+import { resolveModel, model, type LlmProvider } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import { memoryStore, type Message } from '../../shared/memory-store';
 import type { Tracer } from '../../shared/tracer';
@@ -166,6 +166,7 @@ export interface RunOptions {
   resourceId: string;
   message: string;
   action?: 'new' | 'clear' | 'send'; // 'new' generates a new threadId, 'clear' wipes, 'send' (default) processes
+  provider?: LlmProvider;
   model?: string;
 }
 
@@ -199,7 +200,7 @@ export async function runOne(input: RunOptions, tracer: Tracer, context?: RunCon
   }
 
   // Default: process one turn of the conversation
-  const useModel = resolveModel(input.model);
+  const useModel = resolveModel(input.model, input.provider);
   const mastra = new Mastra({
     agents: { 'multi-turn-chat': makeAgent(useModel) },
     workflows: { 'multi-turn-chat': makeWorkflow(tracer, useModel) },
