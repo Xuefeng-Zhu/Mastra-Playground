@@ -171,7 +171,7 @@ export interface RunOptions {
 export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'critic-loop', input, STEPS);
 
-  const useModel = resolveModel(input.model, input.provider);
+  const useModel = resolveModel(input.model, input.provider, context?.customLlm);
   const generator = new Agent({
     id: 'draft-generator',
     name: 'Draft Generator',

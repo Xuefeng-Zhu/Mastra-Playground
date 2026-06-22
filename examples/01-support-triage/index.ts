@@ -130,7 +130,7 @@ export async function runOne(input: RunOptions, tracer: Tracer, context?: RunCon
   const t0 = startRun(tracer, 'support-triage', input, STEPS);
 
   // Build per-request model if overridden
-  const useModel = resolveModel(input.model, input.provider);
+  const useModel = resolveModel(input.model, input.provider, context?.customLlm);
   const classifyStep = makeClassifyStep(tracer, useModel);
   const respondStep = makeRespondStep(tracer);
   const escalateStep = makeEscalateStep(tracer);

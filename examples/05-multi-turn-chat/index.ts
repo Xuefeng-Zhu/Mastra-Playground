@@ -200,7 +200,7 @@ export async function runOne(input: RunOptions, tracer: Tracer, context?: RunCon
   }
 
   // Default: process one turn of the conversation
-  const useModel = resolveModel(input.model, input.provider);
+  const useModel = resolveModel(input.model, input.provider, context?.customLlm);
   const mastra = new Mastra({
     agents: { 'multi-turn-chat': makeAgent(useModel) },
     workflows: { 'multi-turn-chat': makeWorkflow(tracer, useModel) },

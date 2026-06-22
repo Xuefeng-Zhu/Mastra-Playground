@@ -239,7 +239,7 @@ export interface RunOptions {
 export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'hitl-approval', input, STEPS);
 
-  const useModel = resolveModel(input.model, input.provider);
+  const useModel = resolveModel(input.model, input.provider, context?.customLlm);
 
   // Resume path: continue a previously-suspended run.
   // (Mastra doesn't expose a getRun by id; the run is captured at suspend

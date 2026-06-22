@@ -433,11 +433,12 @@ export const EXAMPLES: Record<string, PlaygroundExample> = {
   },
 };
 
-export type ModelProvider = 'google' | 'openrouter';
+export type ModelProvider = 'google' | 'openrouter' | 'custom';
 
 export const PROVIDER_OPTIONS: ReadonlyArray<{ value: ModelProvider; label: string }> = [
   { value: 'google', label: 'Gemini · default' },
   { value: 'openrouter', label: 'OpenRouter' },
+  { value: 'custom', label: 'Custom endpoint' },
 ];
 
 export const MODEL_OPTIONS_BY_PROVIDER: Record<
@@ -457,6 +458,7 @@ export const MODEL_OPTIONS_BY_PROVIDER: Record<
     { value: 'qwen/qwen3-next-80b-a3b-instruct:free', label: 'Qwen3 Next 80B · free' },
     { value: 'nvidia/nemotron-nano-9b-v2:free', label: 'Nemotron Nano 9B v2 · free' },
   ],
+  custom: [{ value: '__custom__', label: '(enter model ID below)' }],
 };
 
 // Ordered example IDs (declaration order matches numeric order).

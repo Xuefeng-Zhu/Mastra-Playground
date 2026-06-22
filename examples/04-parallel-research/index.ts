@@ -218,7 +218,7 @@ export interface RunOptions {
 export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'parallel-research', input, STEPS);
 
-  const useModel = resolveModel(input.model, input.provider);
+  const useModel = resolveModel(input.model, input.provider, context?.customLlm);
   const plannerAgent = new Agent({
     id: 'parallel-planner',
     name: 'Parallel Planner',

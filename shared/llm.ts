@@ -6,19 +6,28 @@
  * you'd want to support per-request model swaps — getModel(modelId) lets
  * the server pick a different model for each example run.
  *
- * The playground supports Gemini and OpenRouter. The provider and model can be
+ * The playground supports Gemini, OpenRouter, and a user-configurable Custom
+ * provider (any OpenAI-compatible endpoint). The provider and model can be
  * selected per request, while environment variables define CLI defaults.
  */
 
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 
-export type LlmProvider = 'google' | 'openrouter';
+export type LlmProvider = 'google' | 'openrouter' | 'custom';
+
+/** Browser-supplied configuration for the Custom provider. */
+export interface CustomLlmConfig {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+}
 
 const DEFAULT_PROVIDER: LlmProvider = 'google';
 const DEFAULT_MODELS: Record<LlmProvider, string> = {
   google: 'gemini-2.5-flash-lite',
   openrouter: 'openai/gpt-oss-20b:free',
+  custom: 'gpt-3.5-turbo',
 };
 
 const google = createGoogleGenerativeAI({
@@ -30,7 +39,9 @@ const openrouter = createOpenAI({
 });
 
 function parseProvider(value: string | undefined): LlmProvider {
-  return value === 'openrouter' ? 'openrouter' : DEFAULT_PROVIDER;
+  if (value === 'openrouter') return 'openrouter';
+  if (value === 'custom') return 'custom';
+  return DEFAULT_PROVIDER;
 }
 
 /** Default provider and model used when no per-request override is supplied. */
@@ -55,10 +66,37 @@ export function getModel(id: string, provider: LlmProvider = providerId) {
 }
 
 /**
+ * Build a request-scoped model instance for the Custom provider.
+ * Creates a fresh OpenAI-compatible client using the browser-supplied
+ * baseUrl and apiKey. Never falls back to server-side credentials.
+ */
+export function getCustomModel(config: CustomLlmConfig) {
+  const client = createOpenAI({
+    apiKey: config.apiKey,
+    baseURL: config.baseUrl,
+  });
+  return client(config.model);
+}
+
+/**
  * Resolve the LLM model to use for a request. Falls back to the project
  * default (env-derived) when no per-request id is provided.
+ *
+ * For the 'custom' provider, a CustomLlmConfig must be supplied — the
+ * function throws if it's missing, to avoid silently falling back to
+ * server-side credentials.
  */
-export function resolveModel(inputModel?: string, inputProvider?: LlmProvider) {
+export function resolveModel(
+  inputModel?: string,
+  inputProvider?: LlmProvider,
+  customConfig?: CustomLlmConfig,
+) {
+  if (inputProvider === 'custom') {
+    if (!customConfig) {
+      throw new Error('Custom provider selected but no configuration supplied.');
+    }
+    return getCustomModel(customConfig);
+  }
   if (!inputModel && !inputProvider) return model;
   const provider = inputProvider ?? providerId;
   return getModel(inputModel ?? DEFAULT_MODELS[provider], provider);

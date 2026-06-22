@@ -7,6 +7,7 @@
 
 import { ValidationError } from './validation';
 import type { Tracer } from './tracer';
+import type { CustomLlmConfig } from './llm';
 
 export const EXAMPLES: Record<string, { file: string; exportName: string; description: string }> = {
   'support-triage': {
@@ -74,6 +75,8 @@ export const EXAMPLES: Record<string, { file: string; exportName: string; descri
 
 export interface RunContext {
   signal?: AbortSignal;
+  /** Request-scoped custom LLM configuration (browser-supplied, never logged). */
+  customLlm?: CustomLlmConfig;
 }
 
 export type RunFn = (input: unknown, tracer: Tracer, context?: RunContext) => Promise<unknown>;

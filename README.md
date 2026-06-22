@@ -114,6 +114,8 @@ running server. CI boots the production build and runs this same suite.
 - **Provider-aware model preference** — provider and model selections are
   persisted together in `localStorage`. Switching providers immediately swaps
   the available model list, and the server uses both values per request.
+  A third "Custom endpoint" option lets you configure any OpenAI-compatible
+  URL, model ID, and API key from the browser.
 - **Multi-turn chat UI** — Ex 05 renders the conversation as chat bubbles with
   the agent's tool calls visible inline.
 - **HITL approval panel** — Ex 06 shows an orange pulsing "PENDING APPROVAL"
@@ -176,7 +178,7 @@ typecheck` or `npm run format:check` (CI runs those without secrets).
 
 | Variable                       | Default                        | Required?           | Purpose                                                               |
 | ------------------------------ | ------------------------------ | ------------------- | --------------------------------------------------------------------- |
-| `LLM_PROVIDER`                 | `google`                       | No                  | CLI default provider: `google` or `openrouter`.                       |
+| `LLM_PROVIDER`                 | `google`                       | No                  | CLI default provider: `google`, `openrouter`, or `custom`.            |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | _(none)_                       | For Gemini runs     | Gemini API key. Never expose it in browser code or commit it.         |
 | `GOOGLE_MODEL`                 | `gemini-2.5-flash-lite`        | No                  | Default Gemini model for CLI runs.                                    |
 | `OPENAI_API_KEY`               | _(none)_                       | For OpenRouter runs | OpenRouter API key.                                                   |
@@ -201,6 +203,16 @@ OPENAI_API_KEY=sk-or-...
 OPENAI_BASE_URL=https://openrouter.ai/api/v1
 OPENAI_MODEL=openai/gpt-oss-20b:free
 ```
+
+For a Custom endpoint (browser-managed, no server env vars needed):
+
+Select "Custom endpoint" in the provider dropdown. Enter:
+
+- **Base URL** — any OpenAI-compatible endpoint (e.g. `http://localhost:11434/v1` for Ollama)
+- **Model ID** — the model identifier your endpoint expects (e.g. `llama3`)
+- **API Key** — your endpoint's API key (stored in `localStorage`, sent in POST bodies only)
+
+See `SECURITY.md` for credential-storage and cleartext-transport caveats.
 
 ## Project layout
 

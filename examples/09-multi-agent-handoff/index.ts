@@ -234,7 +234,7 @@ export interface RunOptions {
 export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'multi-agent-handoff', input, STEPS);
 
-  const useModel = resolveModel(input.model, input.provider);
+  const useModel = resolveModel(input.model, input.provider, context?.customLlm);
   const mastra = buildMastra(tracer, useModel);
   const wf = mastra.getWorkflow('multi-agent-handoff');
   const run = await wf.createRun();

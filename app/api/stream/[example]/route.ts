@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Tracer, sseLine, type TraceEvent } from '../../../../shared/tracer';
 import { loadRunFn, getExampleOrThrow } from '../../../../shared/examples-registry';
-import { validateExampleInput, type ExampleId } from '../../../../shared/example-inputs';
+import {
+  validateExampleInput,
+  extractCustomLlmConfig,
+  type ExampleId,
+} from '../../../../shared/example-inputs';
 import {
   checkRateLimit,
   ValidationError,
@@ -20,6 +24,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ exa
     checkRateLimit(ip + ':stream');
     const raw = await readWebJsonBody(req);
     const input = validateExampleInput(name as ExampleId, raw);
+
+    // Extract custom provider config before it reaches example code
+    const customLlm = extractCustomLlmConfig(input);
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -51,7 +58,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ exa
           const tracer = new Tracer();
           const unsubscribe = tracer.subscribe(send);
           try {
-            await fn(input, tracer, { signal: req.signal });
+            await fn(input, tracer, { signal: req.signal, customLlm });
           } finally {
             unsubscribe();
           }

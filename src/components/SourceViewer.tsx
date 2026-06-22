@@ -92,9 +92,7 @@ export function SourceViewer({ exampleNum, exampleName, onClose }: SourceViewerP
       <div className="source-viewer" onClick={(e) => e.stopPropagation()}>
         <div className="source-viewer-header">
           <span className="source-viewer-filename">{filename || 'Loading…'}</span>
-          <span className="source-viewer-meta">
-            {source !== null && `${lineCount} lines`}
-          </span>
+          <span className="source-viewer-meta">{source !== null && `${lineCount} lines`}</span>
           <div className="source-viewer-actions">
             <button
               type="button"
