@@ -30,7 +30,7 @@ fi
 # Export for the playground server. The server reads OPENAI_API_KEY and OPENAI_BASE_URL.
 export OPENAI_API_KEY="$KEY_VALUE"
 export OPENAI_BASE_URL="https://openrouter.ai/api/v1"
-export OPENAI_MODEL="openrouter/free"
+export OPENAI_MODEL="openai/gpt-oss-20b:free"
 export PORT=8917
 export NODE_ENV=development
 

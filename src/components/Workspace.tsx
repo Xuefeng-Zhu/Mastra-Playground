@@ -4,7 +4,10 @@ import { MODEL_OPTIONS } from '../registry/examples';
 import { FormFieldView, SamplesGroup } from './FormField';
 import { TracePane, type TimelineEntry } from './TracePane';
 import { OutputPanel } from './OutputPanel';
+import { SourceViewer } from './SourceViewer';
 import { useWorkspace, type ReceivedTraceEvent } from '../hooks/useWorkspace';
+
+const MODEL_PREFERENCE_KEY = 'mpg:model:v2';
 
 export function traceEventToTimelineEntry(received: ReceivedTraceEvent, active: boolean): TimelineEntry {
   const { event } = received;
@@ -73,6 +76,7 @@ interface WorkspaceProps {
 export function Workspace({ example }: WorkspaceProps) {
   const ws = useWorkspace(example);
   const [model, setModel] = useState(MODEL_OPTIONS[0].value);
+  const [showSource, setShowSource] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const timeline = useMemo(
     () =>
@@ -82,17 +86,17 @@ export function Workspace({ example }: WorkspaceProps) {
     [ws.running, ws.traceEvents],
   );
 
-  // Persist the model picker across reloads. README "per-example settings"
-  // promise — the OLD vanilla app.js did this via localStorage; the new
-  // shell had silently dropped it.
+  // Version the preference key when the project default changes so a value
+  // automatically saved by an older release does not pin users to that old
+  // default forever.
   useEffect(() => {
-    const saved = localStorage.getItem('mpg:model');
+    const saved = localStorage.getItem(MODEL_PREFERENCE_KEY);
     if (saved && MODEL_OPTIONS.some((o) => o.value === saved)) {
       setModel(saved);
     }
   }, []);
   useEffect(() => {
-    localStorage.setItem('mpg:model', model);
+    localStorage.setItem(MODEL_PREFERENCE_KEY, model);
   }, [model]);
 
   // Register the active run() handler with the global so App.tsx's Cmd+Enter
@@ -151,6 +155,16 @@ export function Workspace({ example }: WorkspaceProps) {
           <p className="ex-desc" dangerouslySetInnerHTML={{ __html: example.description }} />
         </div>
         <div className="ex-header-controls">
+          <button
+            type="button"
+            className="view-source-btn"
+            title="View example source code"
+            aria-label="View source code"
+            onClick={() => setShowSource(true)}
+          >
+            <span className="view-source-icon">{'</>'}</span>
+            Source
+          </button>
           <label className="model-picker">
             <span className="model-label">Model</span>
             <select
@@ -219,6 +233,10 @@ export function Workspace({ example }: WorkspaceProps) {
         onHitlReject={(t) => ws.hitlDecide(t, 'rejected')}
         error={ws.error}
       />
+
+      {showSource && (
+        <SourceViewer exampleNum={example.num} exampleName={example.name} onClose={() => setShowSource(false)} />
+      )}
     </article>
   );
 }

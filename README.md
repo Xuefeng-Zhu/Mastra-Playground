@@ -177,7 +177,7 @@ typecheck` or `npm run format:check` (CI runs those without secrets).
 | ----------------- | ------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------- |
 | `OPENAI_API_KEY`  | _(none)_                       | For runs  | API key for the LLM. Static UI and health routes load without it; LLM-backed examples reject runs until configured. |
 | `OPENAI_BASE_URL` | `https://openrouter.ai/api/v1` | No        | OpenRouter's OpenAI-compatible endpoint.                                                                            |
-| `OPENAI_MODEL`    | `openrouter/free`              | No        | Default free-model router. Can be overridden per request via the UI picker.                                         |
+| `OPENAI_MODEL`    | `openai/gpt-oss-20b:free`      | No        | Default GPT-OSS 20B free model. Can be overridden per request via the UI picker.                                    |
 | `PORT`            | `8917`                         | No        | Server port.                                                                                                        |
 | `NODE_ENV`        | _(unset)_                      | No        | Set automatically by Next.js for development and production commands.                                               |
 
@@ -186,7 +186,7 @@ For OpenRouter (recommended — one key for many models):
 ```bash
 OPENAI_API_KEY=sk-or-...
 OPENAI_BASE_URL=https://openrouter.ai/api/v1
-OPENAI_MODEL=openrouter/free
+OPENAI_MODEL=openai/gpt-oss-20b:free
 ```
 
 ## Project layout
@@ -324,9 +324,8 @@ need to rebuild first with `npm run build`.
 - **trycloudflare.com tunnel URLs rotate** on cloudflared restarts. The
   server works fine locally without a tunnel.
 - **Model picker is real but free-model availability and prompt quality vary.**
-  `openrouter/free` selects a currently available free model that supports
-  request features such as tools and structured outputs. Specific free models
-  may be rate-limited or temporarily unavailable.
+  GPT-OSS 20B Free is the default; `openrouter/free` remains available as a
+  router option. Free models may be rate-limited or temporarily unavailable.
 - **The playground is per-session.** To make it survive reboots, pin the
   server + cloudflared as systemd services.
 - **This is a learning project, not a product.** No authentication, no

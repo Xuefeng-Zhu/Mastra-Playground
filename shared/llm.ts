@@ -26,7 +26,7 @@ const openai = createOpenAI({
 });
 
 /** Default model used when no override is supplied. */
-const modelId = process.env.OPENAI_MODEL || 'openrouter/free';
+const modelId = process.env.OPENAI_MODEL || 'openai/gpt-oss-20b:free';
 
 /** The default model — used by CLI examples without settings. */
 export const model = openai(modelId);
