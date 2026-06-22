@@ -60,12 +60,17 @@ const WithEdit = WithDraft.extend({
   approved: z.boolean(),
 });
 
-const EditSchema = z.object({
-  edited: z.string(),
-  score: z.number().min(0).max(10),
-  suggestions: z.array(z.string()).min(1).max(5),
-  approved: z.boolean(),
-});
+const EditSchema = z
+  .object({
+    edited: z.string(),
+    score: z.number().min(0).max(10),
+    suggestions: z.array(z.string()).max(5),
+    approved: z.boolean(),
+  })
+  .refine((value) => value.approved || value.suggestions.length >= 1, {
+    message: 'At least one suggestion is required when not approved',
+    path: ['suggestions'],
+  });
 
 const STEPS: StepSpec[] = [
   { id: 'research', label: 'Researcher (facts + sources)', kind: 'llm' },
