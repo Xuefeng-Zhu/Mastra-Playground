@@ -10,6 +10,8 @@ export interface TimelineEntry {
   msg: string;
   step: string;
   active: boolean;
+  eventType: string;
+  payload: unknown;
 }
 
 type TraceView = 'trace' | 'graph' | 'events';
@@ -127,12 +129,26 @@ export function TracePane({
           </div>
         ) : (
           timeline.map((row) => (
-            <div key={row.id} className={`tl-row ${row.active ? 'tl-active' : ''}`} data-step={row.step}>
-              <span className="tl-ts">{formatSec(row.ts)}</span>
-              <span className={`tl-kind tl-kind-${row.kind}`}>{row.kind}</span>
-              <span className="tl-msg">{row.msg}</span>
-              <span className="tl-step">{row.step}</span>
-            </div>
+            <details key={row.id} className="tl-event" data-step={row.step}>
+              <summary className={`tl-row ${row.active ? 'tl-active' : ''}`}>
+                <span className="tl-ts">{formatSec(row.ts)}</span>
+                <span className={`tl-kind tl-kind-${row.kind}`}>{row.kind}</span>
+                <span className="tl-msg">{row.msg}</span>
+                <span className="tl-step">{row.step}</span>
+                <span className="tl-expand" aria-hidden="true"></span>
+              </summary>
+              <div className="tl-detail">
+                <div className="tl-detail-meta">
+                  <span>
+                    Event <strong>{row.eventType}</strong>
+                  </span>
+                  <span>
+                    Recorded <strong>{formatSec(row.ts)}</strong>
+                  </span>
+                </div>
+                <pre>{JSON.stringify(row.payload, null, 2)}</pre>
+              </div>
+            </details>
           ))
         )}
       </div>

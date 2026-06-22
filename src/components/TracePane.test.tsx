@@ -85,4 +85,44 @@ describe('TracePane', () => {
     expect(document.activeElement).toBe(graph);
     expect(graph.getAttribute('aria-selected')).toBe('true');
   });
+
+  it('reveals the full payload for each timeline event', async () => {
+    await act(async () =>
+      root.render(
+        <TracePane
+          graphContainerId="test-graph"
+          graphDef={GRAPHS['support-triage']}
+          timeline={[
+            {
+              id: 'event-1',
+              ts: 125,
+              kind: 'tool',
+              msg: 'Tool called: lookup-account',
+              step: 'lookup',
+              active: false,
+              eventType: 'tool:call',
+              payload: {
+                type: 'tool:call',
+                stepId: 'lookup',
+                tool: 'lookup-account',
+                input: { accountId: 'acct-42' },
+                output: { plan: 'pro' },
+              },
+            },
+          ]}
+          doneCount={1}
+          activeNode="idle"
+          totalMs={125}
+        />,
+      ),
+    );
+
+    const event = container.querySelector<HTMLDetailsElement>('.tl-event')!;
+    expect(event.open).toBe(false);
+    expect(event.querySelector('.tl-detail')?.textContent).toContain('lookup-account');
+    expect(event.querySelector('pre')?.textContent).toContain('"accountId": "acct-42"');
+
+    await act(async () => event.querySelector<HTMLElement>('summary')!.click());
+    expect(event.open).toBe(true);
+  });
 });

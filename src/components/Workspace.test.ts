@@ -22,6 +22,8 @@ describe('traceEventToTimelineEntry', () => {
       msg: 'Branch matched: intent is billing',
       step: 'branch.intent',
       active: true,
+      eventType: 'branch:evaluate',
+      payload: received.event,
     });
   });
 

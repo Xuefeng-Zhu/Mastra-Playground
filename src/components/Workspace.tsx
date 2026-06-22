@@ -68,7 +68,16 @@ export function traceEventToTimelineEntry(received: ReceivedTraceEvent, active: 
     }
   }
 
-  return { id: received.id, ts: received.ts, kind, msg, step, active };
+  return {
+    id: received.id,
+    ts: received.ts,
+    kind,
+    msg,
+    step,
+    active,
+    eventType: event.type,
+    payload: event,
+  };
 }
 
 interface WorkspaceProps {
