@@ -49,6 +49,11 @@ type ResearchOutput = { formatted?: string };
 type CodeReviewOutput = { action?: string; issueCount?: number; review?: string };
 type ParallelOutput = { synthesis?: string };
 type ChatOutput = { allMessages?: ChatMsg[]; escalated?: boolean; escalationReason?: string | null };
+type HandoffOutput = {
+  message?: string;
+  agentPath?: string[];
+  delegated?: boolean;
+};
 type StreamingOutput = { finalText?: string; model?: string; durationMs?: number; deltas?: unknown[] };
 type HitlOutput = {
   token?: string;
@@ -167,6 +172,24 @@ function renderChat(value: unknown) {
   return <ChatThread messages={messages} escalated={escalated} escalationReason={escalationReason} />;
 }
 
+function renderHandoff(value: unknown, ctx: RenderContext) {
+  const out = value as HandoffOutput | null;
+  if (!out?.message) return <p className="muted">Send a message to see the triage response.</p>;
+
+  return (
+    <>
+      <SummaryGrid
+        items={[
+          { label: 'Delegated', value: out.delegated ? 'yes' : 'no' },
+          { label: 'Agent path', value: out.agentPath?.join(' → ') || 'primary' },
+        ]}
+      />
+      <p className="response-text">{out.message}</p>
+      <p className="muted">{formatSec(ctx.totalMs)}</p>
+    </>
+  );
+}
+
 function renderStreaming(value: unknown, ctx: RenderContext) {
   const out = value as StreamingOutput | null;
   const text = ctx.streamingText || out?.finalText || '';
@@ -281,6 +304,7 @@ export const RESULT_RENDERERS: Record<string, (out: unknown, ctx: RenderContext)
   research: renderResearch,
   codeReview: renderCodeReview,
   chat: renderChat,
+  handoff: renderHandoff,
   streaming: renderStreaming,
   hitl: renderHitl,
   criticLoop: renderCriticLoop,
@@ -295,6 +319,7 @@ export const HAS_SOURCES_TAB: Record<string, boolean> = {
   research: false,
   codeReview: false,
   chat: false,
+  handoff: false,
   streaming: false,
   hitl: false,
   criticLoop: false,
@@ -309,6 +334,7 @@ export const HAS_COMPARE_TAB: Record<string, boolean> = {
   research: true,
   codeReview: true,
   chat: true,
+  handoff: true,
   streaming: true,
   hitl: false,
   criticLoop: true,

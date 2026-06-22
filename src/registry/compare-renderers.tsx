@@ -87,6 +87,7 @@ export const COMPARE_RENDERERS: Record<string, CompareRenderer> = {
   research: createTextComparison(['formatted']),
   codeReview: createTextComparison(['review']),
   chat: () => <p className="muted">Chat threads aren't compared. Use Raw JSON for prior outputs.</p>,
+  handoff: createTextComparison(['message']),
   streaming: createTextComparison(['finalText']),
   hitl: () => <p className="muted">HITL runs are stateful. Use Raw JSON for prior outputs.</p>,
   criticLoop: compareCriticLoop,

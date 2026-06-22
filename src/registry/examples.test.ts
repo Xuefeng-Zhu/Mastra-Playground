@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MODEL_OPTIONS_BY_PROVIDER, PROVIDER_OPTIONS } from './examples';
+import { EXAMPLES, MODEL_OPTIONS_BY_PROVIDER, PROVIDER_OPTIONS } from './examples';
 
 describe('provider model options', () => {
   it('defaults to Gemini with provider-specific model lists', () => {
@@ -11,5 +11,12 @@ describe('provider model options', () => {
         ({ value }) => value === 'openrouter/free' || value.endsWith(':free'),
       ),
     ).toBe(true);
+  });
+});
+
+describe('example output renderers', () => {
+  it('keeps chat and handoff output shapes on their matching renderers', () => {
+    expect(EXAMPLES['multi-turn-chat'].output.kind).toBe('chat');
+    expect(EXAMPLES['multi-agent-handoff'].output.kind).toBe('handoff');
   });
 });

@@ -16,6 +16,7 @@ export type OutputKind =
   | 'research'
   | 'codeReview'
   | 'chat'
+  | 'handoff'
   | 'streaming'
   | 'hitl'
   | 'criticLoop'
@@ -357,7 +358,7 @@ export const EXAMPLES: Record<string, PlaygroundExample> = {
         { fill: 'message', value: 'What time does support close?', label: 'hours (no delegate)' },
       ],
     },
-    output: { kind: 'chat' },
+    output: { kind: 'handoff' },
     runLabel: 'Send to triage',
   },
   'mastra-memory': {

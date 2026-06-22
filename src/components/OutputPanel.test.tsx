@@ -55,4 +55,34 @@ describe('OutputPanel tabs', () => {
     expect(document.activeElement).toBe(json);
     expect(setActiveTab).toHaveBeenCalledWith('json');
   });
+
+  it('renders the multi-agent handoff result', async () => {
+    await act(async () =>
+      root.render(
+        <OutputPanel
+          kind="handoff"
+          output={{
+            message: 'Your refund was processed two days ago.',
+            agentPath: ['primary', 'specialist'],
+            delegated: true,
+          }}
+          priorOutput={null}
+          sources={[]}
+          totalMs={2319}
+          streamingText=""
+          streamingModel=""
+          streamingTokenCount={0}
+          activeTab="result"
+          setActiveTab={vi.fn()}
+          onHitlApprove={vi.fn()}
+          onHitlReject={vi.fn()}
+          error={null}
+        />,
+      ),
+    );
+
+    expect(container.textContent).toContain('Your refund was processed two days ago.');
+    expect(container.textContent).toContain('primary → specialist');
+    expect(container.textContent).not.toContain('Send a message to start the conversation.');
+  });
 });
