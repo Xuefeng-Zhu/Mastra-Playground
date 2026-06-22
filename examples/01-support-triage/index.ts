@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
+import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
 import { resolveModel, model } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import type { Tracer } from '../../shared/tracer';
@@ -48,7 +49,7 @@ function makeClassifyStep(tracer: Tracer, useModel = model) {
     description: 'Run the triage agent to classify the message',
     inputSchema: z.object({ message: z.string() }),
     outputSchema: TriageSchema,
-    execute: async ({ inputData }) => {
+    execute: async ({ inputData, abortSignal }) => {
       stepStart(tracer, 'classify', { message: inputData.message });
       // Build a per-call agent so we can pass the model
       const agent = new Agent({
@@ -65,6 +66,7 @@ function makeClassifyStep(tracer: Tracer, useModel = model) {
         model: useModel,
       });
       const result = await agent.generate(inputData.message, {
+        abortSignal,
         structuredOutput: { schema: TriageSchema },
       });
       const triage = result.object as Triage;
@@ -123,7 +125,7 @@ export interface RunOptions {
   threshold?: number;
 }
 
-export async function runOne(input: RunOptions, tracer: Tracer) {
+export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'support-triage', input, STEPS);
 
   // Build per-request model if overridden
@@ -174,6 +176,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   });
   const wf = mastra.getWorkflow('triage');
   const run = await wf.createRun();
+  cancelRunOnSignal(run, context);
   const result = await run.start({ inputData: { message: input.message } });
 
   return finalizeRunResult(result, tracer, t0, input);

@@ -53,6 +53,7 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
+import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
 import { InMemoryStore } from '@mastra/core/storage';
 import { Memory } from '@mastra/memory';
 import { resolveModel, model, getModel } from '../../shared/llm';
@@ -127,7 +128,7 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = mo
     description: 'Two-turn demo with shared threadId to exercise Mastra memory',
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
-    execute: async ({ inputData }) => {
+    execute: async ({ inputData, abortSignal }) => {
       stepStart(tracer, 'memory-demo', {
         threadId: inputData.threadId,
         turn1Length: inputData.turn1.length,
@@ -139,7 +140,7 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = mo
 
       // ── Turn 1: set context ─────────────────────────────────────
       const turn1 = await timed(tracer, 'turn1', { message: inputData.turn1 }, async () => {
-        const r = await agent.generate(inputData.turn1, { memory: mem });
+        const r = await agent.generate(inputData.turn1, { abortSignal, memory: mem });
         return { text: r.text };
       });
       const turn1Output = turn1.text;
@@ -149,7 +150,7 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = mo
       // Mastra loads the prior messages into the agent's prompt before
       // the LLM call. The agent should correctly recall what turn 1 said.
       const turn2 = await timed(tracer, 'turn2', { message: inputData.turn2 }, async () => {
-        const r = await agent.generate(inputData.turn2, { memory: mem });
+        const r = await agent.generate(inputData.turn2, { abortSignal, memory: mem });
         return { text: r.text };
       });
       const turn2Output = turn2.text;
@@ -174,7 +175,7 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = mo
       // We need the messages array from turn 2 for historyLength. Re-run a
       // smaller fetch — the timed() helper already consumed the response.
       // (historyLength is informational; not critical for the demo.)
-      const r2Inspect = await agent.generate(inputData.turn2, { memory: mem });
+      const r2Inspect = await agent.generate(inputData.turn2, { abortSignal, memory: mem });
       const messages = (r2Inspect as { messages?: unknown[] }).messages ?? [];
       const historyLength = messages.length;
 
@@ -213,7 +214,7 @@ export interface RunOptions {
   model?: string;
 }
 
-export async function runOne(input: RunOptions, tracer: Tracer) {
+export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const turn1 = input.turn1 ?? 'My name is Ada and my favorite color is teal.';
   const turn2 = input.turn2 ?? 'What is my name and what is my favorite color?';
   const t0 = startRun(tracer, 'mastra-memory', { ...input, turn1, turn2 }, STEPS);
@@ -222,6 +223,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   const mastra = buildMastra(tracer, useModel);
   const wf = mastra.getWorkflow('mastra-memory');
   const run = await wf.createRun();
+  cancelRunOnSignal(run, context);
   const result = await run.start({
     inputData: {
       threadId: input.threadId,

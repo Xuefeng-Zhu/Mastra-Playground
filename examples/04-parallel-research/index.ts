@@ -29,6 +29,7 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
+import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
 import { resolveModel } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import type { Tracer } from '../../shared/tracer';
@@ -72,10 +73,11 @@ function makePlanStep(tracer: Tracer, agent: Agent) {
     description: 'Decompose the topic into 3 sub-questions',
     inputSchema: z.object({ topic: z.string() }),
     outputSchema: z.object({ topic: z.string(), subQuestions: z.array(z.string()).length(3) }),
-    execute: async ({ inputData }) => {
+    execute: async ({ inputData, abortSignal }) => {
       stepStart(tracer, 'plan', { topic: inputData.topic });
       const prompt = `Decompose this research topic into 3 distinct sub-questions (web angle, academic angle, internal-wiki angle): "${inputData.topic}". Return JSON only with shape {"questions": [string, string, string]}.`;
       const result = await agent.generate(prompt, {
+        abortSignal,
         structuredOutput: {
           schema: z.object({ questions: z.array(z.string()).length(3) }),
         },
@@ -170,7 +172,7 @@ function makeSynthesizeStep(tracer: Tracer, agent: Agent) {
       topic: z.string(),
       synthesis: z.string(),
     }),
-    execute: async ({ inputData }) => {
+    execute: async ({ inputData, abortSignal }) => {
       stepStart(tracer, 'synthesize', { topic: inputData.topic });
       const wikiRefs = inputData.sources.wiki.references.join('\n');
       const prompt = `Topic: ${inputData.topic}
@@ -186,7 +188,7 @@ ${inputData.sources.wiki.summary}
 References: ${wikiRefs}
 
 Write a unified 200-word synthesis.`;
-      const result = await agent.generate(prompt);
+      const result = await agent.generate(prompt, { abortSignal });
       const out = { topic: inputData.topic, synthesis: String(result.text) };
       llmStructured(tracer, 'synthesize', 'SynthesisResult', out);
       stepEnd(tracer, 'synthesize', out);
@@ -212,7 +214,7 @@ export interface RunOptions {
   model?: string;
 }
 
-export async function runOne(input: RunOptions, tracer: Tracer) {
+export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'parallel-research', input, STEPS);
 
   const useModel = resolveModel(input.model);
@@ -246,6 +248,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
   const wf = mastra.getWorkflow('parallel-research');
   const run = await wf.createRun();
+  cancelRunOnSignal(run, context);
   const result = await run.start({ inputData: { topic: input.topic } });
 
   return finalizeRunResult(result, tracer, t0, input);

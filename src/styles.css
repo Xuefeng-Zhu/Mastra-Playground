@@ -2816,8 +2816,27 @@ body.mp > main::after {
   }
 }
 @media (max-width: 800px) {
+  body.mp {
+    overflow-x: hidden;
+  }
+  body.mp .topbar,
+  body.mp .app-layout,
+  body.mp .rail,
+  body.mp .workspace {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
   body.mp .app-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 100vw;
+    overflow-x: clip;
+  }
+  body.mp .app-layout > main {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
   body.mp .rail {
     position: static;
@@ -2833,6 +2852,33 @@ body.mp > main::after {
   }
   body.mp .ex-title {
     font-size: 30px;
+  }
+  body.mp .workspace {
+    padding: var(--sp-5) var(--sp-4);
+  }
+  body.mp .ex-header {
+    grid-template-columns: minmax(0, 1fr);
+    padding-right: 0;
+  }
+  body.mp .ex-header-controls,
+  body.mp .model-picker,
+  body.mp .model-picker select {
+    width: 100%;
+    min-width: 0;
+  }
+  body.mp .trace-tabs,
+  body.mp .output-tabs {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  body.mp .main-grid,
+  body.mp .trace-pane,
+  body.mp .output-panel {
+    min-width: 0;
+    max-width: 100%;
   }
 }
 @media (prefers-reduced-motion: reduce) {

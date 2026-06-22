@@ -43,23 +43,46 @@ describe('TracePane', () => {
         (candidate) => candidate.textContent === label,
       )!;
 
-    expect(button('Trace').getAttribute('aria-pressed')).toBe('true');
+    expect(button('Trace').getAttribute('aria-selected')).toBe('true');
     expect(graphPanel.hidden).toBe(false);
     expect(eventsPanel.hidden).toBe(false);
 
     await act(async () => button('Graph').click());
-    expect(button('Graph').getAttribute('aria-pressed')).toBe('true');
+    expect(button('Graph').getAttribute('aria-selected')).toBe('true');
     expect(graphPanel.hidden).toBe(false);
     expect(eventsPanel.hidden).toBe(true);
 
     await act(async () => button('Events').click());
-    expect(button('Events').getAttribute('aria-pressed')).toBe('true');
+    expect(button('Events').getAttribute('aria-selected')).toBe('true');
     expect(graphPanel.hidden).toBe(true);
     expect(eventsPanel.hidden).toBe(false);
 
     await act(async () => button('Trace').click());
-    expect(button('Trace').getAttribute('aria-pressed')).toBe('true');
+    expect(button('Trace').getAttribute('aria-selected')).toBe('true');
     expect(graphPanel.hidden).toBe(false);
     expect(eventsPanel.hidden).toBe(false);
+  });
+
+  it('supports arrow-key tab navigation', async () => {
+    await act(async () =>
+      root.render(
+        <TracePane
+          graphContainerId="test-graph"
+          graphDef={GRAPHS['support-triage']}
+          timeline={[]}
+          doneCount={0}
+          activeNode="idle"
+          totalMs={0}
+        />,
+      ),
+    );
+    const trace = container.querySelector<HTMLButtonElement>('[data-tab="trace"]')!;
+    trace.focus();
+    await act(async () =>
+      trace.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })),
+    );
+    const graph = container.querySelector<HTMLButtonElement>('[data-tab="graph"]')!;
+    expect(document.activeElement).toBe(graph);
+    expect(graph.getAttribute('aria-selected')).toBe('true');
   });
 });

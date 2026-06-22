@@ -49,6 +49,40 @@ export async function readJsonBody(
   }
 }
 
+/** Parse a Fetch API Request body without buffering more than maxBytes. */
+export async function readWebJsonBody(req: Request, maxBytes = 65536): Promise<unknown> {
+  const declaredLength = req.headers.get('content-length');
+  if (declaredLength !== null && Number(declaredLength) > maxBytes) {
+    throw new ValidationError('Request body too large', 'body', `${declaredLength} > ${maxBytes} bytes`);
+  }
+
+  if (!req.body) return {};
+
+  const reader = req.body.getReader();
+  const decoder = new TextDecoder();
+  let total = 0;
+  let text = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new ValidationError('Request body too large', 'body', `${total} > ${maxBytes} bytes`);
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  text += decoder.decode();
+
+  if (text.length === 0) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new ValidationError('Invalid JSON in request body', 'body');
+  }
+}
+
 // ─── Errors ────────────────────────────────────────────────────────────────
 export class ValidationError extends Error {
   readonly status = 400;

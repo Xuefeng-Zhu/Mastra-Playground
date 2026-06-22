@@ -23,8 +23,10 @@ jobs:
         run: npm run format:check
       - name: TypeScript type check
         run: npm run typecheck
-      - name: Unit tests
-        run: npm test
+      - name: Tests and coverage thresholds
+        run: npm run test:coverage
+      - name: Documentation links
+        run: npm run docs:check
       - name: Build Next.js app
         run: npm run build
       - name: Build artifacts exist
@@ -45,20 +47,18 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      # We skip the actual server boot in CI because it requires an OPENAI_API_KEY.
-      # The build step in the quality job confirms the app compiles correctly.
-      # This job verifies the server can at least start (health check).
       - name: Build
         run: npm run build
-      - name: Boot server and check health
+      - name: Boot server and run smoke suite
+        env:
+          OPENAI_API_KEY: sk-ci-not-used
         run: |
-          set +e
-          timeout 15 npm run start > /tmp/serve.log 2>&1 &
+          npm run start > /tmp/serve.log 2>&1 &
           PID=$!
-          sleep 5
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8917/api/health || echo "000")
-          kill $PID 2>/dev/null || true
-          cat /tmp/serve.log
-          echo "Health check status: $STATUS"
-          # Accept 200 (healthy) or connection failure (server refused to start without API key)
-          [ "$STATUS" = "200" ] || [ "$STATUS" = "000" ]
+          trap 'kill $PID 2>/dev/null || true; cat /tmp/serve.log' EXIT
+          for attempt in {1..20}; do
+            curl --fail --silent http://localhost:8917/api/health && break
+            if [ "$attempt" = 20 ]; then exit 1; fi
+            sleep 1
+          done
+          npm run smoke

@@ -10,6 +10,7 @@
  */
 
 const BASE = process.env.SMOKE_URL ?? `http://localhost:${process.env.PORT ?? '8917'}`;
+const TIMEOUT_MS = Number(process.env.SMOKE_TIMEOUT_MS ?? '15000');
 
 interface CheckResult {
   name: string;
@@ -29,7 +30,7 @@ async function check(path: string, init?: RequestInit, expectStatus = 200) {
   const url = `${BASE}${path}`;
   let res: Response;
   try {
-    res = await fetch(url, { ...init, signal: AbortSignal.timeout(5000) });
+    res = await fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
   } catch (err) {
     return { ok: false, status: 0, body: null, error: String(err) };
   }
@@ -39,7 +40,7 @@ async function check(path: string, init?: RequestInit, expectStatus = 200) {
   } catch {
     body = null;
   }
-  return { ok: res.ok && res.status === expectStatus, status: res.status, body };
+  return { ok: res.status === expectStatus, status: res.status, body };
 }
 
 async function main() {
@@ -62,45 +63,42 @@ async function main() {
     `${exampleList.length} examples (expected >= 1)`,
   );
 
-  // 3. /api/run/support-triage with a small input — should return triage result
-  const triage = await check('/api/run/support-triage', {
+  // 3. Use the deterministic no-LLM branch so CI never depends on a provider.
+  const review = await check('/api/run/code-review', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: 'I want a refund' }),
+    body: JSON.stringify({ path: 'clean.ts' }),
   });
-  const triageBody = triage.body as { ok?: boolean; result?: { status?: string } } | null;
+  const reviewBody = review.body as { ok?: boolean; result?: { status?: string } } | null;
   record(
-    'POST /api/run/support-triage',
-    triage.ok &&
-      triageBody?.ok === true &&
-      (triageBody.result?.status === 'success' || triageBody.result?.status === 'suspended'),
-    `status=${triage.status} workflow=${triageBody?.result?.status}`,
+    'POST /api/run/code-review (no LLM)',
+    review.ok && reviewBody?.ok === true && reviewBody.result?.status === 'success',
+    `status=${review.status} workflow=${reviewBody?.result?.status}`,
   );
 
   // 4. /api/run/<unknown> — should return 400 (validation error) or 404
-  const badExample = await check('/api/run/does-not-exist', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
-  });
-  record(
-    'POST /api/run/does-not-exist',
-    badExample.ok === false && (badExample.status === 400 || badExample.status === 404),
-    `status=${badExample.status} (expected 400 or 404)`,
+  const badExample = await check(
+    '/api/run/does-not-exist',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    },
+    400,
   );
+  record('POST /api/run/does-not-exist', badExample.ok, `status=${badExample.status} (expected 400 or 404)`);
 
   // 5. /api/run/<example> with invalid JSON — should return 400
-  const badJson = await fetch(`${BASE}/api/run/support-triage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: 'this is not json',
-    signal: AbortSignal.timeout(5000),
-  });
-  record(
-    'POST /api/run/support-triage (bad JSON)',
-    badJson.status === 400,
-    `status=${badJson.status} (expected 400)`,
+  const badJson = await check(
+    '/api/run/support-triage',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: 'this is not json',
+    },
+    400,
   );
+  record('POST /api/run/support-triage (bad JSON)', badJson.ok, `status=${badJson.status} (expected 400)`);
 
   // Summary
   const failed = results.filter((r) => !r.ok);

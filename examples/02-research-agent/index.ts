@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
+import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
 import { resolveModel } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import type { Tracer } from '../../shared/tracer';
@@ -26,10 +27,10 @@ function makeRunAgentStep(tracer: Tracer, agent: Agent) {
     description: 'Ask the research agent to investigate the topic',
     inputSchema: z.object({ topic: z.string() }),
     outputSchema: z.object({ topic: z.string(), summary: z.string() }),
-    execute: async ({ inputData }) => {
+    execute: async ({ inputData, abortSignal }) => {
       stepStart(tracer, 'run-agent', { topic: inputData.topic });
       const prompt = `Research the topic: "${inputData.topic}". Use the web-search and arxiv-search tools. Write a 3-4 sentence synthesis of what you found.`;
-      const result = await agent.generate(prompt);
+      const result = await agent.generate(prompt, { abortSignal });
       const summary = String(result.text);
       const out = { topic: inputData.topic, summary };
       stepEnd(tracer, 'run-agent', out);
@@ -58,7 +59,7 @@ export interface RunOptions {
   model?: string;
 }
 
-export async function runOne(input: RunOptions, tracer: Tracer) {
+export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'research', input, STEPS);
 
   const useModel = resolveModel(input.model);
@@ -94,6 +95,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
   const wf = mastra.getWorkflow('research');
   const run = await wf.createRun();
+  cancelRunOnSignal(run, context);
   const result = await run.start({ inputData: { topic: input.topic } });
 
   return finalizeRunResult(result, tracer, t0, input);

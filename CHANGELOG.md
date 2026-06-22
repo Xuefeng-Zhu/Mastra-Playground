@@ -8,25 +8,20 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- **UI migrated from vanilla HTML/CSS/JS to React 18 + Vite.** The browser
-  app is now `src/` (TypeScript + JSX) built by Vite into `dist/`, which
-  the Node server serves. The new shell is a left-rail grouped by
+- **App migrated from Vite and the custom Node server to Next.js App Router.**
+  The browser app remains in `src/`; pages and API handlers now live in `app/`.
+  The shell is a left rail grouped by
   Mastra primitive (Agent / Workflow / Tool / Memory / HITL / Stream) +
   per-example workspace (form rail, fused graph + timeline trace,
   Result / Sources / Raw JSON / Compare output panel).
-- **The `/assets/` static handler in `server/server.ts` was rewritten.**
-  The previous implementation constructed paths that never contained
-  `dist/` and the prefix guard accidentally blocked every request. The
-  new handler joins `ROOT/dist` with the URL path, then re-validates
-  via `realpathSync` to also block symlink escape.
-- **`src/styles.css` is the only stylesheet.** `public/style.css` was
-  removed; the Vite build emits `dist/assets/index-*.css` from the
-  React entry.
+- **Trace streaming now uses a POST SSE response.** Prompts stay out of URLs,
+  body limits are enforced before parsing, and disconnects cancel active runs.
+- **`src/styles.css` remains the only application stylesheet** and is imported
+  by the Next.js root layout.
 
 ### Added
 
-- `npm run build` + `npm run dev` + `npm run preview` scripts (Vite)
-- `npm run build` is required before `npm run serve` (server reads `dist/`)
+- `npm run build` + `npm run dev` + `npm run start` scripts (Next.js)
 - `src/registry/renderers.tsx` per-kind renderers (parallel / triage /
   research / codeReview / chat / streaming / hitl / criticLoop /
   contentPipeline / mastraMemory)
@@ -52,17 +47,18 @@ adheres to [Semantic Versioning](https://semver.org/).
 - `activeWs` state in `App.tsx` was never updated, so Cmd/Ctrl+Enter
   and `window.__mpg.run` were dead. The Workspace now registers its
   `run` via `useEffect` against the typed `window.__mpg` global.
-- `vite.config.ts` `sourcemap: true` would have exposed the full React
-  source to anyone fetching the public assets. Set to `false`.
-- `public/style.css` was reintroduced as dead code; removed.
-- Dockerfile now builds the React UI (`npm run build`) during the Docker
-  build so `dist/` exists in the container image.
-- Dockerfile runtime stage uses prod-only `node_modules` (smaller image).
+- Dockerfile now copies the Next.js standalone output and runs as a non-root
+  user.
 - SECURITY.md no longer claims "no rate limiting" (rate limiting was added
   in 0.4.0).
 - CI now runs unit tests (`npm test`) alongside format and typecheck.
 - CI build-artifact assertions moved into the same job that runs the build
   (previously relied on cross-job filesystem which doesn't work).
+- CI now boots the production server and executes the real deterministic
+  smoke suite instead of accepting a failed connection.
+- Restored the 64KB body limit in Next.js route handlers.
+- Fixed mobile horizontal overflow, terminal workflow failure state, the
+  workspace page counter, and keyboard-accessible trace/output tabs.
 
 ## [0.4.0] - 2026-06-19
 

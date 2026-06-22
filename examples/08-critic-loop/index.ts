@@ -29,6 +29,7 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
+import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
 import { resolveModel } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import type { Tracer } from '../../shared/tracer';
@@ -78,7 +79,7 @@ function makeIterateStep(tracer: Tracer, generator: Agent, critic: Agent) {
       iterations: z.number().int(),
       history: z.array(IterationSchema),
     }),
-    execute: async ({ inputData }) => {
+    execute: async ({ inputData, abortSignal }) => {
       return timed(
         tracer,
         'iterate',
@@ -99,11 +100,12 @@ function makeIterateStep(tracer: Tracer, generator: Agent, critic: Agent) {
                 ? `Topic: "${inputData.topic}".\nWrite a concise ~150-word answer.`
                 : `Topic: "${inputData.topic}".\n\nPrevious draft (scored ${lastScore}/10):\n${draft}\n\nCritic's feedback:\n${lastFeedback}\n\nRewrite to address the feedback. Keep it ~150 words.`;
 
-            const genResult = await generator.generate(genPrompt);
+            const genResult = await generator.generate(genPrompt, { abortSignal });
             draft = String(genResult.text).trim();
 
             const critPrompt = `Topic: "${inputData.topic}".\n\nDraft:\n${draft}\n\nScore this draft and give one sentence of feedback.`;
             const critResult = await critic.generate(critPrompt, {
+              abortSignal,
               structuredOutput: { schema: CritiqueSchema },
             });
             const critique = critResult.object as z.infer<typeof CritiqueSchema>;
@@ -165,7 +167,7 @@ export interface RunOptions {
   model?: string;
 }
 
-export async function runOne(input: RunOptions, tracer: Tracer) {
+export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'critic-loop', input, STEPS);
 
   const useModel = resolveModel(input.model);
@@ -200,6 +202,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
   const wf = mastra.getWorkflow('critic-loop');
   const run = await wf.createRun();
+  cancelRunOnSignal(run, context);
   const result = await run.start({
     inputData: {
       topic: input.topic,

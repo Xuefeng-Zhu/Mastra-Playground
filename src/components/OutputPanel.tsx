@@ -90,11 +90,29 @@ function OutputTabs({
   onCopy: () => void;
 }) {
   return (
-    <div className="output-tabs">
+    <div
+      className="output-tabs"
+      role="tablist"
+      aria-label="Output view"
+      onKeyDown={(event) => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+        const current = tabs.indexOf(document.activeElement as HTMLButtonElement);
+        const next = (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[next]?.focus();
+        tabs[next]?.click();
+      }}
+    >
       <button
         type="button"
         className={`output-tab ${active === 'result' ? 'output-tab-active' : ''}`}
         data-output-tab="result"
+        id="output-tab-result"
+        role="tab"
+        aria-selected={active === 'result'}
+        aria-controls="output-panel-result"
+        tabIndex={active === 'result' ? 0 : -1}
         onClick={() => onChange('result')}
       >
         Result
@@ -104,6 +122,11 @@ function OutputTabs({
           type="button"
           className={`output-tab ${active === 'sources' ? 'output-tab-active' : ''}`}
           data-output-tab="sources"
+          id="output-tab-sources"
+          role="tab"
+          aria-selected={active === 'sources'}
+          aria-controls="output-panel-sources"
+          tabIndex={active === 'sources' ? 0 : -1}
           onClick={() => onChange('sources')}
         >
           Sources (<span className="source-count">{sourceCount}</span>)
@@ -113,6 +136,11 @@ function OutputTabs({
         type="button"
         className={`output-tab ${active === 'json' ? 'output-tab-active' : ''}`}
         data-output-tab="json"
+        id="output-tab-json"
+        role="tab"
+        aria-selected={active === 'json'}
+        aria-controls="output-panel-json"
+        tabIndex={active === 'json' ? 0 : -1}
         onClick={() => onChange('json')}
       >
         Raw JSON
@@ -122,6 +150,11 @@ function OutputTabs({
           type="button"
           className={`output-tab ${active === 'compare' ? 'output-tab-active' : ''}`}
           data-output-tab="compare"
+          id="output-tab-compare"
+          role="tab"
+          aria-selected={active === 'compare'}
+          aria-controls="output-panel-compare"
+          tabIndex={active === 'compare' ? 0 : -1}
           onClick={() => onChange('compare')}
         >
           Compare with prior
@@ -200,22 +233,42 @@ export function OutputPanel(props: OutputPanelProps) {
       />
       <div className="output-body">
         {props.activeTab === 'result' && (
-          <div className="output-content prose">
+          <div
+            id="output-panel-result"
+            className="output-content prose"
+            role="tabpanel"
+            aria-labelledby="output-tab-result"
+          >
             <RenderResult {...props} />
           </div>
         )}
         {props.activeTab === 'sources' && (
-          <div className="output-content prose">
+          <div
+            id="output-panel-sources"
+            className="output-content prose"
+            role="tabpanel"
+            aria-labelledby="output-tab-sources"
+          >
             <SourcesList sources={props.sources} />
           </div>
         )}
         {props.activeTab === 'json' && (
-          <div className="output-content prose">
+          <div
+            id="output-panel-json"
+            className="output-content prose"
+            role="tabpanel"
+            aria-labelledby="output-tab-json"
+          >
             <RenderJSON output={props.output} />
           </div>
         )}
         {props.activeTab === 'compare' && (
-          <div className="output-content prose">
+          <div
+            id="output-panel-compare"
+            className="output-content prose"
+            role="tabpanel"
+            aria-labelledby="output-tab-compare"
+          >
             <RenderCompare kind={props.kind} cur={props.output} prior={props.priorOutput} />
           </div>
         )}

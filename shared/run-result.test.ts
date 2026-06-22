@@ -22,7 +22,7 @@ describe('finalizeRunResult', () => {
     const r = finalizeRunResult({ status: 'failed', reason: 'oops' }, tracer, 0, null);
     expect(r.status).toBe('failed');
     expect(r.error).toContain('oops');
-    expect(r.output).toBeNull();
+    expect(r.output).toEqual({ error: expect.stringContaining('oops') });
   });
 
   it('narrows unknown statuses (e.g. tripwire, paused) to failed', () => {

@@ -19,24 +19,22 @@ and is not hardened against adversarial use.
 
 ## Reporting a vulnerability
 
-**Do not open a public GitHub issue for security problems.** Email
-`security@example.com` with a description and steps to reproduce. Allow
-up to 7 days for an initial response.
+**Do not open a public GitHub issue for security problems.** Use the
+repository's private GitHub vulnerability-reporting flow with a description
+and reproduction steps.
 
 ## Best-effort hardening
 
 - All tool calls are mocked (no real APIs are called)
 - The `.env` file (containing your API key) is gitignored
-- The server refuses to start if `OPENAI_API_KEY` is missing or is the
-  `.env.example` placeholder
+- LLM-backed routes reject runs when `OPENAI_API_KEY` is missing
 - User input is sanitized (control characters stripped, length capped at 4KB)
 - 30 req/min/IP rate limit across `/api/run/*`, `/api/stream/*`,
   `/api/resume/*` (429 includes `Retry-After`)
 - 64KB body cap on all body-bearing endpoints
-- The `/assets/` static handler validates path traversal via `path.join`
-  prefix check AND `realpathSync` symlink resolution
-- Vite `sourcemap: false` — no `.map` files ship to the public (would
-  disclose the full React source)
+- Streamed prompts are sent in POST bodies, not query strings
+- Client disconnects propagate cancellation to workflows and model calls
+- Next.js production output does not publish browser source maps by default
 
 ## When you should NOT use this
 

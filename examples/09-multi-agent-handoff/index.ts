@@ -37,6 +37,7 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
+import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
 import { resolveModel, model, getModel } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import type { Tracer } from '../../shared/tracer';
@@ -168,9 +169,10 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = mo
     description: 'Primary triage agent — may delegate to billing specialist',
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
-    execute: async ({ inputData }) => {
+    execute: async ({ inputData, abortSignal }) => {
       return timed(tracer, 'primary', { messageLength: inputData.message.length }, async () => {
         const response = await triageAgent.generate(inputData.message, {
+          abortSignal,
           toolsets: {
             triage: {
               transfer_to_billing_specialist: transferToBillingSpecialist,
@@ -228,13 +230,14 @@ export interface RunOptions {
   model?: string;
 }
 
-export async function runOne(input: RunOptions, tracer: Tracer) {
+export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'multi-agent-handoff', input, STEPS);
 
   const useModel = resolveModel(input.model);
   const mastra = buildMastra(tracer, useModel);
   const wf = mastra.getWorkflow('multi-agent-handoff');
   const run = await wf.createRun();
+  cancelRunOnSignal(run, context);
   const result = await run.start({ inputData: { message: input.message, model: input.model } });
 
   return finalizeRunResult(result, tracer, t0, input);

@@ -15,20 +15,11 @@
  *   For InboxPilot, this is the difference between "the bot is thinking" and
  *   "the bot is responding."
  *
- * SSE STREAMING CHECKLIST (for the curious):
- *   The browser must receive each `llm:delta` event as a separate TCP segment
- *   to render it progressively. Three things have to be in place:
- *
- *   1. `res.socket.setNoDelay(true)` in server/server.ts (disables Nagle)
- *   2. `res.flushHeaders()` right after `res.writeHead` (forces headers)
- *   3. <-- YOU ARE HERE: A `setImmediate` yield in the source loop.
- *      Without this, a fast LLM emits all chunks within a single tick,
- *      all writes coalesce into one TCP segment, and the browser sees
- *      them as a single batch even if Nagle is disabled.
- *
- *   Without (3), the streaming example will work in the trace event log
- *   but the result panel will appear to "snap" to the final answer
- *   instead of filling in token-by-token.
+ * SSE STREAMING NOTE (for the curious):
+ *   The POST route returns a Web ReadableStream and the browser incrementally
+ *   parses every SSE frame. The `setImmediate` yield below gives the route a
+ *   chance to enqueue each delta before the next one arrives; without it a
+ *   fast provider can make the result appear to snap into place.
  *
  *   Also note: the cloudflared quick-tunnel still buffers the response.
  *   For SSE through the public URL, use a named cloudflared tunnel or
@@ -39,6 +30,7 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
+import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
 import { resolveModel, model, getModel } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import type { Tracer } from '../../shared/tracer';
@@ -83,7 +75,7 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = mo
     description: 'Stream LLM response token-by-token',
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
-    execute: async ({ inputData }) => {
+    execute: async ({ inputData, abortSignal }) => {
       const t0 = Date.now();
       stepStart(tracer, 'stream', { promptLength: inputData.prompt.length, model: inputData.model });
 
@@ -97,7 +89,7 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = mo
       // The streaming API returns an async iterable of text chunks.
       // Each chunk may be one token or several — Mastra's Agent.stream
       // batches them at natural boundaries (whitespace, punctuation).
-      const stream = await agent.stream(inputData.prompt);
+      const stream = await agent.stream(inputData.prompt, { abortSignal });
 
       for await (const chunk of stream.textStream) {
         deltas.push(chunk);
@@ -154,13 +146,14 @@ export interface RunOptions {
   model?: string;
 }
 
-export async function runOne(input: RunOptions, tracer: Tracer) {
+export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'streaming-chat', input, STEPS);
 
   const useModel = resolveModel(input.model);
   const mastra = buildMastra(tracer, useModel);
   const wf = mastra.getWorkflow('streaming-chat');
   const run = await wf.createRun();
+  cancelRunOnSignal(run, context);
   const result = await run.start({ inputData: { prompt: input.prompt, model: input.model } });
 
   return finalizeRunResult(result, tracer, t0, input);

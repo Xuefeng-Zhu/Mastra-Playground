@@ -28,6 +28,7 @@
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
+import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
 import { resolveModel, model, getModel } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import { finalizeRunResult } from '../../shared/run-result';
@@ -88,14 +89,14 @@ function makeWorkflow(tracer: Tracer, useModel: ReturnType<typeof getModel> = mo
     description: 'LLM extracts amount, urgency, reasoning from the proposed action',
     inputSchema: InputSchema,
     outputSchema: ClassifiedSchema,
-    execute: async ({ inputData }) => {
+    execute: async ({ inputData, abortSignal }) => {
       stepStart(tracer, 'classify', {
         actionType: inputData.actionType,
         actionLength: inputData.action.length,
       });
       const result = await agent.generate(
         `Classify this proposed action:\n\nType: ${inputData.actionType}\nAction: ${inputData.action}\n\nReturn JSON with: amount (number), urgency (low/medium/high/critical), reasoning (1-2 sentences).`,
-        { structuredOutput: { schema: ClassifiedSchema } },
+        { abortSignal, structuredOutput: { schema: ClassifiedSchema } },
       );
       const classified = result.object as z.infer<typeof ClassifiedSchema>;
       llmStructured(tracer, 'classify', 'ClassifiedAction', classified);
@@ -234,7 +235,7 @@ export interface RunOptions {
   resume?: { token: string; decision: 'approved' | 'rejected' };
 }
 
-export async function runOne(input: RunOptions, tracer: Tracer) {
+export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'hitl-approval', input, STEPS);
 
   const useModel = resolveModel(input.model);
@@ -258,6 +259,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
   const built = buildMastra(tracer, useModel);
   const wf = built.mastra.getWorkflow('hitl-approval');
   const run = await wf.createRun();
+  cancelRunOnSignal(run, context);
   built.captureRun(
     run as unknown as {
       runId: string;

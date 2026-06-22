@@ -34,7 +34,8 @@ export OPENAI_MODEL="openrouter/free"
 export PORT=8917
 export NODE_ENV=development
 
-cd /home/azureuser/workspace/mastra-playground
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+cd "$SCRIPT_DIR/.."
 
 echo "Launching mastra-playground server with OpenRouter key (len=${#KEY_VALUE})" >&2
-exec npx tsx server/server.ts
+exec npm run dev

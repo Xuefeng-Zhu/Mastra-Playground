@@ -53,8 +53,8 @@ export function finalizeRunResult<TInput = unknown>(
     output = unwrapWorkflowOutput((result as { result: unknown }).result);
     error = null;
   } else {
-    output = null;
     error = JSON.stringify(result) ?? String(result);
+    output = { error };
   }
 
   tracer.emit({ type: 'done', status, output, totalMs: Date.now() - t0 });

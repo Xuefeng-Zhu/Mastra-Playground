@@ -44,12 +44,27 @@ export function TracePane({
 
   return (
     <section className="trace-pane" aria-label="Trace">
-      <div className="trace-tabs" aria-label="Trace view">
+      <div
+        className="trace-tabs"
+        role="tablist"
+        aria-label="Trace view"
+        onKeyDown={(event) => {
+          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+          event.preventDefault();
+          const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+          const current = tabs.indexOf(document.activeElement as HTMLButtonElement);
+          const next = (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+          tabs[next]?.focus();
+          tabs[next]?.click();
+        }}
+      >
         <button
           type="button"
           className={`trace-tab ${activeView === 'trace' ? 'trace-tab-active' : ''}`}
           data-tab="trace"
-          aria-pressed={activeView === 'trace'}
+          role="tab"
+          aria-selected={activeView === 'trace'}
+          tabIndex={activeView === 'trace' ? 0 : -1}
           aria-controls="trace-graph-panel trace-events-panel"
           onClick={() => setActiveView('trace')}
         >
@@ -59,7 +74,9 @@ export function TracePane({
           type="button"
           className={`trace-tab ${activeView === 'graph' ? 'trace-tab-active' : ''}`}
           data-tab="graph"
-          aria-pressed={activeView === 'graph'}
+          role="tab"
+          aria-selected={activeView === 'graph'}
+          tabIndex={activeView === 'graph' ? 0 : -1}
           aria-controls="trace-graph-panel"
           onClick={() => setActiveView('graph')}
         >
@@ -69,7 +86,9 @@ export function TracePane({
           type="button"
           className={`trace-tab ${activeView === 'events' ? 'trace-tab-active' : ''}`}
           data-tab="events"
-          aria-pressed={activeView === 'events'}
+          role="tab"
+          aria-selected={activeView === 'events'}
+          tabIndex={activeView === 'events' ? 0 : -1}
           aria-controls="trace-events-panel"
           onClick={() => setActiveView('events')}
         >
@@ -89,10 +108,16 @@ export function TracePane({
           </span>
         </div>
       </div>
-      <div id="trace-graph-panel" className="trace-graph" hidden={!showGraph}>
+      <div id="trace-graph-panel" className="trace-graph" role="tabpanel" hidden={!showGraph}>
         <Graph key={graphDef.nodes[0]?.id} def={graphDef} containerId={graphContainerId} />
       </div>
-      <div id="trace-events-panel" className="trace-timeline" ref={timelineRef} hidden={!showEvents}>
+      <div
+        id="trace-events-panel"
+        className="trace-timeline"
+        role="tabpanel"
+        ref={timelineRef}
+        hidden={!showEvents}
+      >
         {timeline.length === 0 ? (
           <div className="tl-row" data-step="">
             <span className="tl-ts">—</span>

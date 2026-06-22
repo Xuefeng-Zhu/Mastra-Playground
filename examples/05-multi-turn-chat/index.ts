@@ -33,6 +33,7 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
+import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
 import { resolveModel, model } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import { memoryStore, type Message } from '../../shared/memory-store';
@@ -98,7 +99,7 @@ function makeWorkflow(tracer: Tracer, useModel = model) {
           newAssistantMessage: z.object({ role: z.string(), content: z.string(), ts: z.number() }),
           allMessages: z.array(z.object({ role: z.string(), content: z.string(), ts: z.number() })),
         }),
-        execute: async ({ inputData }) => {
+        execute: async ({ inputData, abortSignal }) => {
           return timed(
             tracer,
             'chat',
@@ -120,7 +121,7 @@ function makeWorkflow(tracer: Tracer, useModel = model) {
                 : inputData.message;
 
               // 4. Call the agent with the assembled prompt
-              const result = await agent.generate(prompt);
+              const result = await agent.generate(prompt, { abortSignal });
 
               // 5. Append the assistant response
               const assistantContent = String(result.text);
@@ -168,7 +169,7 @@ export interface RunOptions {
   model?: string;
 }
 
-export async function runOne(input: RunOptions, tracer: Tracer) {
+export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'multi-turn-chat', input, STEPS);
 
   // Action: 'new' returns a fresh threadId; 'clear' wipes an existing thread
@@ -207,6 +208,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
   const wf = mastra.getWorkflow('multi-turn-chat');
   const run = await wf.createRun();
+  cancelRunOnSignal(run, context);
   const result = await run.start({
     inputData: { threadId: input.threadId, resourceId: input.resourceId, message: input.message },
   });

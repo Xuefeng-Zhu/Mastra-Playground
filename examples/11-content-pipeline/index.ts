@@ -35,6 +35,7 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
+import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
 import { resolveModel } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import type { Tracer } from '../../shared/tracer';
@@ -80,11 +81,14 @@ function makeResearchStep(tracer: Tracer, agent: Agent) {
     description: 'Researcher gathers 3-5 facts and identifies the lead angle',
     inputSchema: z.object({ topic: z.string(), audience: z.string().optional() }),
     outputSchema: WithTopic,
-    execute: async ({ inputData }) => {
+    execute: async ({ inputData, abortSignal }) => {
       const audience = inputData.audience ?? 'technical readers';
       stepStart(tracer, 'research', { topic: inputData.topic, audience });
       const prompt = `Topic: "${inputData.topic}". Audience: ${audience}. Produce a research brief.`;
-      const result = await agent.generate(prompt, { structuredOutput: { schema: ResearchSchema } });
+      const result = await agent.generate(prompt, {
+        abortSignal,
+        structuredOutput: { schema: ResearchSchema },
+      });
       const out = { topic: inputData.topic, audience, ...(result.object as z.infer<typeof ResearchSchema>) };
       llmStructured(tracer, 'research', 'ResearchSchema', out);
       stepEnd(tracer, 'research', out);
@@ -99,11 +103,11 @@ function makeWriteStep(tracer: Tracer, agent: Agent) {
     description: 'Writer drafts ~150 words from the research brief',
     inputSchema: WithTopic,
     outputSchema: WithDraft,
-    execute: async ({ inputData }) => {
+    execute: async ({ inputData, abortSignal }) => {
       const audience = inputData.audience ?? 'technical readers';
       stepStart(tracer, 'write', { topic: inputData.topic, facts: inputData.facts.length });
       const prompt = `Topic: "${inputData.topic}"\nAudience: ${audience}\nLead angle: ${inputData.angle}\n\nFacts:\n${inputData.facts.map((f, i) => `  ${i + 1}. ${f}`).join('\n')}\n\nSources:\n${inputData.sources.map((s, i) => `  [${i + 1}] ${s}`).join('\n')}\n\nWrite the article (~150 words).`;
-      const result = await agent.generate(prompt);
+      const result = await agent.generate(prompt, { abortSignal });
       const draft = String(result.text).trim();
       const out = {
         topic: inputData.topic,
@@ -125,10 +129,10 @@ function makeEditStep(tracer: Tracer, agent: Agent) {
     description: 'Editor polishes the draft and scores 0-10 with suggestions',
     inputSchema: WithDraft,
     outputSchema: WithEdit,
-    execute: async ({ inputData }) => {
+    execute: async ({ inputData, abortSignal }) => {
       stepStart(tracer, 'edit', { topic: inputData.topic, draftLen: inputData.draft.length });
       const prompt = `Topic: "${inputData.topic}"\n\nDraft:\n${inputData.draft}\n\nPolish and score.`;
-      const result = await agent.generate(prompt, { structuredOutput: { schema: EditSchema } });
+      const result = await agent.generate(prompt, { abortSignal, structuredOutput: { schema: EditSchema } });
       const editResult = result.object as z.infer<typeof EditSchema>;
       const out = {
         topic: inputData.topic,
@@ -171,7 +175,7 @@ export interface RunOptions {
   model?: string;
 }
 
-export async function runOne(input: RunOptions, tracer: Tracer) {
+export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'content-pipeline', input, STEPS);
 
   const useModel = resolveModel(input.model);
@@ -222,6 +226,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
   const wf = mastra.getWorkflow('content-pipeline');
   const run = await wf.createRun();
+  cancelRunOnSignal(run, context);
   const result = await run.start({
     inputData: { topic: input.topic, audience: input.audience ?? 'technical readers' },
   });

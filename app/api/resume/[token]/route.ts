@@ -5,6 +5,7 @@ import {
   ValidationError,
   RateLimitError,
   isPlainObject,
+  readWebJsonBody,
 } from '../../../../shared/validation';
 
 export const runtime = 'nodejs';
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
     checkRateLimit(ip + ':resume');
 
-    const raw = await req.json().catch(() => ({}));
+    const raw = await readWebJsonBody(req);
     if (!isPlainObject(raw)) {
       throw new ValidationError('Request body must be a JSON object', 'body');
     }

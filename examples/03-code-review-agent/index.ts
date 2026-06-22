@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
+import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
 import { resolveModel } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import type { Tracer } from '../../shared/tracer';
@@ -99,13 +100,13 @@ function makeGenerateReviewStep(tracer: Tracer, agent: Agent) {
     description: 'Use the LLM to write the review comment',
     inputSchema: IssuesSchema,
     outputSchema: ReviewOutputSchema,
-    execute: async ({ inputData }) => {
+    execute: async ({ inputData, abortSignal }) => {
       stepStart(tracer, 'generate-review', { path: inputData.path, issueCount: inputData.issues.length });
       const issueList = inputData.issues
         .map((i) => `- [${i.severity}] line ${i.line}: ${i.message}`)
         .join('\n');
       const prompt = `File: ${inputData.path}\n\nIssues found:\n${issueList || '(none)'}\n\nFile content:\n\`\`\`\n${inputData.content}\n\`\`\`\n\nWrite the review comment.`;
-      const result = await agent.generate(prompt);
+      const result = await agent.generate(prompt, { abortSignal });
       const out = {
         path: inputData.path,
         action: 'reviewed' as const,
@@ -172,7 +173,7 @@ export interface RunOptions {
   model?: string;
 }
 
-export async function runOne(input: RunOptions, tracer: Tracer) {
+export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'code-review', input, STEPS);
 
   const useModel = resolveModel(input.model);
@@ -195,6 +196,7 @@ export async function runOne(input: RunOptions, tracer: Tracer) {
 
   const wf = mastra.getWorkflow('review');
   const run = await wf.createRun();
+  cancelRunOnSignal(run, context);
   const result = await run.start({ inputData: { path: input.path } });
 
   return finalizeRunResult(result, tracer, t0, input);

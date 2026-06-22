@@ -135,6 +135,7 @@ export function Workspace({ example }: WorkspaceProps) {
       className="workspace workspace-active"
       id="mp-workspace"
       data-example={`prim-tag-${example.primTags[0]}`}
+      data-example-num={example.num}
     >
       <div className="ex-header">
         <div className="ex-header-titles">

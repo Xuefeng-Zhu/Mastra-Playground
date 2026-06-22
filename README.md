@@ -53,9 +53,7 @@ in the main pane.
 A learning playground for the user to evaluate whether to adopt Mastra into
 their real product (InboxPilot). Each example is small enough to read in
 under 5 minutes, exercises a specific Mastra primitive, and contrasts
-explicitly with the InboxPilot equivalent. See
-[`notes/comparison-to-inboxpilot.md`](notes/comparison-to-inboxpilot.md) for
-the full writeup.
+explicitly with the InboxPilot equivalent in each example's README.
 
 ## Examples
 
@@ -78,18 +76,18 @@ Each example is <350 lines including the CLI demo. The shared modules in
 
 ## Endpoints
 
-| Method | Path                           | Purpose                                            | Rate limit    |
-| ------ | ------------------------------ | -------------------------------------------------- | ------------- |
-| GET    | `/`, `/_next/static/*`         | UI shell + Next.js bundled JS/CSS                  | none          |
-| GET    | `/api/health`                  | Liveness probe (`{ ok, uptimeSec, exampleCount }`) | none          |
-| GET    | `/api/examples`                | List available examples                            | none          |
-| POST   | `/api/run/:example`            | One-shot JSON result                               | 30 req/min/IP |
-| GET    | `/api/stream/:example?input=…` | SSE trace stream                                   | 30 req/min/IP |
-| POST   | `/api/resume/:token`           | Resume a suspended workflow                        | 30 req/min/IP |
+| Method | Path                   | Purpose                                            | Rate limit    |
+| ------ | ---------------------- | -------------------------------------------------- | ------------- |
+| GET    | `/`, `/_next/static/*` | UI shell + Next.js bundled JS/CSS                  | none          |
+| GET    | `/api/health`          | Liveness probe (`{ ok, uptimeSec, exampleCount }`) | none          |
+| GET    | `/api/examples`        | List available examples                            | none          |
+| POST   | `/api/run/:example`    | One-shot JSON result                               | 30 req/min/IP |
+| POST   | `/api/stream/:example` | SSE trace stream; JSON input stays in request body | 30 req/min/IP |
+| POST   | `/api/resume/:token`   | Resume a suspended workflow                        | 30 req/min/IP |
 
-All API requests return JSON. Errors carry `{ error, field?, detail? }` with
-appropriate 4xx/5xx status codes. 429 responses include a `Retry-After`
-header.
+Regular API requests return JSON; successful stream requests return
+`text/event-stream`. Errors carry `{ error, field?, detail? }` with appropriate
+4xx/5xx status codes. 429 responses include a `Retry-After` header.
 
 ### Health check
 
@@ -100,9 +98,9 @@ curl -s http://localhost:8917/api/health
 
 ### Smoke test
 
-The `npm run smoke` script runs an end-to-end check (health, examples, run,
-unknown example, bad JSON) against a running server. CI runs it as part of
-every commit.
+The `npm run smoke` script runs an end-to-end check (health, examples, a
+deterministic no-LLM workflow branch, unknown example, bad JSON) against a
+running server. CI boots the production build and runs this same suite.
 
 ## Web UI features
 
@@ -110,17 +108,11 @@ every commit.
   evaluation is streamed from the server via Server-Sent Events. The browser
   shows the workflow DAG lighting up as each step fires, with a scrolling
   event log.
-- **Persistent history** — the last 10 runs per example are saved in
-  `localStorage`. Click any recent-run chip above the form to re-run with the
-  same input. "View all" opens a slide-over panel with timestamps, durations,
-  and a "Replay" button.
 - **Markdown export** — "Copy as Markdown" button on every result. Produces
-  a Slack/PR-friendly summary with input, structured output, steps taken, and
-  the human-readable response block.
-- **Per-example settings** — OpenRouter free-model dropdown on every example,
-  confidence threshold slider
-  on Ex 01. Persisted to `localStorage`. The server actually swaps the model
-  per request, so the LLM behavior changes visibly in the trace timing.
+  a Slack/PR-friendly summary with structured output, timing, and captured
+  sources.
+- **Model preference** — the model dropdown is persisted in `localStorage`.
+  The server swaps the model per request, so LLM behavior changes visibly.
 - **Multi-turn chat UI** — Ex 05 renders the conversation as chat bubbles with
   the agent's tool calls visible inline.
 - **HITL approval panel** — Ex 06 shows an orange pulsing "PENDING APPROVAL"
@@ -137,11 +129,11 @@ every commit.
 │  11 tabs        │ ────────────────────────────► │  loads example  │
 │  1 graph each   │                                │  via static     │
 │  trace events   │    POST /api/resume/:token    │  import map     │
-│  recent runs    │ ◄──────────────────────────── │                 │
+│  result tabs    │ ◄──────────────────────────── │                 │
 └────────┬────────┘                                └────────┬────────┘
          │                                                 │
          │ localStorage                                    │ Mastra
-         │ (history, settings, threads)                    │ runtime
+         │ (model preference)                              │ runtime
          │                                                 ▼
          │                                       ┌─────────────────┐
          │                                       │  examples/*/    │
@@ -181,13 +173,13 @@ There is no separate hand-written JS bundle to ship.
 All variables are read at server startup. None are required for `npm run
 typecheck` or `npm run format:check` (CI runs those without secrets).
 
-| Variable          | Default                        | Required? | Purpose                                                                                                               |
-| ----------------- | ------------------------------ | --------- | --------------------------------------------------------------------------------------------------------------------- |
-| `OPENAI_API_KEY`  | _(none)_                       | Yes       | API key for the LLM. The server refuses to start without it.                                                          |
-| `OPENAI_BASE_URL` | `https://openrouter.ai/api/v1` | No        | OpenRouter's OpenAI-compatible endpoint.                                                                              |
-| `OPENAI_MODEL`    | `openrouter/free`              | No        | Default free-model router. Can be overridden per request via the UI picker.                                           |
-| `PORT`            | `8917`                         | No        | Server port.                                                                                                          |
-| `NODE_ENV`        | _(unset)_                      | No        | Set to `production` for `start:prod` script (no behavioral change today, but reserved for future prod-mode behavior). |
+| Variable          | Default                        | Required? | Purpose                                                                                                             |
+| ----------------- | ------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------- |
+| `OPENAI_API_KEY`  | _(none)_                       | For runs  | API key for the LLM. Static UI and health routes load without it; LLM-backed examples reject runs until configured. |
+| `OPENAI_BASE_URL` | `https://openrouter.ai/api/v1` | No        | OpenRouter's OpenAI-compatible endpoint.                                                                            |
+| `OPENAI_MODEL`    | `openrouter/free`              | No        | Default free-model router. Can be overridden per request via the UI picker.                                         |
+| `PORT`            | `8917`                         | No        | Server port.                                                                                                        |
+| `NODE_ENV`        | _(unset)_                      | No        | Set automatically by Next.js for development and production commands.                                               |
 
 For OpenRouter (recommended — one key for many models):
 
@@ -212,7 +204,7 @@ mastra-playground/
       health/route.ts               # GET /api/health
       examples/route.ts             # GET /api/examples
       run/[example]/route.ts        # POST /api/run/:example
-      stream/[example]/route.ts     # GET /api/stream/:example (SSE)
+      stream/[example]/route.ts     # POST /api/stream/:example (SSE response)
       resume/[token]/route.ts       # POST /api/resume/:token
   shared/                           # cross-example helpers (<135 lines each)
     examples-registry.ts            # example metadata + static import map
@@ -247,15 +239,12 @@ mastra-playground/
     hooks/useWorkspace.ts           # SSE EventSource consumer
     registry/                       # examples.ts, renderers.tsx, graphs.ts, utils.ts
   scripts/                          # smoke, eval, ui-smoke, diagnostics
-  notes/
-    learning-log.md                 # user fills this in
-    comparison-to-inboxpilot.md     # the verdict writeup
   .next/                            # gitignored — Next.js build output
 ```
 
 ## Adding a new example
 
-The 8 touchpoints (one entry in the React registry drives the new tab):
+The 9 touchpoints (one entry in the React registry drives the new tab):
 
 1. Create `examples/0N-short-name/` with `index.ts` + `README.md`. The example
    must export `async function runOne(input, tracer)` returning
@@ -301,12 +290,11 @@ cp .env.example .env
 The `.env` file has a syntax error. Common causes: missing value, unquoted
 spaces, comments mid-line. The `.env.example` is the canonical reference.
 
-### SSE stream keeps showing "Reconnecting to workflow stream..."
+### The workflow stream disconnects before completion
 
-The Cloudflared quick-tunnel has a default 100s connection timeout for
-long-lived HTTP/2 streams. If your workflow takes longer than that, the
-client sees a transient disconnect. The fix: re-launch cloudflared, or
-don't use a tunnel and run the server on `localhost` directly.
+Long-lived streams can be interrupted by a tunnel or proxy timeout. Retry the
+run, re-launch cloudflared, or run the server on `localhost` directly. Starting
+a replacement run intentionally aborts the previous workflow.
 
 ### The HITL gate node doesn't show the orange "suspended" glow
 
@@ -351,19 +339,18 @@ plan to point a real tunnel at it:
 
 **What the server enforces automatically:**
 
-- **Refuses to start** if `OPENAI_API_KEY` is missing or is the `.env.example`
-  placeholder. The error message guides you to the fix.
-- **Structured JSON logging** to stdout (errors/warnings go to stderr). Set
-  `LOG_LEVEL=debug` for verbose output. Pipe through `jq` for inspection:
-  `npm run serve | jq 'select(.level == "error")'`.
+- **Rejects LLM runs** if `OPENAI_API_KEY` is missing. The UI and health route
+  can still load so configuration problems remain diagnosable.
+- **Structured helper logging** for validation/tracing internals. Next.js also
+  writes its normal request log in development.
 - **Request validation** on all body-bearing endpoints: 64KB body cap, type
   checks per example, length caps on user-facing strings, control-character
   stripping. 400 errors include the field name.
 - **Rate limiting**: 30 requests/minute per IP across `/api/run/*`, `/api/stream/*`,
   and `/api/resume/*`. 429 responses include `Retry-After`. Health and static
   endpoints are not rate-limited.
-- **Graceful shutdown** on `SIGTERM`/`SIGINT`: stops accepting new connections,
-  waits up to 30s for in-flight LLM calls to drain, then exits.
+- **Cancellation propagation**: replacing or leaving a streamed run aborts the
+  HTTP request, workflow, and active model call.
 
 **What you still need to add for "real" production:**
 
@@ -389,7 +376,3 @@ npm run start            # starts the production server on :8917
 - [CHANGELOG.md](CHANGELOG.md) — what changed in each version
 - [CONTRIBUTING.md](CONTRIBUTING.md) — how to add examples
 - [SECURITY.md](SECURITY.md) — what this project does and doesn't protect against
-- [notes/learning-log.md](notes/learning-log.md) — user-filled observations
-- [notes/comparison-to-inboxpilot.md](notes/comparison-to-inboxpilot.md) — the verdict writeup
-- [docs/audit/SUMMARY.md](docs/audit/SUMMARY.md) — 1-page code review summary (16 findings, 9 fixed; regenerate with `scripts/audit.sh`)
-- [docs/audit/2026-06-18-code-review.md](docs/audit/2026-06-18-code-review.md) — full 313-line audit report

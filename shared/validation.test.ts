@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeText, isPlainObject, ValidationError, RateLimitError } from './validation';
+import { sanitizeText, isPlainObject, ValidationError, RateLimitError, readWebJsonBody } from './validation';
 
 describe('sanitizeText', () => {
   it('returns empty string for non-strings', () => {
@@ -78,5 +78,32 @@ describe('RateLimitError', () => {
     expect(err.status).toBe(429);
     expect(err.retryAfter).toBe(42);
     expect(err.message).toContain('42');
+  });
+});
+
+describe('readWebJsonBody', () => {
+  it('parses a valid request body', async () => {
+    const request = new Request('http://localhost/test', {
+      method: 'POST',
+      body: JSON.stringify({ ok: true }),
+    });
+    await expect(readWebJsonBody(request)).resolves.toEqual({ ok: true });
+  });
+
+  it('rejects declared and streamed bodies above the cap', async () => {
+    const declared = new Request('http://localhost/test', {
+      method: 'POST',
+      headers: { 'Content-Length': '100' },
+      body: '{}',
+    });
+    await expect(readWebJsonBody(declared, 10)).rejects.toThrow('Request body too large');
+
+    const streamed = new Request('http://localhost/test', { method: 'POST', body: '12345678901' });
+    await expect(readWebJsonBody(streamed, 10)).rejects.toThrow('Request body too large');
+  });
+
+  it('reports invalid JSON', async () => {
+    const request = new Request('http://localhost/test', { method: 'POST', body: 'not json' });
+    await expect(readWebJsonBody(request)).rejects.toThrow('Invalid JSON');
   });
 });

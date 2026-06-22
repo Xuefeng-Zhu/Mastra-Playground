@@ -15,6 +15,7 @@ import type { PlaygroundExample } from '../registry/examples';
 import type { TraceEvent } from '../registry/utils';
 import type { CapturedSource } from '../registry/renderers';
 import { exampleNameToId } from '../registry/utils';
+import { createTraceEventParser } from './sse';
 
 export type OutputTab = 'result' | 'sources' | 'json' | 'compare';
 
@@ -40,22 +41,20 @@ export function useWorkspace(example: PlaygroundExample) {
   const [running, setRunning] = useState(false);
   const [traceEvents, setTraceEvents] = useState<ReceivedTraceEvent[]>([]);
 
-  const eventSourceRef = useRef<EventSource | null>(null);
+  const requestRef = useRef<AbortController | null>(null);
   const runStartRef = useRef(0);
   const traceEventIdRef = useRef(0);
 
-  const disposeStream = useCallback((stream: EventSource) => {
-    stream.onmessage = null;
-    stream.onerror = null;
-    stream.close();
-    if (eventSourceRef.current === stream) eventSourceRef.current = null;
+  const disposeStream = useCallback((request: AbortController) => {
+    request.abort();
+    if (requestRef.current === request) requestRef.current = null;
   }, []);
 
   // Cleanup the SSE connection on unmount (i.e. when switching rail items).
   useEffect(() => {
     return () => {
-      if (eventSourceRef.current) {
-        disposeStream(eventSourceRef.current);
+      if (requestRef.current) {
+        disposeStream(requestRef.current);
       }
     };
   }, [disposeStream]);
@@ -117,6 +116,7 @@ export function useWorkspace(example: PlaygroundExample) {
           return;
         }
         setTotalMs(ev.totalMs || t);
+        setActiveNode('idle');
         if (ev.status === 'success') {
           setOutput(ev.output);
         } else {
@@ -130,8 +130,8 @@ export function useWorkspace(example: PlaygroundExample) {
   const run = useCallback(
     (requestBody: Record<string, unknown>) => {
       // Abort any in-flight stream.
-      if (eventSourceRef.current) {
-        disposeStream(eventSourceRef.current);
+      if (requestRef.current) {
+        disposeStream(requestRef.current);
       }
       // Snapshot prior before overwriting. We snapshot when the prior run
       // had any of the example-specific output shapes the Compare tab
@@ -164,36 +164,57 @@ export function useWorkspace(example: PlaygroundExample) {
       setRunStart(start);
 
       const slug = exampleNameToId(example.num, example.name);
-      const fullUrl = `/api/stream/${encodeURIComponent(slug)}?input=${encodeURIComponent(JSON.stringify(requestBody))}`;
+      const request = new AbortController();
+      requestRef.current = request;
 
-      const es = new EventSource(fullUrl);
-      eventSourceRef.current = es;
-
-      es.onmessage = (e) => {
-        if (eventSourceRef.current !== es) return;
-        let ev: TraceEvent;
-        try {
-          ev = JSON.parse(e.data) as TraceEvent;
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.warn('Failed to parse SSE event', err);
-          return;
-        }
+      const receive = (ev: TraceEvent) => {
+        if (requestRef.current !== request) return;
         const ts = runStartRef.current ? performance.now() - runStartRef.current : 0;
         const id = String(++traceEventIdRef.current);
         setTraceEvents((prev) => [...prev, { id, ts, event: ev }]);
         handleEvent(ev);
         if (ev.type === 'done') {
-          disposeStream(es);
+          requestRef.current = null;
           setRunning(false);
         }
       };
-      es.onerror = () => {
-        if (eventSourceRef.current !== es) return;
-        disposeStream(es);
-        setError('The workflow stream disconnected before it completed.');
-        setRunning(false);
-      };
+
+      void (async () => {
+        try {
+          const response = await fetch(`/api/stream/${encodeURIComponent(slug)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+            body: JSON.stringify(requestBody),
+            signal: request.signal,
+          });
+          if (!response.ok) {
+            const problem = (await response.json().catch(() => null)) as { error?: string } | null;
+            throw new Error(problem?.error ?? `Workflow request failed (${response.status}).`);
+          }
+          if (!response.body) throw new Error('The workflow response did not include a stream.');
+
+          const parser = createTraceEventParser(receive);
+          const decoder = new TextDecoder();
+          const reader = response.body.getReader();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            parser.push(decoder.decode(value, { stream: true }));
+          }
+          parser.push(decoder.decode());
+          parser.finish();
+
+          if (requestRef.current === request) {
+            throw new Error('The workflow stream disconnected before it completed.');
+          }
+        } catch (err) {
+          if (request.signal.aborted || requestRef.current !== request) return;
+          requestRef.current = null;
+          setError(err instanceof Error ? err.message : String(err));
+          setActiveNode('idle');
+          setRunning(false);
+        }
+      })();
     },
     [disposeStream, example.num, example.name, handleEvent],
   );

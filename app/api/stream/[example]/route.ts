@@ -1,66 +1,67 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { Tracer, sseLine, type TraceEvent } from '../../../../shared/tracer';
 import { loadRunFn, getExampleOrThrow } from '../../../../shared/examples-registry';
 import { validateExampleInput, type ExampleId } from '../../../../shared/example-inputs';
-import { checkRateLimit, ValidationError, RateLimitError } from '../../../../shared/validation';
-import { NextResponse } from 'next/server';
+import {
+  checkRateLimit,
+  ValidationError,
+  RateLimitError,
+  readWebJsonBody,
+} from '../../../../shared/validation';
 
 export const runtime = 'nodejs';
 
-// Max input query param size (chars).
-const SSE_INPUT_CAP_CHARS = 8192;
-
-export async function GET(req: NextRequest, { params }: { params: Promise<{ example: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ example: string }> }) {
   const { example: name } = await params;
 
   try {
     getExampleOrThrow(name);
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
     checkRateLimit(ip + ':stream');
-
-    const inputParam = req.nextUrl.searchParams.get('input') ?? '{}';
-    if (inputParam.length > SSE_INPUT_CAP_CHARS) {
-      throw new ValidationError(
-        'input query param too large',
-        'input',
-        `${inputParam.length} > ${SSE_INPUT_CAP_CHARS} chars`,
-      );
-    }
-
-    let raw: unknown;
-    try {
-      raw = JSON.parse(inputParam);
-    } catch {
-      throw new ValidationError('Invalid input JSON in query param', 'input');
-    }
-
+    const raw = await readWebJsonBody(req);
     const input = validateExampleInput(name as ExampleId, raw);
 
-    // Create a ReadableStream that pushes SSE events as the workflow runs.
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
-
+        let closed = false;
+        const close = () => {
+          if (closed) return;
+          closed = true;
+          try {
+            controller.close();
+          } catch {
+            // The client already cancelled the response body.
+          }
+        };
         const send = (event: TraceEvent) => {
+          if (closed || req.signal.aborted) return;
           try {
             controller.enqueue(encoder.encode(sseLine(event)));
           } catch {
-            // Stream already closed by client
+            closed = true;
           }
         };
 
+        req.signal.addEventListener('abort', close, { once: true });
         controller.enqueue(encoder.encode(': connected\n\n'));
 
         try {
           const fn = await loadRunFn(name);
           const tracer = new Tracer();
-          tracer.subscribe(send);
-          await fn(input, tracer);
+          const unsubscribe = tracer.subscribe(send);
+          try {
+            await fn(input, tracer, { signal: req.signal });
+          } finally {
+            unsubscribe();
+          }
         } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          send({ type: 'done', status: 'failed', output: { error: message }, totalMs: 0 });
+          if (!req.signal.aborted) {
+            const message = err instanceof Error ? err.message : String(err);
+            send({ type: 'done', status: 'failed', output: { error: message }, totalMs: 0 });
+          }
         } finally {
-          controller.close();
+          close();
         }
       },
     });
@@ -68,7 +69,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ exam
     return new Response(stream, {
       headers: {
         'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-cache, no-store',
         Connection: 'keep-alive',
         'X-Accel-Buffering': 'no',
       },

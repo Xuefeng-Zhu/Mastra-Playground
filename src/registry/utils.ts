@@ -18,7 +18,7 @@ export type { TraceEvent } from '../../shared/tracer';
 // here (not inside useWorkspace) so it's easy to grep when adding a new
 // example, and so the kebab-case id only exists in one place per app.
 //
-// MUST stay in sync with `server/server.ts` EXAMPLES map keys.
+// MUST stay in sync with `shared/examples-registry.ts` EXAMPLES map keys.
 const NUM_TO_API_ID: Record<number, string> = {
   1: 'support-triage',
   2: 'research',

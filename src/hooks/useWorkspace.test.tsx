@@ -5,37 +5,42 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EXAMPLES } from '../registry/examples';
 import { useWorkspace } from './useWorkspace';
 
-class MockEventSource {
-  static instances: MockEventSource[] = [];
-  onmessage: ((event: MessageEvent<string>) => void) | null = null;
-  onerror: (() => void) | null = null;
-  close = vi.fn();
-
-  constructor(readonly url: string) {
-    MockEventSource.instances.push(this);
-  }
-}
-
 function Harness({ expose }: { expose: (workspace: ReturnType<typeof useWorkspace>) => void }) {
   const workspace = useWorkspace(EXAMPLES.research);
   useEffect(() => {
     expose(workspace);
   }, [expose, workspace]);
   return (
-    <div data-running={workspace.running} data-error={workspace.error ?? ''}>
+    <div
+      data-running={workspace.running}
+      data-error={workspace.error ?? ''}
+      data-active={workspace.activeNode}
+      data-done={workspace.doneCount}
+    >
       {workspace.totalMs}
     </div>
   );
 }
 
+function sseResponse(events: unknown[]): Response {
+  const body = events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('');
+  return new Response(body, { headers: { 'Content-Type': 'text/event-stream' } });
+}
+
+async function settle() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
 describe('useWorkspace stream lifecycle', () => {
-  const originalEventSource = globalThis.EventSource;
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
+  let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    MockEventSource.instances = [];
-    vi.stubGlobal('EventSource', MockEventSource);
+    fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
       callback(0);
       return 1;
@@ -50,81 +55,62 @@ describe('useWorkspace stream lifecycle', () => {
     await act(async () => root.unmount());
     container.remove();
     vi.unstubAllGlobals();
-    if (originalEventSource) globalThis.EventSource = originalEventSource;
   });
 
-  it('ignores callbacks from a stream replaced by a newer run', async () => {
+  it('uses POST and aborts a request replaced by a newer run', async () => {
+    fetchMock.mockImplementation(() => new Promise(() => undefined));
     let workspace: ReturnType<typeof useWorkspace> | undefined;
     await act(async () => root.render(<Harness expose={(value) => (workspace = value)} />));
 
-    act(() => workspace!.run({ topic: 'first' }));
-    const first = MockEventSource.instances[0];
-    const staleError = first.onerror;
-
+    act(() => workspace!.run({ topic: 'first private prompt' }));
+    const firstInit = fetchMock.mock.calls[0][1] as RequestInit;
     act(() => workspace!.run({ topic: 'second' }));
-    const second = MockEventSource.instances[1];
-    expect(first.close).toHaveBeenCalledOnce();
 
-    act(() => staleError?.());
-    expect(container.firstElementChild?.getAttribute('data-running')).toBe('true');
-    expect(container.firstElementChild?.getAttribute('data-error')).toBe('');
-
-    act(() => second.onerror?.());
-    expect(container.firstElementChild?.getAttribute('data-running')).toBe('false');
-    expect(container.firstElementChild?.getAttribute('data-error')).toBe(
-      'The workflow stream disconnected before it completed.',
-    );
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/stream/research');
+    expect(firstInit.method).toBe('POST');
+    expect(firstInit.body).toContain('first private prompt');
+    expect((firstInit.signal as AbortSignal).aborted).toBe(true);
   });
 
-  it('closes the active stream after a done event', async () => {
-    let workspace: ReturnType<typeof useWorkspace> | undefined;
-    await act(async () => root.render(<Harness expose={(value) => (workspace = value)} />));
-    act(() => workspace!.run({ topic: 'done' }));
-    const stream = MockEventSource.instances[0];
-
-    act(() =>
-      stream.onmessage?.(
-        new MessageEvent('message', {
-          data: JSON.stringify({ type: 'done', status: 'success', output: { formatted: 'ok' }, totalMs: 12 }),
-        }),
-      ),
+  it('records parsed events and completes a successful stream', async () => {
+    fetchMock.mockResolvedValue(
+      sseResponse([
+        { type: 'start', workflow: 'research', input: {}, steps: [] },
+        { type: 'step:start', stepId: 'research' },
+        { type: 'step:end', stepId: 'research', durationMs: 4 },
+        { type: 'done', status: 'success', output: { formatted: 'ok' }, totalMs: 12 },
+      ]),
     );
-
-    expect(stream.close).toHaveBeenCalledOnce();
-    expect(container.firstElementChild?.getAttribute('data-running')).toBe('false');
-    expect(container.textContent).toBe('12');
-  });
-
-  it('records every parsed SSE event in receipt order', async () => {
     let workspace: ReturnType<typeof useWorkspace> | undefined;
     await act(async () => root.render(<Harness expose={(value) => (workspace = value)} />));
     act(() => workspace!.run({ topic: 'events' }));
-    const stream = MockEventSource.instances[0];
-    const events = [
-      { type: 'start', workflow: 'research', input: {}, steps: [] },
-      { type: 'branch:evaluate', stepId: 'branch.route', matched: true, predicate: 'has sources' },
-      { type: 'llm:delta', stepId: 'synthesize', text: 'Hello', index: 0 },
-      { type: 'llm:delta', stepId: 'synthesize', text: ' world', index: 1 },
-      { type: 'done', status: 'success', output: { formatted: 'ok' }, totalMs: 12 },
-    ];
-
-    for (const event of events) {
-      act(() =>
-        stream.onmessage?.(
-          new MessageEvent('message', {
-            data: JSON.stringify(event),
-          }),
-        ),
-      );
-    }
+    await settle();
 
     expect(workspace!.traceEvents.map(({ event }) => event.type)).toEqual([
       'start',
-      'branch:evaluate',
-      'llm:delta',
-      'llm:delta',
+      'step:start',
+      'step:end',
       'done',
     ]);
-    expect(workspace!.traceEvents.map(({ id }) => id)).toEqual(['1', '2', '3', '4', '5']);
+    expect(container.firstElementChild?.getAttribute('data-running')).toBe('false');
+    expect(container.firstElementChild?.getAttribute('data-active')).toBe('idle');
+    expect(container.textContent).toBe('12');
+  });
+
+  it('clears the active node and surfaces a terminal workflow error', async () => {
+    fetchMock.mockResolvedValue(
+      sseResponse([
+        { type: 'step:start', stepId: 'research' },
+        { type: 'done', status: 'failed', output: { error: 'provider unavailable' }, totalMs: 8 },
+      ]),
+    );
+    let workspace: ReturnType<typeof useWorkspace> | undefined;
+    await act(async () => root.render(<Harness expose={(value) => (workspace = value)} />));
+    act(() => workspace!.run({ topic: 'failure' }));
+    await settle();
+
+    expect(container.firstElementChild?.getAttribute('data-running')).toBe('false');
+    expect(container.firstElementChild?.getAttribute('data-active')).toBe('idle');
+    expect(container.firstElementChild?.getAttribute('data-error')).toBe('provider unavailable');
   });
 });

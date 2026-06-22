@@ -72,7 +72,11 @@ export const EXAMPLES: Record<string, { file: string; exportName: string; descri
   },
 };
 
-export type RunFn = (input: unknown, tracer: Tracer) => Promise<unknown>;
+export interface RunContext {
+  signal?: AbortSignal;
+}
+
+export type RunFn = (input: unknown, tracer: Tracer, context?: RunContext) => Promise<unknown>;
 
 export function getExampleOrThrow(name: string) {
   if (!EXAMPLES[name]) {

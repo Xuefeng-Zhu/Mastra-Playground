@@ -18,7 +18,7 @@
     "example:09": "tsx examples/09-multi-agent-handoff/index.ts",
     "example:10": "tsx examples/10-mastra-memory/index.ts",
     "example:11": "tsx examples/11-content-pipeline/index.ts",
-    "ci": "npm run format:check && npm run typecheck && npm test && npm run build",
+    "ci": "npm run format:check && npm run typecheck && npm run test:coverage && npm run docs:check && npm run build",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx,js,css,html,md,json}\" --ignore-path .gitignore --ignore-path .prettierignore",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,css,html,md,json}\" --ignore-path .gitignore --ignore-path .prettierignore",
@@ -31,6 +31,7 @@
     "test:ui": "vitest run scripts/ui-smoke.test.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "docs:check": "node scripts/check-doc-links.mjs",
     "launch:hermes": "./scripts/launch-with-hermes-key.sh"
   },
   "keywords": [
