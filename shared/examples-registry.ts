@@ -72,6 +72,12 @@ export const EXAMPLES = {
     description:
       '3-agent content pipeline: researcher produces facts+sources, writer drafts, editor polishes and scores 0-10. Three narrow role prompts instead of one generalist.',
   },
+  'guardrail-redaction': {
+    file: 'examples/12-guardrail-redaction/index.ts',
+    exportName: 'runOne',
+    description:
+      'Hybrid guardrail workflow: deterministic redaction, LLM policy classification, branch, and PIIDetector processors on the responder.',
+  },
 } satisfies Record<ExampleId, { file: string; exportName: string; description: string }>;
 
 export type { RunContext } from './cancellable-run';
@@ -107,6 +113,7 @@ export const EXAMPLE_LOADERS = {
   'multi-agent-handoff': () => import('../examples/09-multi-agent-handoff/index'),
   'mastra-memory': () => import('../examples/10-mastra-memory/index'),
   'content-pipeline': () => import('../examples/11-content-pipeline/index'),
+  'guardrail-redaction': () => import('../examples/12-guardrail-redaction/index'),
 } satisfies Record<ExampleId, () => Promise<Record<string, unknown>>>;
 
 export async function loadRunFn(name: string): Promise<RunFn> {

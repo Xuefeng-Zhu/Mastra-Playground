@@ -252,6 +252,9 @@ main {
 .prim-dot.prim-stream {
   background: var(--c-stream);
 }
+.prim-dot.prim-guardrail {
+  background: var(--c-branch);
+}
 .rail-count {
   margin-left: auto;
   font-family: var(--font-mono);
@@ -340,6 +343,10 @@ main {
 .prim-tag-stream {
   color: var(--c-stream);
   background: rgba(121, 192, 255, 0.18);
+}
+.prim-tag-guardrail {
+  color: var(--c-branch);
+  background: rgba(188, 140, 255, 0.18);
 }
 .prim-tag-branch {
   color: var(--c-branch);
@@ -1759,6 +1766,9 @@ body.mp .prim-tag-hitl {
 }
 body.mp .prim-tag-stream {
   color: var(--c-stream);
+}
+body.mp .prim-tag-guardrail {
+  color: var(--c-branch);
 }
 body.mp .prim-tag-branch {
   color: var(--c-branch);

@@ -77,6 +77,14 @@ type MemoryOutput = {
   turn1?: { output?: string };
   turn2?: { output?: string };
 };
+type GuardrailRedactionOutput = {
+  redactedMessage?: string;
+  detections?: Record<string, number>;
+  guardrail?: { allowed?: boolean; risk?: string; policyTags?: string[]; reason?: string };
+  action?: 'blocked' | 'answered';
+  answer?: string;
+  processorMode?: string;
+};
 
 // ── the per-kind renderers ─────────────────────────────────────────────
 
@@ -297,6 +305,39 @@ function renderMastraMemory(value: unknown, ctx: RenderContext) {
   );
 }
 
+function renderGuardrailRedaction(value: unknown, ctx: RenderContext) {
+  const out = value as GuardrailRedactionOutput | null;
+  if (!out) return <p className="muted">(no output)</p>;
+  const detections = Object.entries(out.detections || {})
+    .filter(([, count]) => count > 0)
+    .map(([type, count]) => `${type}: ${count}`)
+    .join(' · ');
+  return (
+    <>
+      <SummaryGrid
+        items={[
+          { label: 'Action', value: out.action || '?' },
+          { label: 'Allowed', value: out.guardrail?.allowed ? 'yes' : 'no' },
+          { label: 'Risk', value: out.guardrail?.risk || '?' },
+          { label: 'Detections', value: detections || 'none' },
+        ]}
+      />
+      <h3>Redacted message</h3>
+      <p className="response-text">{out.redactedMessage || ''}</p>
+      <h3>Guardrail reason</h3>
+      <p className="response-text">{out.guardrail?.reason || ''}</p>
+      {out.answer && (
+        <>
+          <h3>{out.action === 'blocked' ? 'Safe response' : 'Answer'}</h3>
+          <p className="response-text">{out.answer}</p>
+        </>
+      )}
+      <p className="muted">{out.processorMode || 'PII processors enabled'}.</p>
+      <p className="muted">{formatSec(ctx.totalMs)}</p>
+    </>
+  );
+}
+
 // ── the public dispatcher ──────────────────────────────────────────────
 
 export const RESULT_RENDERERS = {
@@ -311,6 +352,7 @@ export const RESULT_RENDERERS = {
   criticLoop: renderCriticLoop,
   contentPipeline: renderContentPipeline,
   mastraMemory: renderMastraMemory,
+  guardrailRedaction: renderGuardrailRedaction,
 } satisfies Record<OutputKind, (out: unknown, ctx: RenderContext) => React.ReactNode>;
 
 // The "parallel" kind has a Sources tab. Others don't.
@@ -326,6 +368,7 @@ export const HAS_SOURCES_TAB = {
   criticLoop: false,
   contentPipeline: false,
   mastraMemory: false,
+  guardrailRedaction: false,
 } satisfies Record<OutputKind, boolean>;
 
 // HITL has its own tab set (no Compare — stateful).
@@ -341,6 +384,7 @@ export const HAS_COMPARE_TAB = {
   criticLoop: true,
   contentPipeline: true,
   mastraMemory: true,
+  guardrailRedaction: true,
 } satisfies Record<OutputKind, boolean>;
 
 export { SourcesList, ChatThread, StreamingView, HitlPending, HitlFinal };

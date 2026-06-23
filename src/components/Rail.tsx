@@ -7,7 +7,7 @@ interface RailProps {
   onSelect: (id: ExampleId) => void;
 }
 
-const PRIM_IDS = ['agent', 'workflow', 'tool', 'memory', 'hitl', 'stream'] as const;
+const PRIM_IDS = ['agent', 'workflow', 'tool', 'memory', 'hitl', 'stream', 'guardrail'] as const;
 const PRIM_LABELS: Record<string, string> = {
   agent: 'Agent',
   workflow: 'Workflow',
@@ -15,6 +15,7 @@ const PRIM_LABELS: Record<string, string> = {
   memory: 'Memory',
   hitl: 'HITL',
   stream: 'Streaming',
+  guardrail: 'Guardrail',
 };
 
 /** Compute counts dynamically from the example registry. */

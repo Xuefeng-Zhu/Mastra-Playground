@@ -78,6 +78,7 @@ export const EXAMPLE_INPUT_SCHEMAS = {
     model,
     ...customLlmFields,
   }),
+  'guardrail-redaction': z.object({ message: requiredText('message'), provider, model, ...customLlmFields }),
 } satisfies Record<ExampleId, z.ZodType<Record<string, unknown>>>;
 
 export type { ExampleId } from './example-manifest';

@@ -93,4 +93,8 @@ export const COMPARE_RENDERERS: Record<string, CompareRenderer> = {
   criticLoop: compareCriticLoop,
   contentPipeline: createTextComparison(['draft'], { current: 'Current draft', prior: 'Prior draft' }),
   mastraMemory: createTextComparison(['turn2', 'output']),
+  guardrailRedaction: createTextComparison(['redactedMessage'], {
+    current: 'Current redacted message',
+    prior: 'Prior redacted message',
+  }),
 };

@@ -70,6 +70,7 @@ describe('validateExampleInput', () => {
       'multi-agent-handoff': { message: 'hello' },
       'mastra-memory': { threadId: 'thread' },
       'content-pipeline': { topic: 'agents' },
+      'guardrail-redaction': { message: 'hello' },
     } as const;
 
     for (const id of EXAMPLE_IDS) {

@@ -174,4 +174,21 @@ export const GRAPHS: Record<string, GraphDef> = {
     ],
     edges: [{ from: 'input', to: 'iterate' }],
   },
+  'guardrail-redaction': {
+    nodes: [
+      { id: 'input', label: 'User message', kind: 'input', x: 60, y: 60 },
+      { id: 'redact', label: 'Redact', kind: 'tool', x: 60, y: 170, label2: 'local scanner' },
+      { id: 'classify', label: 'Classify', kind: 'llm', x: 60, y: 290, label2: 'guardrail' },
+      { id: 'branch.guardrail', label: 'branch.guardrail', kind: 'branch', x: 60, y: 410 },
+      { id: 'block', label: 'Block', kind: 'passthrough', x: -70, y: 540 },
+      { id: 'respond', label: 'Respond', kind: 'llm', x: 200, y: 540, label2: 'PIIDetector' },
+    ],
+    edges: [
+      { from: 'input', to: 'redact' },
+      { from: 'redact', to: 'classify' },
+      { from: 'classify', to: 'branch.guardrail' },
+      { from: 'branch.guardrail', to: 'block', label: 'blocked', predicate: 'risk high' },
+      { from: 'branch.guardrail', to: 'respond', label: 'allowed', predicate: 'allowed' },
+    ],
+  },
 };

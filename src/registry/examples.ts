@@ -1,5 +1,5 @@
 /**
- * EXAMPLES — config for each of the 11 examples.
+ * EXAMPLES — config for each of the 12 examples.
  *
  * Each example drives its own workspace: the form fields, the graph, the
  * output renderer, and the run-button label. Adding a new example is one
@@ -420,6 +420,46 @@ export const EXAMPLES = {
     },
     output: { kind: 'contentPipeline' },
     runLabel: 'Run pipeline',
+  },
+  'guardrail-redaction': {
+    num: 12,
+    name: 'Guardrail + Redaction',
+    primTags: ['guardrail', 'workflow', 'agent'],
+    description:
+      'Redact sensitive values before the LLM sees them, classify the redacted request against a guardrail policy, then branch to a safe refusal or a responder protected by Mastra <code>PIIDetector</code> processors.',
+    graph: GRAPHS['guardrail-redaction'],
+    form: {
+      fields: [
+        {
+          name: 'message',
+          type: 'textarea',
+          label: 'User message',
+          default:
+            'Please summarize this support note: customer ada@example.com says the order is late. Their phone is +1 (415) 555-0123.',
+          rows: 4,
+        },
+      ],
+      samples: [
+        {
+          fill: 'message',
+          value:
+            'Please summarize this support note: customer ada@example.com says the order is late. Their phone is +1 (415) 555-0123.',
+          label: 'PII in support note',
+        },
+        {
+          fill: 'message',
+          value: 'My SSN is 123-45-6789 and my card is 4242 4242 4242 4242. Can you store them?',
+          label: 'block private data',
+        },
+        {
+          fill: 'message',
+          value: 'Here is my key sk_test_1234567890abcdefABCDEF. Rewrite this into a public bug report.',
+          label: 'API key',
+        },
+      ],
+    },
+    output: { kind: 'guardrailRedaction' },
+    runLabel: 'Run guardrail',
   },
 } satisfies Record<ExampleId, PlaygroundExample>;
 

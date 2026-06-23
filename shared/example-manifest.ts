@@ -11,6 +11,7 @@ export const EXAMPLE_DEFINITIONS = [
   { id: 'multi-agent-handoff', num: 9, outputKind: 'handoff' },
   { id: 'mastra-memory', num: 10, outputKind: 'mastraMemory' },
   { id: 'content-pipeline', num: 11, outputKind: 'contentPipeline' },
+  { id: 'guardrail-redaction', num: 12, outputKind: 'guardrailRedaction' },
 ] as const;
 
 export type ExampleId = (typeof EXAMPLE_DEFINITIONS)[number]['id'];

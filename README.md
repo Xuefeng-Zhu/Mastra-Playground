@@ -6,7 +6,7 @@
 [![Mastra 1.43](https://img.shields.io/badge/Mastra-1.43-FF6B6B)](https://mastra.ai)
 
 A small, isolated TypeScript repo for learning [Mastra](https://mastra.ai) by
-example. Eleven real workflows exercising the framework's primitives, with a
+example. Twelve real workflows exercising the framework's primitives, with a
 React + Next.js browser UI that visualizes the execution trace in real time.
 
 **Not for production. Not part of InboxPilot.**
@@ -39,9 +39,9 @@ npm run build            # builds the Next.js app
 npm run start            # http://localhost:8917
 ```
 
-Open <http://localhost:8917> in a browser. The UI shows 11 examples in a
+Open <http://localhost:8917> in a browser. The UI shows 12 examples in a
 left rail (grouped by Mastra primitive — agent / workflow / tool / memory /
-HITL / stream), with the active example's workspace (form, trace, output)
+HITL / stream / guardrail), with the active example's workspace (form, trace, output)
 in the main pane.
 
 > **Local-only dev loop:** `npm run dev` starts the Next.js dev server on
@@ -57,19 +57,20 @@ explicitly with the InboxPilot equivalent in each example's README.
 
 ## Examples
 
-| #   | Example                                                  | Mastra primitives                                    | What it teaches                                                           |
-| --- | -------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------- |
-| 01  | [Support Triage](examples/01-support-triage/)            | Agent, Workflow, structured output, `.branch()`      | The shape of an InboxPilot `AiAgentService` call.                         |
-| 02  | [Research Agent](examples/02-research-agent/)            | Agent with tools, sequential workflow                | Tool-using agents with mocked APIs.                                       |
-| 03  | [Code Review Agent](examples/03-code-review-agent/)      | Workflow with deterministic gate, conditional LLM    | When to call the LLM based on tool output, not the other way around.      |
-| 04  | [Parallel Research](examples/04-parallel-research/)      | `Promise.all` fan-out inside a step                  | The pattern InboxPilot §8 ("tool use") would use.                         |
-| 05  | [Multi-turn Chat](examples/05-multi-turn-chat/)          | Explicit conversation history in the prompt          | The pattern Mastra's `Memory` class abstracts over.                       |
-| 06  | [Human-in-the-Loop Approval](examples/06-hitl-approval/) | `suspend()` / `run.resume()`                         | The exact mechanism for InboxPilot §13's "named human-in-the-loop owner". |
-| 07  | [Streaming Chat](examples/07-streaming-chat/)            | `Agent.stream()` token-by-token                      | How to consume streaming responses in a Mastra agent.                     |
-| 08  | [Critic Loop](examples/08-critic-loop/)                  | Evaluator-optimizer loop with score threshold        | Iterative self-critique until quality bar is met or budget runs out.      |
-| 09  | [Multi-Agent Handoff](examples/09-multi-agent-handoff/)  | Primary agent + specialist agent delegation          | Multi-agent systems where narrow specialists own part of the surface.     |
-| 10  | [Mastra Memory](examples/10-mastra-memory/)              | `@mastra/memory` `Memory` class, threadId+resourceId | The real abstraction that Example 05 hand-rolls with a Map.               |
-| 11  | [Content Pipeline](examples/11-content-pipeline/)        | 3-agent pipeline (research → write → edit + score)   | Composing narrow role prompts beats one generalist.                       |
+| #   | Example                                                   | Mastra primitives                                    | What it teaches                                                           |
+| --- | --------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------- |
+| 01  | [Support Triage](examples/01-support-triage/)             | Agent, Workflow, structured output, `.branch()`      | The shape of an InboxPilot `AiAgentService` call.                         |
+| 02  | [Research Agent](examples/02-research-agent/)             | Agent with tools, sequential workflow                | Tool-using agents with mocked APIs.                                       |
+| 03  | [Code Review Agent](examples/03-code-review-agent/)       | Workflow with deterministic gate, conditional LLM    | When to call the LLM based on tool output, not the other way around.      |
+| 04  | [Parallel Research](examples/04-parallel-research/)       | `Promise.all` fan-out inside a step                  | The pattern InboxPilot §8 ("tool use") would use.                         |
+| 05  | [Multi-turn Chat](examples/05-multi-turn-chat/)           | Explicit conversation history in the prompt          | The pattern Mastra's `Memory` class abstracts over.                       |
+| 06  | [Human-in-the-Loop Approval](examples/06-hitl-approval/)  | `suspend()` / `run.resume()`                         | The exact mechanism for InboxPilot §13's "named human-in-the-loop owner". |
+| 07  | [Streaming Chat](examples/07-streaming-chat/)             | `Agent.stream()` token-by-token                      | How to consume streaming responses in a Mastra agent.                     |
+| 08  | [Critic Loop](examples/08-critic-loop/)                   | Evaluator-optimizer loop with score threshold        | Iterative self-critique until quality bar is met or budget runs out.      |
+| 09  | [Multi-Agent Handoff](examples/09-multi-agent-handoff/)   | Primary agent + specialist agent delegation          | Multi-agent systems where narrow specialists own part of the surface.     |
+| 10  | [Mastra Memory](examples/10-mastra-memory/)               | `@mastra/memory` `Memory` class, threadId+resourceId | The real abstraction that Example 05 hand-rolls with a Map.               |
+| 11  | [Content Pipeline](examples/11-content-pipeline/)         | 3-agent pipeline (research → write → edit + score)   | Composing narrow role prompts beats one generalist.                       |
+| 12  | [Guardrail + Redaction](examples/12-guardrail-redaction/) | Workflow guardrail + `PIIDetector` processors        | Redact before the LLM, then branch or answer with processor backup.       |
 
 Each example is <350 lines including the CLI demo. The shared modules in
 `shared/` are <300 lines total.
@@ -255,7 +256,7 @@ mastra-playground/
     suspended-store.ts              # (ex 06) suspended-run registry
     validation.ts                   # rate limit + sanitization + error classes
     logger.ts                       # structured stdout/stderr logger
-  examples/                         # 11 numbered workflows
+  examples/                         # 12 numbered workflows
     01-support-triage/              # + README.md
     02-research-agent/
     03-code-review-agent/
@@ -267,6 +268,7 @@ mastra-playground/
     09-multi-agent-handoff/
     10-mastra-memory/
     11-content-pipeline/
+    12-guardrail-redaction/
   src/                              # React 18 client components
     App.tsx                         # top-level shell
     global.d.ts                     # ambient type declarations
