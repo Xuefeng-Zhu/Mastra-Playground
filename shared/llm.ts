@@ -32,7 +32,7 @@ export type LlmRequestConfig =
 
 const DEFAULT_PROVIDER: LlmProvider = 'google';
 const DEFAULT_MODELS: Record<LlmProvider, string> = {
-  google: 'gemini-2.5-flash-lite',
+  google: 'gemini-3.1-flash-lite',
   openrouter: 'openai/gpt-oss-20b:free',
   custom: 'gpt-3.5-turbo',
 };

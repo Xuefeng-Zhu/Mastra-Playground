@@ -183,7 +183,7 @@ typecheck` or `npm run format:check` (CI runs those without secrets).
 | ------------------------------ | ------------------------------ | ------------------- | --------------------------------------------------------------------- |
 | `LLM_PROVIDER`                 | `google`                       | No                  | CLI default provider: `google`, `openrouter`, or `custom`.            |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | _(none)_                       | For Gemini runs     | Gemini API key. Never expose it in browser code or commit it.         |
-| `GOOGLE_MODEL`                 | `gemini-2.5-flash-lite`        | No                  | Default Gemini model for CLI runs.                                    |
+| `GOOGLE_MODEL`                 | `gemini-3.1-flash-lite`        | No                  | Default Gemini model for CLI runs.                                    |
 | `OPENAI_API_KEY`               | _(none)_                       | For OpenRouter runs | OpenRouter API key.                                                   |
 | `OPENAI_BASE_URL`              | `https://openrouter.ai/api/v1` | No                  | OpenRouter's OpenAI-compatible endpoint.                              |
 | `OPENAI_MODEL`                 | `openai/gpt-oss-20b:free`      | No                  | Default OpenRouter model for CLI runs.                                |
@@ -195,7 +195,7 @@ For Gemini (the default provider):
 ```bash
 LLM_PROVIDER=google
 GOOGLE_GENERATIVE_AI_API_KEY=your-new-key
-GOOGLE_MODEL=gemini-2.5-flash-lite
+GOOGLE_MODEL=gemini-3.1-flash-lite
 ```
 
 For OpenRouter:
@@ -365,7 +365,7 @@ need to rebuild first with `npm run build`.
   file.
 - **trycloudflare.com tunnel URLs rotate** on cloudflared restarts. The
   server works fine locally without a tunnel.
-- **Provider and model pickers are real.** Gemini 2.5 Flash-Lite is the default.
+- **Provider and model pickers are real.** Gemini 3.1 Flash Lite is the default.
   Switching providers restores that provider's presets, custom model ID, and
   optional browser API key. Provider quotas and model availability may vary.
 - **The playground is per-session.** To make it survive reboots, pin the

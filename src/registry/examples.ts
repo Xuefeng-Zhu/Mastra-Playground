@@ -514,10 +514,10 @@ export const MODEL_OPTIONS_BY_PROVIDER: Record<
   ReadonlyArray<{ value: string; label: string }>
 > = {
   google: [
-    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite · default' },
+    { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash Lite · default' },
+    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
     { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
     { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-    { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash Lite' },
   ],
   openrouter: [
     { value: 'openai/gpt-oss-20b:free', label: 'GPT-OSS 20B · free · default' },
