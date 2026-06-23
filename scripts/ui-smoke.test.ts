@@ -50,10 +50,10 @@ describe('Next.js build artifacts', () => {
 });
 
 describe('Source composition', () => {
-  it('examples-registry exports all 12 examples', async () => {
+  it('examples-registry exports all 13 examples', async () => {
     const { EXAMPLES } = await import('../shared/examples-registry');
     const ids = Object.keys(EXAMPLES);
-    expect(ids).toHaveLength(12);
+    expect(ids).toHaveLength(13);
     expect(ids).toContain('support-triage');
     expect(ids).toContain('research');
     expect(ids).toContain('code-review');
@@ -66,6 +66,7 @@ describe('Source composition', () => {
     expect(ids).toContain('mastra-memory');
     expect(ids).toContain('content-pipeline');
     expect(ids).toContain('guardrail-redaction');
+    expect(ids).toContain('plan-and-execute');
   });
 
   it('example-inputs has matching schemas for all registered examples', async () => {

@@ -191,4 +191,17 @@ export const GRAPHS: Record<string, GraphDef> = {
       { from: 'branch.guardrail', to: 'respond', label: 'allowed', predicate: 'allowed' },
     ],
   },
+  'plan-and-execute': {
+    nodes: [
+      { id: 'input', label: 'Task', kind: 'input', x: 60, y: 60 },
+      { id: 'plan', label: 'Plan', kind: 'llm', x: 60, y: 170, label2: 'structured steps' },
+      { id: 'execute', label: 'Execute', kind: 'llm', x: 60, y: 290, label2: 'sequential agent' },
+      { id: 'summarize', label: 'Summarize', kind: 'llm', x: 60, y: 410, label2: 'final answer' },
+    ],
+    edges: [
+      { from: 'input', to: 'plan' },
+      { from: 'plan', to: 'execute' },
+      { from: 'execute', to: 'summarize' },
+    ],
+  },
 };

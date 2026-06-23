@@ -30,7 +30,7 @@ For a production build: `npm run build && npm run start`.
 | `npm run start`           | Start the production server (port 8917)      |
 | `npm run ci`              | format:check + typecheck + test + build      |
 | `npm run health`          | Curl `/api/health`                           |
-| `npm run example:01`–`11` | Run a single example as a CLI demo           |
+| `npm run example:01`–`13` | Run a single example as a CLI demo           |
 | `npm run smoke`           | End-to-end smoke against running server      |
 | `npm test`                | Vitest run (shared/ + scripts/)              |
 

@@ -1,5 +1,5 @@
 /**
- * EXAMPLES — config for each of the 12 examples.
+ * EXAMPLES — config for each of the 13 examples.
  *
  * Each example drives its own workspace: the form fields, the graph, the
  * output renderer, and the run-button label. Adding a new example is one
@@ -460,6 +460,44 @@ export const EXAMPLES = {
     },
     output: { kind: 'guardrailRedaction' },
     runLabel: 'Run guardrail',
+  },
+  'plan-and-execute': {
+    num: 13,
+    name: 'Plan-and-Execute Agent',
+    primTags: ['agent', 'workflow'],
+    description:
+      'A planner agent creates a small structured plan, an executor agent works through each step in order, then a summarizer agent turns the step results into a concise answer.',
+    graph: GRAPHS['plan-and-execute'],
+    form: {
+      fields: [
+        {
+          name: 'task',
+          type: 'textarea',
+          label: 'Task',
+          default: 'Create a concise launch checklist for a small AI assistant feature.',
+          rows: 4,
+        },
+      ],
+      samples: [
+        {
+          fill: 'task',
+          value: 'Create a concise launch checklist for a small AI assistant feature.',
+          label: 'launch checklist',
+        },
+        {
+          fill: 'task',
+          value: 'Plan how to evaluate whether a support bot is ready for beta users.',
+          label: 'support bot beta',
+        },
+        {
+          fill: 'task',
+          value: 'Draft a practical plan for migrating a team from ad hoc prompts to reusable workflows.',
+          label: 'workflow migration',
+        },
+      ],
+    },
+    output: { kind: 'planAndExecute' },
+    runLabel: 'Plan and execute',
   },
 } satisfies Record<ExampleId, PlaygroundExample>;
 

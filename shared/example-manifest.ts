@@ -12,6 +12,7 @@ export const EXAMPLE_DEFINITIONS = [
   { id: 'mastra-memory', num: 10, outputKind: 'mastraMemory' },
   { id: 'content-pipeline', num: 11, outputKind: 'contentPipeline' },
   { id: 'guardrail-redaction', num: 12, outputKind: 'guardrailRedaction' },
+  { id: 'plan-and-execute', num: 13, outputKind: 'planAndExecute' },
 ] as const;
 
 export type ExampleId = (typeof EXAMPLE_DEFINITIONS)[number]['id'];

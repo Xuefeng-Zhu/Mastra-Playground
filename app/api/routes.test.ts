@@ -20,8 +20,8 @@ describe('API routes', () => {
   it('reports health and registered examples', async () => {
     const health = await getHealth();
     const examples = await getExamples();
-    await expect(health.json()).resolves.toMatchObject({ ok: true, exampleCount: 12 });
-    await expect(examples.json()).resolves.toHaveLength(12);
+    await expect(health.json()).resolves.toMatchObject({ ok: true, exampleCount: 13 });
+    await expect(examples.json()).resolves.toHaveLength(13);
   });
 
   it('returns source for a known example and validation for an unknown one', async () => {

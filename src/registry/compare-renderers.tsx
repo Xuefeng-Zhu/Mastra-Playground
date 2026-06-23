@@ -97,4 +97,8 @@ export const COMPARE_RENDERERS: Record<string, CompareRenderer> = {
     current: 'Current redacted message',
     prior: 'Prior redacted message',
   }),
+  planAndExecute: createTextComparison(['answer'], {
+    current: 'Current answer',
+    prior: 'Prior answer',
+  }),
 };

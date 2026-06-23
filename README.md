@@ -39,7 +39,7 @@ npm run build            # builds the Next.js app
 npm run start            # http://localhost:8917
 ```
 
-Open <http://localhost:8917> in a browser. The UI shows 12 examples in a
+Open <http://localhost:8917> in a browser. The UI shows 13 examples in a
 left rail (grouped by Mastra primitive — agent / workflow / tool / memory /
 HITL / stream / guardrail), with the active example's workspace (form, trace, output)
 in the main pane.
@@ -71,6 +71,7 @@ explicitly with the InboxPilot equivalent in each example's README.
 | 10  | [Mastra Memory](examples/10-mastra-memory/)               | `@mastra/memory` `Memory` class, threadId+resourceId | The real abstraction that Example 05 hand-rolls with a Map.               |
 | 11  | [Content Pipeline](examples/11-content-pipeline/)         | 3-agent pipeline (research → write → edit + score)   | Composing narrow role prompts beats one generalist.                       |
 | 12  | [Guardrail + Redaction](examples/12-guardrail-redaction/) | Workflow guardrail + `PIIDetector` processors        | Redact before the LLM, then branch or answer with processor backup.       |
+| 13  | [Plan-and-Execute Agent](examples/13-plan-and-execute/)   | Planner + executor + summarizer agents               | Decompose a task, execute steps sequentially, then summarize the result.  |
 
 Each example is <350 lines including the CLI demo. The shared modules in
 `shared/` are <300 lines total.
@@ -94,7 +95,7 @@ Regular API requests return JSON; successful stream requests return
 
 ```bash
 curl -s http://localhost:8917/api/health
-# {"ok":true,"uptimeSec":12,"nodeEnv":"development","exampleCount":11,"ts":"2026-06-19T..."}
+# {"ok":true,"uptimeSec":12,"nodeEnv":"development","exampleCount":13,"ts":"2026-06-19T..."}
 ```
 
 ### Smoke test
@@ -131,7 +132,7 @@ running server. CI boots the production build and runs this same suite.
 │   Browser       │ ◄──────────────────────────── │  Next.js server │
 │  (React client  │                                │  (app/api/)     │
 │   components)   │    POST /api/run/:example     │                 │
-│  11 tabs        │ ────────────────────────────► │  loads example  │
+│  13 tabs        │ ────────────────────────────► │  loads example  │
 │  1 graph each   │                                │  via static     │
 │  trace events   │    POST /api/resume/:token    │  import map     │
 │  result tabs    │ ◄──────────────────────────── │                 │
@@ -256,7 +257,7 @@ mastra-playground/
     suspended-store.ts              # (ex 06) suspended-run registry
     validation.ts                   # rate limit + sanitization + error classes
     logger.ts                       # structured stdout/stderr logger
-  examples/                         # 12 numbered workflows
+  examples/                         # 13 numbered workflows
     01-support-triage/              # + README.md
     02-research-agent/
     03-code-review-agent/
@@ -269,6 +270,7 @@ mastra-playground/
     10-mastra-memory/
     11-content-pipeline/
     12-guardrail-redaction/
+    13-plan-and-execute/
   src/                              # React 18 client components
     App.tsx                         # top-level shell
     global.d.ts                     # ambient type declarations

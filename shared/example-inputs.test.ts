@@ -71,6 +71,7 @@ describe('validateExampleInput', () => {
       'mastra-memory': { threadId: 'thread' },
       'content-pipeline': { topic: 'agents' },
       'guardrail-redaction': { message: 'hello' },
+      'plan-and-execute': { task: 'agents' },
     } as const;
 
     for (const id of EXAMPLE_IDS) {

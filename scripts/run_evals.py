@@ -45,7 +45,9 @@ DEFAULT_EXAMPLES = [
     "multi-agent-handoff",
     "mastra-memory",
     "content-pipeline",
-]  # All 11 examples. build_payload() handles each one's input shape.
+    "guardrail-redaction",
+    "plan-and-execute",
+]  # All 13 examples. build_payload() handles each one's input shape.
 
 
 def post_run(base: str, example: str, payload: dict, timeout_s: int = 90) -> tuple[int, float, dict]:
@@ -81,6 +83,8 @@ def build_payload(example: str, topic: str, run_idx: int, threshold: int, max_it
         if example == "critic-loop":
             p.update({"threshold": threshold, "maxIterations": max_iters})
         return p
+    if example == "plan-and-execute":
+        return {"task": topic}
     if example == "support-triage":
         # Topic doubles as the support message; mix it up with run_idx
         return {"message": topic}
@@ -114,6 +118,8 @@ def build_payload(example: str, topic: str, run_idx: int, threshold: int, max_it
             "Where is my refund for order-9999?",
         ]
         return {"message": messages[run_idx % len(messages)]}
+    if example == "guardrail-redaction":
+        return {"message": topic}
     if example == "mastra-memory":
         # Two-turn conversation: set a fact in turn1, ask for it in turn2
         # Each run_idx gets a fresh threadId so memory state doesn't leak between topics
@@ -142,6 +148,8 @@ PRIMARY_TEXT_FIELD = {
     "multi-agent-handoff": "specialistResponse",
     "mastra-memory": "turn2",  # dict with .output — measure inner text
     "content-pipeline": "edited",
+    "guardrail-redaction": "answer",
+    "plan-and-execute": "answer",
 }
 
 
@@ -228,6 +236,13 @@ def measure(result_body: dict, example: str) -> dict:
         turn2 = payload.get("turn2")
         if isinstance(turn2, dict) and isinstance(turn2.get("output"), str):
             out["primaryChars"] = len(turn2["output"])
+    if example == "guardrail-redaction":
+        out["action"] = payload.get("action")
+        guardrail = payload.get("guardrail")
+        if isinstance(guardrail, dict):
+            out["risk"] = guardrail.get("risk")
+    if example == "plan-and-execute":
+        out["totalSteps"] = payload.get("totalSteps")
 
     return out
 
@@ -327,6 +342,13 @@ def per_example_insights(runs: list[dict]) -> str:
             recalled = sum(1 for r in lst if r.get("recalled") if r.get("recalled") is not None)
             history_lens = [r.get("historyLength") for r in lst if r.get("historyLength") is not None]
             out.append(f"  mastra-memory: recalled={recalled}/{len(lst)}  historyLengths={history_lens}")
+        elif ex == "guardrail-redaction":
+            actions = [r.get("action") for r in lst]
+            risks = [r.get("risk") for r in lst]
+            out.append(f"  guardrail-redaction actions: {actions}  risks={risks}")
+        elif ex == "plan-and-execute":
+            steps = [r.get("totalSteps") for r in lst if r.get("totalSteps") is not None]
+            out.append(f"  plan-and-execute total steps: {steps}")
     return "\n".join(out)
 
 

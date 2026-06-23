@@ -78,6 +78,12 @@ export const EXAMPLES = {
     description:
       'Hybrid guardrail workflow: deterministic redaction, LLM policy classification, branch, and PIIDetector processors on the responder.',
   },
+  'plan-and-execute': {
+    file: 'examples/13-plan-and-execute/index.ts',
+    exportName: 'runOne',
+    description:
+      'Planner + executor agent pattern: create a structured plan, execute each step sequentially, then summarize.',
+  },
 } satisfies Record<ExampleId, { file: string; exportName: string; description: string }>;
 
 export type { RunContext } from './cancellable-run';
@@ -114,6 +120,7 @@ export const EXAMPLE_LOADERS = {
   'mastra-memory': () => import('../examples/10-mastra-memory/index'),
   'content-pipeline': () => import('../examples/11-content-pipeline/index'),
   'guardrail-redaction': () => import('../examples/12-guardrail-redaction/index'),
+  'plan-and-execute': () => import('../examples/13-plan-and-execute/index'),
 } satisfies Record<ExampleId, () => Promise<Record<string, unknown>>>;
 
 export async function loadRunFn(name: string): Promise<RunFn> {

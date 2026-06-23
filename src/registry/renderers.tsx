@@ -85,6 +85,20 @@ type GuardrailRedactionOutput = {
   answer?: string;
   processorMode?: string;
 };
+type PlanAndExecuteOutput = {
+  task?: string;
+  plan?: { steps?: { id: string; title: string; objective: string; successCriteria: string }[] };
+  executions?: {
+    stepId: string;
+    title: string;
+    status: string;
+    result: string;
+    evidence?: string[];
+  }[];
+  answer?: string;
+  caveats?: string[];
+  totalSteps?: number;
+};
 
 // ── the per-kind renderers ─────────────────────────────────────────────
 
@@ -338,6 +352,58 @@ function renderGuardrailRedaction(value: unknown, ctx: RenderContext) {
   );
 }
 
+function renderPlanAndExecute(value: unknown, ctx: RenderContext) {
+  const out = value as PlanAndExecuteOutput | null;
+  if (!out) return <p className="muted">(no output)</p>;
+  const steps = out.plan?.steps || [];
+  const executions = out.executions || [];
+  const caveats = out.caveats || [];
+  const completed = executions.filter((execution) => execution.status === 'done').length;
+  return (
+    <>
+      <SummaryGrid
+        items={[
+          { label: 'Steps', value: String(out.totalSteps || steps.length || executions.length || 0) },
+          { label: 'Completed', value: String(completed) },
+          { label: 'Caveats', value: String(caveats.length) },
+        ]}
+      />
+      <h3>Plan</h3>
+      <ol className="iter-list">
+        {steps.map((step, index) => (
+          <li key={step.id || index}>
+            <strong>{step.title || `Step ${index + 1}`}</strong>
+            <p className="iter-draft">{step.objective || ''}</p>
+            <p className="iter-feedback muted">
+              <em>{step.successCriteria || ''}</em>
+            </p>
+          </li>
+        ))}
+      </ol>
+      <h3>Execution</h3>
+      <ol className="iter-list">
+        {executions.map((execution, index) => (
+          <li key={execution.stepId || index}>
+            <strong>
+              {execution.title || execution.stepId} · {execution.status}
+            </strong>
+            <p className="iter-draft">{execution.result || ''}</p>
+            {(execution.evidence || []).length > 0 && (
+              <p className="iter-feedback muted">
+                <em>{(execution.evidence || []).join(' · ')}</em>
+              </p>
+            )}
+          </li>
+        ))}
+      </ol>
+      <h3>Answer</h3>
+      <p className="response-text">{out.answer || ''}</p>
+      {caveats.length > 0 && <p className="muted">Caveats: {caveats.join(' · ')}</p>}
+      <p className="muted">{formatSec(ctx.totalMs)}</p>
+    </>
+  );
+}
+
 // ── the public dispatcher ──────────────────────────────────────────────
 
 export const RESULT_RENDERERS = {
@@ -353,6 +419,7 @@ export const RESULT_RENDERERS = {
   contentPipeline: renderContentPipeline,
   mastraMemory: renderMastraMemory,
   guardrailRedaction: renderGuardrailRedaction,
+  planAndExecute: renderPlanAndExecute,
 } satisfies Record<OutputKind, (out: unknown, ctx: RenderContext) => React.ReactNode>;
 
 // The "parallel" kind has a Sources tab. Others don't.
@@ -369,6 +436,7 @@ export const HAS_SOURCES_TAB = {
   contentPipeline: false,
   mastraMemory: false,
   guardrailRedaction: false,
+  planAndExecute: false,
 } satisfies Record<OutputKind, boolean>;
 
 // HITL has its own tab set (no Compare — stateful).
@@ -385,6 +453,7 @@ export const HAS_COMPARE_TAB = {
   contentPipeline: true,
   mastraMemory: true,
   guardrailRedaction: true,
+  planAndExecute: true,
 } satisfies Record<OutputKind, boolean>;
 
 export { SourcesList, ChatThread, StreamingView, HitlPending, HitlFinal };

@@ -19,6 +19,7 @@
     "example:10": "tsx examples/10-mastra-memory/index.ts",
     "example:11": "tsx examples/11-content-pipeline/index.ts",
     "example:12": "tsx examples/12-guardrail-redaction/index.ts",
+    "example:13": "tsx examples/13-plan-and-execute/index.ts",
     "ci": "npm run format:check && npm run typecheck && npm run test:coverage && npm run docs:check && npm run build",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx,js,css,html,md,json}\" --ignore-path .gitignore --ignore-path .prettierignore",
