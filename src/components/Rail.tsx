@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { EXAMPLES, EXAMPLE_IDS } from '../registry/examples';
+import type { ExampleId } from '../../shared/example-manifest';
 
 interface RailProps {
-  activeExampleId: string;
-  onSelect: (id: string) => void;
+  activeExampleId: ExampleId;
+  onSelect: (id: ExampleId) => void;
 }
 
 const PRIM_IDS = ['agent', 'workflow', 'tool', 'memory', 'hitl', 'stream'] as const;
@@ -29,7 +30,15 @@ function computePrimitives() {
 
 const PRIMITIVES = computePrimitives();
 
-function RailItem({ id, active, onSelect }: { id: string; active: boolean; onSelect: (id: string) => void }) {
+function RailItem({
+  id,
+  active,
+  onSelect,
+}: {
+  id: ExampleId;
+  active: boolean;
+  onSelect: (id: ExampleId) => void;
+}) {
   const ex = EXAMPLES[id];
   if (!ex) return null;
   return (

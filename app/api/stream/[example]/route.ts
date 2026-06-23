@@ -1,17 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { Tracer, sseLine, type TraceEvent } from '../../../../shared/tracer';
 import { loadRunFn, getExampleOrThrow } from '../../../../shared/examples-registry';
-import {
-  validateExampleInput,
-  extractCustomLlmConfig,
-  type ExampleId,
-} from '../../../../shared/example-inputs';
-import {
-  checkRateLimit,
-  ValidationError,
-  RateLimitError,
-  readWebJsonBody,
-} from '../../../../shared/validation';
+import { validateExampleInput, prepareExampleInput, type ExampleId } from '../../../../shared/example-inputs';
+import { checkRateLimit, readWebJsonBody } from '../../../../shared/validation';
+import { apiErrorResponse, requestClientIp } from '../../route-helpers';
+import { logger } from '../../../../shared/logger';
 
 export const runtime = 'nodejs';
 
@@ -20,13 +13,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ exa
 
   try {
     getExampleOrThrow(name);
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-    checkRateLimit(ip + ':stream');
+    checkRateLimit(requestClientIp(req) + ':stream');
     const raw = await readWebJsonBody(req);
-    const input = validateExampleInput(name as ExampleId, raw);
-
-    // Extract custom provider config before it reaches example code
-    const customLlm = extractCustomLlmConfig(input);
+    const validatedInput = validateExampleInput(name as ExampleId, raw);
+    const { input, customLlm } = prepareExampleInput(validatedInput);
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -64,8 +54,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ exa
           }
         } catch (err) {
           if (!req.signal.aborted) {
-            const message = err instanceof Error ? err.message : String(err);
-            send({ type: 'done', status: 'failed', output: { error: message }, totalMs: 0 });
+            const errorId = crypto.randomUUID();
+            logger.error('workflow_stream_failed', {
+              example: name,
+              errorId,
+              error: err instanceof Error ? err.message : String(err),
+            });
+            send({
+              type: 'done',
+              status: 'failed',
+              output: { error: 'Workflow failed', errorId },
+              totalMs: 0,
+            });
           }
         } finally {
           close();
@@ -82,16 +82,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ exa
       },
     });
   } catch (err) {
-    if (err instanceof RateLimitError) {
-      return NextResponse.json(
-        { error: err.message, retryAfter: err.retryAfter },
-        { status: 429, headers: { 'Retry-After': String(err.retryAfter) } },
-      );
-    }
-    if (err instanceof ValidationError) {
-      return NextResponse.json({ error: err.message, field: err.field, detail: err.detail }, { status: 400 });
-    }
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiErrorResponse(err, `stream:${name}`);
   }
 }

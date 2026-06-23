@@ -28,7 +28,7 @@
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
+import { runWithCancellation, type RunContext } from '../../shared/cancellable-run';
 import { resolveModel, model, getModel, type LlmProvider } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import { finalizeRunResult } from '../../shared/run-result';
@@ -260,7 +260,6 @@ export async function runOne(input: RunOptions, tracer: Tracer, context?: RunCon
   const built = buildMastra(tracer, useModel);
   const wf = built.mastra.getWorkflow('hitl-approval');
   const run = await wf.createRun();
-  cancelRunOnSignal(run, context);
   built.captureRun(
     run as unknown as {
       runId: string;
@@ -268,7 +267,9 @@ export async function runOne(input: RunOptions, tracer: Tracer, context?: RunCon
     },
   );
   built.captureMastra(built.mastra);
-  const result = await run.start({ inputData: { action: input.action, actionType: input.actionType } });
+  const result = await runWithCancellation(run, context, () =>
+    run.start({ inputData: { action: input.action, actionType: input.actionType } }),
+  );
   return finalizeRunResult(result, tracer, t0, input, run.runId);
 }
 

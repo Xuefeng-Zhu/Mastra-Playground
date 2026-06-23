@@ -3,10 +3,10 @@ import { takeSuspendedRun, HITL_DECISIONS } from '../../../../shared/suspended-s
 import {
   checkRateLimit,
   ValidationError,
-  RateLimitError,
   isPlainObject,
   readWebJsonBody,
 } from '../../../../shared/validation';
+import { apiErrorResponse, requestClientIp } from '../../route-helpers';
 
 export const runtime = 'nodejs';
 
@@ -14,8 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   const { token } = await params;
 
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-    checkRateLimit(ip + ':resume');
+    checkRateLimit(requestClientIp(req) + ':resume');
 
     const raw = await readWebJsonBody(req);
     if (!isPlainObject(raw)) {
@@ -41,16 +40,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       result: { status: result.status, output: result.result, error: result.error },
     });
   } catch (err) {
-    if (err instanceof RateLimitError) {
-      return NextResponse.json(
-        { error: err.message, retryAfter: err.retryAfter },
-        { status: 429, headers: { 'Retry-After': String(err.retryAfter) } },
-      );
-    }
-    if (err instanceof ValidationError) {
-      return NextResponse.json({ error: err.message, field: err.field, detail: err.detail }, { status: 400 });
-    }
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiErrorResponse(err, `resume:${token}`);
   }
 }

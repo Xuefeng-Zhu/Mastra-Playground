@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ValidationError } from './validation';
-import { validateExampleInput } from './example-inputs';
+import { prepareExampleInput, validateExampleInput } from './example-inputs';
+import { EXAMPLE_IDS } from './example-manifest';
 
 describe('validateExampleInput', () => {
   it('coerces critic-loop form values and preserves the selected model', () => {
@@ -54,5 +55,40 @@ describe('validateExampleInput', () => {
     expect(() => validateExampleInput('research', { topic: 'agents', provider: 'unknown' })).toThrow(
       ValidationError,
     );
+  });
+
+  it('has a validation schema for every canonical example', () => {
+    const validInput = {
+      'support-triage': { message: 'hello' },
+      research: { topic: 'agents' },
+      'code-review': { path: 'file.ts' },
+      'parallel-research': { topic: 'agents' },
+      'multi-turn-chat': { message: 'hello' },
+      'hitl-approval': { action: 'refund' },
+      'streaming-chat': { prompt: 'hello' },
+      'critic-loop': { topic: 'agents' },
+      'multi-agent-handoff': { message: 'hello' },
+      'mastra-memory': { threadId: 'thread' },
+      'content-pipeline': { topic: 'agents' },
+    } as const;
+
+    for (const id of EXAMPLE_IDS) {
+      expect(() => validateExampleInput(id, validInput[id])).not.toThrow();
+    }
+  });
+
+  it('returns a credential-free copy with request-scoped custom configuration', () => {
+    const original = {
+      provider: 'custom',
+      topic: 'agents',
+      customBaseUrl: 'https://example.com/v1',
+      customApiKey: 'secret',
+      customModel: 'model-id',
+    };
+    expect(prepareExampleInput(original)).toEqual({
+      input: { provider: 'custom', topic: 'agents' },
+      customLlm: { baseUrl: 'https://example.com/v1', apiKey: 'secret', model: 'model-id' },
+    });
+    expect(original.customApiKey).toBe('secret');
   });
 });

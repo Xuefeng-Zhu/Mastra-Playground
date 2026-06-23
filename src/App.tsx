@@ -1,29 +1,43 @@
+'use client';
+
 import { useEffect, useState } from 'react';
 import { Topbar } from './components/Topbar';
 import { Rail } from './components/Rail';
 import { Workspace } from './components/Workspace';
 import { CommandPalette } from './components/CommandPalette';
 import { EXAMPLES } from './registry/examples';
+import { isExampleId, type ExampleId } from '../shared/example-manifest';
 
-function getInitialExample(): string {
+const DEFAULT_EXAMPLE_ID: ExampleId = 'support-triage';
+
+function getHashExample(): ExampleId | null {
+  if (typeof window === 'undefined') return null;
   const hash = window.location.hash.slice(1);
-  if (hash && hash in EXAMPLES) return hash;
-  return 'support-triage';
+  if (isExampleId(hash)) return hash;
+  return null;
 }
 
 export function App() {
-  const [activeId, setActiveId] = useState<string>(getInitialExample);
+  const [activeId, setActiveId] = useState<ExampleId>(DEFAULT_EXAMPLE_ID);
+  const [hasReadInitialHash, setHasReadInitialHash] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const hashExample = getHashExample();
+    if (hashExample) setActiveId(hashExample);
+    setHasReadInitialHash(true);
+  }, []);
 
   // Sync hash ↔ active example
   useEffect(() => {
+    if (!hasReadInitialHash) return;
     window.location.hash = activeId;
-  }, [activeId]);
+  }, [activeId, hasReadInitialHash]);
 
   useEffect(() => {
     const onHashChange = () => {
-      const hash = window.location.hash.slice(1);
-      if (hash && hash in EXAMPLES) setActiveId(hash);
+      const hashExample = getHashExample();
+      if (hashExample) setActiveId(hashExample);
     };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);

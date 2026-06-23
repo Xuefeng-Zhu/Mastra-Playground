@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
+import { runWithCancellation, type RunContext } from '../../shared/cancellable-run';
 import { resolveModel, type LlmProvider } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import type { Tracer } from '../../shared/tracer';
@@ -96,8 +96,9 @@ export async function runOne(input: RunOptions, tracer: Tracer, context?: RunCon
 
   const wf = mastra.getWorkflow('research');
   const run = await wf.createRun();
-  cancelRunOnSignal(run, context);
-  const result = await run.start({ inputData: { topic: input.topic } });
+  const result = await runWithCancellation(run, context, () =>
+    run.start({ inputData: { topic: input.topic } }),
+  );
 
   return finalizeRunResult(result, tracer, t0, input);
 }

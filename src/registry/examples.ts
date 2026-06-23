@@ -9,19 +9,9 @@
 
 import type { GraphDef } from './graphs';
 import { GRAPHS } from './graphs';
+import { EXAMPLE_IDS, type ExampleId, type OutputKind } from '../../shared/example-manifest';
 
-export type OutputKind =
-  | 'parallel'
-  | 'triage'
-  | 'research'
-  | 'codeReview'
-  | 'chat'
-  | 'handoff'
-  | 'streaming'
-  | 'hitl'
-  | 'criticLoop'
-  | 'contentPipeline'
-  | 'mastraMemory';
+export type { OutputKind } from '../../shared/example-manifest';
 
 export interface FormFieldBase {
   name: string;
@@ -73,7 +63,7 @@ export interface PlaygroundExample {
   runLabel: string;
 }
 
-export const EXAMPLES: Record<string, PlaygroundExample> = {
+export const EXAMPLES = {
   'support-triage': {
     num: 1,
     name: 'Support Triage',
@@ -431,7 +421,7 @@ export const EXAMPLES: Record<string, PlaygroundExample> = {
     output: { kind: 'contentPipeline' },
     runLabel: 'Run pipeline',
   },
-};
+} satisfies Record<ExampleId, PlaygroundExample>;
 
 export type ModelProvider = 'google' | 'openrouter' | 'custom';
 
@@ -461,5 +451,4 @@ export const MODEL_OPTIONS_BY_PROVIDER: Record<
   custom: [{ value: '__custom__', label: '(enter model ID below)' }],
 };
 
-// Ordered example IDs (declaration order matches numeric order).
-export const EXAMPLE_IDS = Object.keys(EXAMPLES);
+export { EXAMPLE_IDS };

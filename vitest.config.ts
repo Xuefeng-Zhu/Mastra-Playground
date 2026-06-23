@@ -2,7 +2,13 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['shared/**/*.test.ts', 'scripts/**/*.test.ts', 'src/**/*.test.{ts,tsx}'],
+    include: [
+      'app/**/*.test.ts',
+      'examples/**/*.test.ts',
+      'shared/**/*.test.ts',
+      'scripts/**/*.test.ts',
+      'src/**/*.test.{ts,tsx}',
+    ],
     exclude: ['node_modules', '**/node_modules/**', '**/dist/**', '**/.next/**'],
     testTimeout: 10_000,
     // The UI smoke test in scripts/ui-smoke.test.ts uses JSDOM. We mark it
@@ -10,7 +16,7 @@ export default defineConfig({
     // for other tests is 'node'.
     coverage: {
       provider: 'v8',
-      include: ['shared/**/*.ts', 'src/**/*.{ts,tsx}', '!**/*.test.{ts,tsx}'],
+      include: ['app/**/*.ts', 'shared/**/*.ts', 'src/**/*.{ts,tsx}', '!**/*.test.{ts,tsx}'],
       exclude: [
         'shared/mastra-logger.ts', // log helper, no logic to test
         'shared/llm.ts', // env-based factory, integration-test via smoke

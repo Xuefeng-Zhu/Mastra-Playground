@@ -13,6 +13,7 @@
 
 import { formatSec } from './utils';
 import { COMPARE_RENDERERS } from './compare-renderers';
+import type { OutputKind } from './examples';
 import {
   ChatThread,
   HitlFinal,
@@ -298,7 +299,7 @@ function renderMastraMemory(value: unknown, ctx: RenderContext) {
 
 // ── the public dispatcher ──────────────────────────────────────────────
 
-export const RESULT_RENDERERS: Record<string, (out: unknown, ctx: RenderContext) => React.ReactNode> = {
+export const RESULT_RENDERERS = {
   parallel: renderParallel,
   triage: renderTriage,
   research: renderResearch,
@@ -310,10 +311,10 @@ export const RESULT_RENDERERS: Record<string, (out: unknown, ctx: RenderContext)
   criticLoop: renderCriticLoop,
   contentPipeline: renderContentPipeline,
   mastraMemory: renderMastraMemory,
-};
+} satisfies Record<OutputKind, (out: unknown, ctx: RenderContext) => React.ReactNode>;
 
 // The "parallel" kind has a Sources tab. Others don't.
-export const HAS_SOURCES_TAB: Record<string, boolean> = {
+export const HAS_SOURCES_TAB = {
   parallel: true,
   triage: false,
   research: false,
@@ -325,10 +326,10 @@ export const HAS_SOURCES_TAB: Record<string, boolean> = {
   criticLoop: false,
   contentPipeline: false,
   mastraMemory: false,
-};
+} satisfies Record<OutputKind, boolean>;
 
 // HITL has its own tab set (no Compare — stateful).
-export const HAS_COMPARE_TAB: Record<string, boolean> = {
+export const HAS_COMPARE_TAB = {
   parallel: true,
   triage: true,
   research: true,
@@ -340,7 +341,7 @@ export const HAS_COMPARE_TAB: Record<string, boolean> = {
   criticLoop: true,
   contentPipeline: true,
   mastraMemory: true,
-};
+} satisfies Record<OutputKind, boolean>;
 
 export { SourcesList, ChatThread, StreamingView, HitlPending, HitlFinal };
 export type { CapturedSource, ChatMsg };

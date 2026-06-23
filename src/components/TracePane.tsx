@@ -21,6 +21,7 @@ interface TracePaneProps {
   graphDef: GraphDef;
   timeline: TimelineEntry[];
   doneCount: number;
+  completedNodes: string[];
   activeNode: string;
   totalMs: number;
 }
@@ -30,6 +31,7 @@ export function TracePane({
   graphDef,
   timeline,
   doneCount,
+  completedNodes,
   activeNode,
   totalMs,
 }: TracePaneProps) {
@@ -111,7 +113,13 @@ export function TracePane({
         </div>
       </div>
       <div id="trace-graph-panel" className="trace-graph" role="tabpanel" hidden={!showGraph}>
-        <Graph key={graphDef.nodes[0]?.id} def={graphDef} containerId={graphContainerId} />
+        <Graph
+          key={graphDef.nodes[0]?.id}
+          def={graphDef}
+          containerId={graphContainerId}
+          activeNode={activeNode}
+          completedNodes={completedNodes}
+        />
       </div>
       <div
         id="trace-events-panel"

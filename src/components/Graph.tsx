@@ -13,7 +13,18 @@ import type { GraphDef } from '../registry/graphs';
 const NODE_W = 180;
 const NODE_H = 56;
 
-export function Graph({ def, containerId }: { def: GraphDef; containerId: string }) {
+export function Graph({
+  def,
+  containerId,
+  activeNode,
+  completedNodes,
+}: {
+  def: GraphDef;
+  containerId: string;
+  activeNode?: string;
+  completedNodes?: string[];
+}) {
+  const completed = new Set(completedNodes);
   const xs = def.nodes.map((n) => n.x);
   const ys = def.nodes.map((n) => n.y);
   const padding = 30;
@@ -28,7 +39,7 @@ export function Graph({ def, containerId }: { def: GraphDef; containerId: string
     return (
       <g
         key={n.id}
-        className={`gn-node kind-${n.kind}`}
+        className={`gn-node kind-${n.kind}${activeNode === n.id ? ' active' : ''}${completed.has(n.id) ? ' done' : ''}`}
         data-node={n.id}
         transform={`translate(${tx} ${ty})`}
       >

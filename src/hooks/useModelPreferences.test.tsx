@@ -1,0 +1,65 @@
+// @vitest-environment jsdom
+import { act, useEffect } from 'react';
+import { createRoot } from 'react-dom/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useModelPreferences } from './useModelPreferences';
+
+function Harness({ expose }: { expose: (value: ReturnType<typeof useModelPreferences>) => void }) {
+  const preferences = useModelPreferences();
+  useEffect(() => {
+    expose(preferences);
+  }, [expose, preferences]);
+  return null;
+}
+
+describe('useModelPreferences', () => {
+  let container: HTMLDivElement;
+  let root: ReturnType<typeof createRoot>;
+
+  beforeEach(() => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    localStorage.clear();
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+    localStorage.clear();
+    vi.unstubAllGlobals();
+  });
+
+  it('hydrates a saved preference without overwriting it with defaults', async () => {
+    localStorage.setItem('mpg:llm:v2', JSON.stringify({ provider: 'openrouter', model: 'openrouter/free' }));
+    let preferences: ReturnType<typeof useModelPreferences> | undefined;
+    await act(async () => root.render(<Harness expose={(value) => (preferences = value)} />));
+    expect(preferences?.provider).toBe('openrouter');
+    expect(preferences?.model).toBe('openrouter/free');
+    expect(JSON.parse(localStorage.getItem('mpg:llm:v2') ?? '{}')).toEqual({
+      provider: 'openrouter',
+      model: 'openrouter/free',
+    });
+  });
+
+  it('clears custom endpoint settings without re-saving blank credentials', async () => {
+    localStorage.setItem(
+      'mpg:llm:v2',
+      JSON.stringify({
+        provider: 'custom',
+        customBaseUrl: 'https://api.example.com/v1',
+        customApiKey: 'sk-test',
+        customModel: 'custom-model',
+      }),
+    );
+    let preferences: ReturnType<typeof useModelPreferences> | undefined;
+    await act(async () => root.render(<Harness expose={(value) => (preferences = value)} />));
+    expect(preferences?.provider).toBe('custom');
+
+    await act(async () => preferences?.clearCustomSettings());
+
+    expect(preferences?.provider).toBe('google');
+    expect(localStorage.getItem('mpg:llm:v2')).toBeNull();
+  });
+});

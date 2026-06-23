@@ -8,12 +8,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { EXAMPLES, EXAMPLE_IDS, type PlaygroundExample } from '../registry/examples';
+import type { ExampleId } from '../../shared/example-manifest';
 
 interface CommandPaletteProps {
   open: boolean;
   onClose: () => void;
-  onSelect: (id: string) => void;
-  activeId: string;
+  onSelect: (id: ExampleId) => void;
+  activeId: ExampleId;
 }
 
 function fuzzyMatch(query: string, target: string): boolean {
@@ -28,7 +29,7 @@ function fuzzyMatch(query: string, target: string): boolean {
   return qi === q.length;
 }
 
-function getFilteredExamples(query: string): { id: string; example: PlaygroundExample }[] {
+function getFilteredExamples(query: string): { id: ExampleId; example: PlaygroundExample }[] {
   if (!query.trim()) {
     return EXAMPLE_IDS.map((id) => ({ id, example: EXAMPLES[id] }));
   }

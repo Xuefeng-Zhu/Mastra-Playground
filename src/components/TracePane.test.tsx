@@ -30,6 +30,7 @@ describe('TracePane', () => {
           graphDef={GRAPHS['support-triage']}
           timeline={[]}
           doneCount={0}
+          completedNodes={[]}
           activeNode="idle"
           totalMs={0}
         />,
@@ -71,6 +72,7 @@ describe('TracePane', () => {
           graphDef={GRAPHS['support-triage']}
           timeline={[]}
           doneCount={0}
+          completedNodes={[]}
           activeNode="idle"
           totalMs={0}
         />,
@@ -111,6 +113,7 @@ describe('TracePane', () => {
             },
           ]}
           doneCount={1}
+          completedNodes={['fetch-file']}
           activeNode="idle"
           totalMs={125}
         />,

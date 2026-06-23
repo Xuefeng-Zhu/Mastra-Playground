@@ -7,9 +7,10 @@
 
 import { ValidationError } from './validation';
 import type { Tracer } from './tracer';
-import type { CustomLlmConfig } from './llm';
+import { isExampleId, type ExampleId } from './example-manifest';
+import type { RunContext } from './cancellable-run';
 
-export const EXAMPLES: Record<string, { file: string; exportName: string; description: string }> = {
+export const EXAMPLES = {
   'support-triage': {
     file: 'examples/01-support-triage/index.ts',
     exportName: 'runOne',
@@ -59,30 +60,26 @@ export const EXAMPLES: Record<string, { file: string; exportName: string; descri
     description:
       'Multi-agent handoff: primary triage agent delegates billing questions to a specialist agent with a narrower tool set.',
   },
-  'content-pipeline': {
-    file: 'examples/11-content-pipeline/index.ts',
-    exportName: 'runOne',
-    description:
-      '3-agent content pipeline: researcher produces facts+sources, writer drafts, editor polishes and scores 0-10. Three narrow role prompts instead of one generalist.',
-  },
   'mastra-memory': {
     file: 'examples/10-mastra-memory/index.ts',
     exportName: 'runOne',
     description:
       'Real @mastra/memory Memory class: threadId+resourceId tie generate() calls together. Compare to Example 05 hand-rolled Map.',
   },
-};
+  'content-pipeline': {
+    file: 'examples/11-content-pipeline/index.ts',
+    exportName: 'runOne',
+    description:
+      '3-agent content pipeline: researcher produces facts+sources, writer drafts, editor polishes and scores 0-10. Three narrow role prompts instead of one generalist.',
+  },
+} satisfies Record<ExampleId, { file: string; exportName: string; description: string }>;
 
-export interface RunContext {
-  signal?: AbortSignal;
-  /** Request-scoped custom LLM configuration (browser-supplied, never logged). */
-  customLlm?: CustomLlmConfig;
-}
+export type { RunContext } from './cancellable-run';
 
 export type RunFn = (input: unknown, tracer: Tracer, context?: RunContext) => Promise<unknown>;
 
 export function getExampleOrThrow(name: string) {
-  if (!EXAMPLES[name]) {
+  if (!isExampleId(name)) {
     throw new ValidationError(
       `Unknown example: ${name}. Available: ${Object.keys(EXAMPLES).join(', ')}`,
       'example',
@@ -98,7 +95,7 @@ export function getExampleOrThrow(name: string) {
  * `import(\`../\${path}\`)`. We use a static map of lazy imports
  * that Turbopack can trace at build time.
  */
-const EXAMPLE_LOADERS: Record<string, () => Promise<Record<string, unknown>>> = {
+export const EXAMPLE_LOADERS = {
   'support-triage': () => import('../examples/01-support-triage/index'),
   research: () => import('../examples/02-research-agent/index'),
   'code-review': () => import('../examples/03-code-review-agent/index'),
@@ -110,16 +107,16 @@ const EXAMPLE_LOADERS: Record<string, () => Promise<Record<string, unknown>>> = 
   'multi-agent-handoff': () => import('../examples/09-multi-agent-handoff/index'),
   'mastra-memory': () => import('../examples/10-mastra-memory/index'),
   'content-pipeline': () => import('../examples/11-content-pipeline/index'),
-};
+} satisfies Record<ExampleId, () => Promise<Record<string, unknown>>>;
 
 export async function loadRunFn(name: string): Promise<RunFn> {
   const meta = getExampleOrThrow(name);
-  const loader = EXAMPLE_LOADERS[name];
+  const loader = EXAMPLE_LOADERS[name as ExampleId];
   if (!loader) {
     throw new ValidationError(`No loader registered for example '${name}'.`);
   }
   const mod = await loader();
-  const fn = mod[meta.exportName] as RunFn | undefined;
+  const fn = (mod as Record<string, unknown>)[meta.exportName] as RunFn | undefined;
   if (typeof fn !== 'function') {
     throw new ValidationError(`Example ${name} does not export '${meta.exportName}' as a function.`);
   }

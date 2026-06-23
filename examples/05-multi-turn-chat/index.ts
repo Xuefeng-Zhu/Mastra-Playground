@@ -33,7 +33,7 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { createStep, createWorkflow } from '@mastra/core/workflows';
 import { Mastra } from '@mastra/core';
-import { cancelRunOnSignal, type RunContext } from '../../shared/cancellable-run';
+import { runWithCancellation, type RunContext } from '../../shared/cancellable-run';
 import { resolveModel, model, type LlmProvider } from '../../shared/llm';
 import { logger } from '../../shared/mastra-logger';
 import { memoryStore, type Message } from '../../shared/memory-store';
@@ -209,10 +209,11 @@ export async function runOne(input: RunOptions, tracer: Tracer, context?: RunCon
 
   const wf = mastra.getWorkflow('multi-turn-chat');
   const run = await wf.createRun();
-  cancelRunOnSignal(run, context);
-  const result = await run.start({
-    inputData: { threadId: input.threadId, resourceId: input.resourceId, message: input.message },
-  });
+  const result = await runWithCancellation(run, context, () =>
+    run.start({
+      inputData: { threadId: input.threadId, resourceId: input.resourceId, message: input.message },
+    }),
+  );
 
   return finalizeRunResult(result, tracer, t0, input);
 }

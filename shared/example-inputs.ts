@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ValidationError, isPlainObject, sanitizeText } from './validation';
+import type { ExampleId } from './example-manifest';
 
 const model = z.string().trim().min(1).optional();
 const provider = z.enum(['google', 'openrouter', 'custom']).optional();
@@ -75,9 +76,9 @@ export const EXAMPLE_INPUT_SCHEMAS = {
     model,
     ...customLlmFields,
   }),
-} satisfies Record<string, z.ZodType<Record<string, unknown>>>;
+} satisfies Record<ExampleId, z.ZodType<Record<string, unknown>>>;
 
-export type ExampleId = keyof typeof EXAMPLE_INPUT_SCHEMAS;
+export type { ExampleId } from './example-manifest';
 
 export function validateExampleInput(name: ExampleId, body: unknown): Record<string, unknown> {
   if (!isPlainObject(body)) {
@@ -98,17 +99,13 @@ export function validateExampleInput(name: ExampleId, body: unknown): Record<str
  * undefined otherwise. Strips custom fields from the input object so they
  * never reach example code.
  */
-export function extractCustomLlmConfig(
-  input: Record<string, unknown>,
-): { baseUrl: string; apiKey: string; model: string } | undefined {
-  const { customBaseUrl, customApiKey, customModel } = input;
+export function prepareExampleInput(input: Record<string, unknown>): {
+  input: Record<string, unknown>;
+  customLlm?: { baseUrl: string; apiKey: string; model: string };
+} {
+  const { customBaseUrl, customApiKey, customModel, ...exampleInput } = input;
 
-  // Mutate input in-place to remove credential fields
-  delete input.customBaseUrl;
-  delete input.customApiKey;
-  delete input.customModel;
-
-  if (input.provider !== 'custom') return undefined;
+  if (exampleInput.provider !== 'custom') return { input: exampleInput };
 
   if (!customBaseUrl || typeof customBaseUrl !== 'string' || customBaseUrl.trim().length === 0) {
     throw new ValidationError('Custom provider requires a base URL.', 'customBaseUrl');
@@ -134,5 +131,12 @@ export function extractCustomLlmConfig(
     throw new ValidationError('Custom base URL must not contain embedded credentials.', 'customBaseUrl');
   }
 
-  return { baseUrl: customBaseUrl.trim(), apiKey: customApiKey.trim(), model: customModel.trim() };
+  return {
+    input: exampleInput,
+    customLlm: {
+      baseUrl: customBaseUrl.trim(),
+      apiKey: customApiKey.trim(),
+      model: customModel.trim(),
+    },
+  };
 }

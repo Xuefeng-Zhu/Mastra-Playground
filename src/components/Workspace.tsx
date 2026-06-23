@@ -1,16 +1,13 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import type { PlaygroundExample } from '../registry/examples';
-import { MODEL_OPTIONS_BY_PROVIDER, PROVIDER_OPTIONS, type ModelProvider } from '../registry/examples';
+import { PROVIDER_OPTIONS } from '../registry/examples';
 import { FormFieldView, SamplesGroup } from './FormField';
 import { TracePane, type TimelineEntry } from './TracePane';
 import { OutputPanel } from './OutputPanel';
 import { SourceViewer } from './SourceViewer';
+import { CustomProviderModal } from './CustomProviderModal';
 import { useWorkspace, type ReceivedTraceEvent } from '../hooks/useWorkspace';
-
-const LLM_PREFERENCE_KEY = 'mpg:llm:v2';
-const LEGACY_PREFERENCE_KEY = 'mpg:llm:v1';
-const DEFAULT_PROVIDER = PROVIDER_OPTIONS[0].value;
-const DEFAULT_MODEL = MODEL_OPTIONS_BY_PROVIDER[DEFAULT_PROVIDER][0].value;
+import { useModelPreferences } from '../hooks/useModelPreferences';
 
 export function traceEventToTimelineEntry(received: ReceivedTraceEvent, active: boolean): TimelineEntry {
   const { event } = received;
@@ -87,16 +84,10 @@ interface WorkspaceProps {
 
 export function Workspace({ example }: WorkspaceProps) {
   const ws = useWorkspace(example);
-  const [provider, setProvider] = useState<ModelProvider>(DEFAULT_PROVIDER);
-  const [model, setModel] = useState(DEFAULT_MODEL);
-  const [customBaseUrl, setCustomBaseUrl] = useState('');
-  const [customApiKey, setCustomApiKey] = useState('');
-  const [customModel, setCustomModel] = useState('');
+  const preferences = useModelPreferences();
   const [showSource, setShowSource] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const skipInitialPreferenceWrite = useRef(true);
-  const modelOptions = MODEL_OPTIONS_BY_PROVIDER[provider];
   const timeline = useMemo(
     () =>
       ws.traceEvents.map((event, index) =>
@@ -105,84 +96,7 @@ export function Workspace({ example }: WorkspaceProps) {
     [ws.running, ws.traceEvents],
   );
 
-  useEffect(() => {
-    // Try loading the v2 key first, then migrate from v1
-    const saved = localStorage.getItem(LLM_PREFERENCE_KEY);
-    if (saved) {
-      try {
-        const preference = JSON.parse(saved) as {
-          provider?: unknown;
-          model?: unknown;
-          customBaseUrl?: unknown;
-          customApiKey?: unknown;
-          customModel?: unknown;
-        };
-        const savedProvider = PROVIDER_OPTIONS.find(({ value }) => value === preference.provider)?.value;
-        if (!savedProvider) return;
-        if (savedProvider === 'custom') {
-          setProvider('custom');
-          if (typeof preference.customBaseUrl === 'string') setCustomBaseUrl(preference.customBaseUrl);
-          if (typeof preference.customApiKey === 'string') setCustomApiKey(preference.customApiKey);
-          if (typeof preference.customModel === 'string') setCustomModel(preference.customModel);
-        } else {
-          if (typeof preference.model !== 'string') return;
-          if (!MODEL_OPTIONS_BY_PROVIDER[savedProvider].some(({ value }) => value === preference.model))
-            return;
-          setProvider(savedProvider);
-          setModel(preference.model);
-        }
-      } catch {
-        localStorage.removeItem(LLM_PREFERENCE_KEY);
-      }
-      return;
-    }
-    // Migrate from legacy v1 key
-    const legacy = localStorage.getItem(LEGACY_PREFERENCE_KEY);
-    if (legacy) {
-      try {
-        const preference = JSON.parse(legacy) as { provider?: unknown; model?: unknown };
-        const savedProvider = PROVIDER_OPTIONS.find(({ value }) => value === preference.provider)?.value;
-        if (savedProvider && savedProvider !== 'custom' && typeof preference.model === 'string') {
-          if (MODEL_OPTIONS_BY_PROVIDER[savedProvider].some(({ value }) => value === preference.model)) {
-            setProvider(savedProvider);
-            setModel(preference.model);
-          }
-        }
-      } catch {
-        // Ignore malformed legacy data
-      }
-      localStorage.removeItem(LEGACY_PREFERENCE_KEY);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (skipInitialPreferenceWrite.current) {
-      skipInitialPreferenceWrite.current = false;
-      return;
-    }
-    if (provider === 'custom') {
-      localStorage.setItem(
-        LLM_PREFERENCE_KEY,
-        JSON.stringify({ provider, customBaseUrl, customApiKey, customModel }),
-      );
-    } else {
-      localStorage.setItem(LLM_PREFERENCE_KEY, JSON.stringify({ provider, model }));
-    }
-  }, [provider, model, customBaseUrl, customApiKey, customModel]);
-
-  // Register the active run() handler with the global so App.tsx's Cmd+Enter
-  // shortcut can call it. The handler closes over `ws.run`, which is stable
-  // per example.
-  useEffect(() => {
-    window.__mpg = { run: () => ws.run(getFormBody()) };
-    return () => {
-      if (window.__mpg?.run) {
-        delete window.__mpg.run;
-      }
-    };
-  }, [ws.run, example.num, provider, model, customBaseUrl, customApiKey, customModel]);
-
-  const getFormBody = (): Record<string, unknown> => {
+  const getFormBody = useCallback((): Record<string, unknown> => {
     const form = formRef.current;
     const body: Record<string, unknown> = {};
     if (form) {
@@ -191,24 +105,15 @@ export function Workspace({ example }: WorkspaceProps) {
         body[k] = v;
       }
     }
-    body.provider = provider;
-    if (provider === 'custom') {
-      body.customBaseUrl = customBaseUrl;
-      body.customApiKey = customApiKey;
-      body.customModel = customModel;
-      body.model = customModel;
-    } else {
-      body.model = model;
-    }
-    return body;
-  };
+    return preferences.addToRequest(body);
+  }, [preferences.addToRequest]);
 
-  const clearCustomSettings = () => {
-    setCustomBaseUrl('');
-    setCustomApiKey('');
-    setCustomModel('');
-    localStorage.removeItem(LLM_PREFERENCE_KEY);
-  };
+  useEffect(() => {
+    window.__mpg = { run: () => ws.run(getFormBody()) };
+    return () => {
+      if (window.__mpg?.run) delete window.__mpg.run;
+    };
+  }, [ws.run, getFormBody]);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -255,16 +160,13 @@ export function Workspace({ example }: WorkspaceProps) {
             <span className="model-label">Provider</span>
             <select
               className="model-select"
-              value={provider}
+              value={preferences.provider}
               onChange={(event) => {
                 const nextProvider = PROVIDER_OPTIONS.find(
                   ({ value }) => value === event.target.value,
                 )?.value;
                 if (!nextProvider) return;
-                setProvider(nextProvider);
-                if (nextProvider !== 'custom') {
-                  setModel(MODEL_OPTIONS_BY_PROVIDER[nextProvider][0].value);
-                }
+                preferences.selectProvider(nextProvider);
               }}
             >
               {PROVIDER_OPTIONS.map((option) => (
@@ -274,20 +176,20 @@ export function Workspace({ example }: WorkspaceProps) {
               ))}
             </select>
           </label>
-          {provider !== 'custom' && (
+          {preferences.provider !== 'custom' && (
             <label className="model-picker">
               <span className="model-label">Model</span>
               <select
                 className="model-select"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
+                value={preferences.model}
+                onChange={(e) => preferences.setModel(e.target.value)}
                 title={
-                  provider === 'google'
+                  preferences.provider === 'google'
                     ? 'Uses GOOGLE_GENERATIVE_AI_API_KEY — see README.'
                     : 'Uses OPENAI_API_KEY with the OpenRouter endpoint — see README.'
                 }
               >
-                {modelOptions.map((o) => (
+                {preferences.modelOptions.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
@@ -295,7 +197,7 @@ export function Workspace({ example }: WorkspaceProps) {
               </select>
             </label>
           )}
-          {provider === 'custom' && (
+          {preferences.provider === 'custom' && (
             <button
               type="button"
               className="custom-configure-btn"
@@ -303,7 +205,7 @@ export function Workspace({ example }: WorkspaceProps) {
               onClick={() => setShowCustomModal(true)}
             >
               <span className="custom-configure-icon">⚙</span>
-              {customModel || 'Configure'}
+              {preferences.customModel || 'Configure'}
             </button>
           )}
         </div>
@@ -335,6 +237,7 @@ export function Workspace({ example }: WorkspaceProps) {
           graphDef={example.graph}
           timeline={timeline}
           doneCount={ws.doneCount}
+          completedNodes={ws.completedNodes}
           activeNode={ws.activeNode}
           totalMs={ws.totalMs}
         />
@@ -366,121 +269,16 @@ export function Workspace({ example }: WorkspaceProps) {
 
       {showCustomModal && (
         <CustomProviderModal
-          baseUrl={customBaseUrl}
-          apiKey={customApiKey}
-          model={customModel}
-          onBaseUrlChange={setCustomBaseUrl}
-          onApiKeyChange={setCustomApiKey}
-          onModelChange={setCustomModel}
-          onClear={clearCustomSettings}
+          baseUrl={preferences.customBaseUrl}
+          apiKey={preferences.customApiKey}
+          model={preferences.customModel}
+          onBaseUrlChange={preferences.setCustomBaseUrl}
+          onApiKeyChange={preferences.setCustomApiKey}
+          onModelChange={preferences.setCustomModel}
+          onClear={preferences.clearCustomSettings}
           onClose={() => setShowCustomModal(false)}
         />
       )}
     </article>
-  );
-}
-
-// ─── Custom Provider Modal ───────────────────────────────────────────────────
-
-interface CustomProviderModalProps {
-  baseUrl: string;
-  apiKey: string;
-  model: string;
-  onBaseUrlChange: (v: string) => void;
-  onApiKeyChange: (v: string) => void;
-  onModelChange: (v: string) => void;
-  onClear: () => void;
-  onClose: () => void;
-}
-
-function CustomProviderModal({
-  baseUrl,
-  apiKey,
-  model,
-  onBaseUrlChange,
-  onApiKeyChange,
-  onModelChange,
-  onClear,
-  onClose,
-}: CustomProviderModalProps) {
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [onClose]);
-
-  return (
-    <div
-      className="custom-modal-overlay"
-      onClick={onClose}
-      role="dialog"
-      aria-label="Custom provider settings"
-    >
-      <div className="custom-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="custom-modal-header">
-          <h2 className="custom-modal-title">Custom Endpoint</h2>
-          <button
-            type="button"
-            className="icon-btn"
-            title="Close (Esc)"
-            aria-label="Close custom provider settings"
-            onClick={onClose}
-          >
-            ✕
-          </button>
-        </div>
-        <div className="custom-modal-body">
-          <label className="custom-modal-field">
-            <span className="custom-modal-label">Base URL</span>
-            <input
-              type="url"
-              className="custom-modal-input"
-              placeholder="https://api.example.com/v1"
-              value={baseUrl}
-              onChange={(e) => onBaseUrlChange(e.target.value)}
-              spellCheck={false}
-              autoComplete="off"
-              autoFocus
-            />
-          </label>
-          <label className="custom-modal-field">
-            <span className="custom-modal-label">Model ID</span>
-            <input
-              type="text"
-              className="custom-modal-input"
-              placeholder="gpt-4o-mini"
-              value={model}
-              onChange={(e) => onModelChange(e.target.value)}
-              spellCheck={false}
-              autoComplete="off"
-            />
-          </label>
-          <label className="custom-modal-field">
-            <span className="custom-modal-label">API Key</span>
-            <input
-              type="password"
-              className="custom-modal-input"
-              placeholder="sk-..."
-              value={apiKey}
-              onChange={(e) => onApiKeyChange(e.target.value)}
-              autoComplete="off"
-            />
-          </label>
-          <p className="custom-modal-warning">
-            ⚠ Credentials are stored in localStorage. HTTP endpoints transmit them without TLS.
-          </p>
-        </div>
-        <div className="custom-modal-footer">
-          <button type="button" className="custom-modal-clear-btn" onClick={onClear}>
-            Clear all
-          </button>
-          <button type="button" className="custom-modal-done-btn" onClick={onClose}>
-            Done
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }

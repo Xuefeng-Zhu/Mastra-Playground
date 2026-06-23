@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { exampleNameToId } from '../registry/utils';
 
 interface SourceViewerProps {
@@ -35,18 +35,19 @@ export function SourceViewer({ exampleNum, exampleName, onClose }: SourceViewerP
   const [source, setSource] = useState<string | null>(null);
   const [filename, setFilename] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const slug = exampleNameToId(exampleNum, exampleName);
 
   useEffect(() => {
-    let cancelled = false;
+    const request = new AbortController();
 
     void (async () => {
       try {
-        const resp = await fetch(`/api/source/${encodeURIComponent(slug)}`);
+        const resp = await fetch(`/api/source/${encodeURIComponent(slug)}`, { signal: request.signal });
         const json = (await resp.json()) as { source?: string; filename?: string; error?: string };
-        if (cancelled) return;
         if (!resp.ok || json.error) {
           setError(json.error ?? `Failed to load source (${resp.status})`);
         } else {
@@ -54,14 +55,13 @@ export function SourceViewer({ exampleNum, exampleName, onClose }: SourceViewerP
           setFilename(json.filename ?? '');
         }
       } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err));
-        }
+        if (request.signal.aborted) return;
+        setError(err instanceof Error ? err.message : String(err));
       }
     })();
 
     return () => {
-      cancelled = true;
+      request.abort();
     };
   }, [slug]);
 
@@ -69,12 +69,21 @@ export function SourceViewer({ exampleNum, exampleName, onClose }: SourceViewerP
     if (!source) return;
     try {
       await navigator.clipboard.writeText(source);
+      setCopyError(null);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Ignore copy failures
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      setCopyError(err instanceof Error ? err.message : 'Unable to copy source.');
     }
   }, [source]);
+
+  useEffect(
+    () => () => {
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    },
+    [],
+  );
 
   // Close on Escape
   useEffect(() => {
@@ -117,6 +126,7 @@ export function SourceViewer({ exampleNum, exampleName, onClose }: SourceViewerP
         </div>
         <div className="source-viewer-body">
           {error && <p className="muted output-error">⚠ {error}</p>}
+          {copyError && <p className="muted output-error">⚠ {copyError}</p>}
           {source === null && !error && <p className="muted">Loading source…</p>}
           {source !== null && (
             <div className="source-viewer-code-wrapper">

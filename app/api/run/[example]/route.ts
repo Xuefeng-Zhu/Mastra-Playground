@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Tracer } from '../../../../shared/tracer';
 import { loadRunFn, getExampleOrThrow } from '../../../../shared/examples-registry';
-import {
-  validateExampleInput,
-  extractCustomLlmConfig,
-  type ExampleId,
-} from '../../../../shared/example-inputs';
-import {
-  checkRateLimit,
-  ValidationError,
-  RateLimitError,
-  readWebJsonBody,
-} from '../../../../shared/validation';
+import { validateExampleInput, prepareExampleInput, type ExampleId } from '../../../../shared/example-inputs';
+import { checkRateLimit, readWebJsonBody } from '../../../../shared/validation';
+import { apiErrorResponse, requestClientIp } from '../../route-helpers';
 
 export const runtime = 'nodejs';
 
@@ -20,14 +12,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ exa
 
   try {
     getExampleOrThrow(name);
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-    checkRateLimit(ip + ':run');
+    checkRateLimit(requestClientIp(req) + ':run');
 
     const raw = await readWebJsonBody(req);
-    const input = validateExampleInput(name as ExampleId, raw);
-
-    // Extract custom provider config before it reaches example code
-    const customLlm = extractCustomLlmConfig(input);
+    const validatedInput = validateExampleInput(name as ExampleId, raw);
+    const { input, customLlm } = prepareExampleInput(validatedInput);
 
     const fn = await loadRunFn(name);
     const tracer = new Tracer();
@@ -35,16 +24,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ exa
 
     return NextResponse.json({ ok: true, result });
   } catch (err) {
-    if (err instanceof RateLimitError) {
-      return NextResponse.json(
-        { error: err.message, retryAfter: err.retryAfter },
-        { status: 429, headers: { 'Retry-After': String(err.retryAfter) } },
-      );
-    }
-    if (err instanceof ValidationError) {
-      return NextResponse.json({ error: err.message, field: err.field, detail: err.detail }, { status: 400 });
-    }
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiErrorResponse(err, `run:${name}`);
   }
 }

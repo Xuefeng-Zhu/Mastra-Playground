@@ -15,7 +15,7 @@ import type { PlaygroundExample } from '../registry/examples';
 import type { TraceEvent } from '../registry/utils';
 import type { CapturedSource } from '../registry/renderers';
 import { exampleNameToId } from '../registry/utils';
-import { createTraceEventParser } from './sse';
+import { streamWorkflow } from './workflow-stream';
 
 export type OutputTab = 'result' | 'sources' | 'json' | 'compare';
 
@@ -34,8 +34,8 @@ export function useWorkspace(example: PlaygroundExample) {
   const [streamingText, setStreamingText] = useState('');
   const [streamingModel, setStreamingModel] = useState('');
   const [streamingTokenCount, setStreamingTokenCount] = useState(0);
-  const [runStart, setRunStart] = useState<number>(0);
   const [doneCount, setDoneCount] = useState<number>(0);
+  const [completedNodes, setCompletedNodes] = useState<string[]>([]);
   const [activeNode, setActiveNode] = useState<string>('idle');
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
@@ -66,28 +66,13 @@ export function useWorkspace(example: PlaygroundExample) {
     const stepId = 'stepId' in ev ? ev.stepId : undefined;
     switch (ev.type) {
       case 'step:start':
-        if (stepId) {
-          setActiveNode(stepId);
-          requestAnimationFrame(() => {
-            const g = document.querySelector(`#mp-graph [data-node="${stepId}"]`);
-            if (g) {
-              g.classList.remove('active', 'done', 'skipped');
-              g.classList.add('active');
-            }
-          });
-        }
+        if (stepId) setActiveNode(stepId);
         break;
       case 'step:end':
         if (stepId) {
           setActiveNode('idle');
           setDoneCount((c) => c + 1);
-          requestAnimationFrame(() => {
-            const g = document.querySelector(`#mp-graph [data-node="${stepId}"]`);
-            if (g) {
-              g.classList.remove('active', 'skipped');
-              g.classList.add('done');
-            }
-          });
+          setCompletedNodes((nodes) => (nodes.includes(stepId) ? nodes : [...nodes, stepId]));
         }
         break;
       case 'tool:call':
@@ -133,16 +118,8 @@ export function useWorkspace(example: PlaygroundExample) {
       if (requestRef.current) {
         disposeStream(requestRef.current);
       }
-      // Snapshot prior before overwriting. We snapshot when the prior run
-      // had any of the example-specific output shapes the Compare tab
-      // knows how to render (parallel/triage/research/criticLoop, etc.).
       setOutput((prev: unknown) => {
-        if (prev && typeof prev === 'object') {
-          const p = prev as Record<string, unknown>;
-          if (p.synthesis || p.triage || p.formatted || p.draft) {
-            setPriorOutput(prev);
-          }
-        }
+        if (prev !== null && example.output.kind !== 'hitl') setPriorOutput(prev);
         return null;
       });
       // Reset for new run.
@@ -152,6 +129,7 @@ export function useWorkspace(example: PlaygroundExample) {
       setStreamingModel('');
       setStreamingTokenCount(0);
       setDoneCount(0);
+      setCompletedNodes([]);
       setActiveNode('idle');
       setError(null);
       setActiveTab('result');
@@ -161,7 +139,6 @@ export function useWorkspace(example: PlaygroundExample) {
 
       const start = performance.now();
       runStartRef.current = start;
-      setRunStart(start);
 
       const slug = exampleNameToId(example.num, example.name);
       const request = new AbortController();
@@ -181,32 +158,7 @@ export function useWorkspace(example: PlaygroundExample) {
 
       void (async () => {
         try {
-          const response = await fetch(`/api/stream/${encodeURIComponent(slug)}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-            body: JSON.stringify(requestBody),
-            signal: request.signal,
-          });
-          if (!response.ok) {
-            const problem = (await response.json().catch(() => null)) as { error?: string } | null;
-            throw new Error(problem?.error ?? `Workflow request failed (${response.status}).`);
-          }
-          if (!response.body) throw new Error('The workflow response did not include a stream.');
-
-          const parser = createTraceEventParser(receive);
-          const decoder = new TextDecoder();
-          const reader = response.body.getReader();
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            parser.push(decoder.decode(value, { stream: true }));
-          }
-          parser.push(decoder.decode());
-          parser.finish();
-
-          if (requestRef.current === request) {
-            throw new Error('The workflow stream disconnected before it completed.');
-          }
+          await streamWorkflow({ slug, requestBody, signal: request.signal, onEvent: receive });
         } catch (err) {
           if (request.signal.aborted || requestRef.current !== request) return;
           requestRef.current = null;
@@ -216,7 +168,7 @@ export function useWorkspace(example: PlaygroundExample) {
         }
       })();
     },
-    [disposeStream, example.num, example.name, handleEvent],
+    [disposeStream, example.num, example.name, example.output.kind, handleEvent],
   );
 
   // HITL: resume the suspended workflow with a decision.
@@ -267,8 +219,8 @@ export function useWorkspace(example: PlaygroundExample) {
     streamingText,
     streamingModel,
     streamingTokenCount,
-    runStart,
     doneCount,
+    completedNodes,
     activeNode,
     error,
     running,

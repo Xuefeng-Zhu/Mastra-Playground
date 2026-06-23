@@ -8,9 +8,10 @@ import {
 } from '../registry/renderers';
 import { escapeText } from '../registry/utils';
 import type { OutputTab } from '../hooks/useWorkspace';
+import type { OutputKind } from '../registry/examples';
 
 interface OutputPanelProps {
-  kind: string;
+  kind: OutputKind;
   output: unknown;
   priorOutput: unknown;
   sources: CapturedSource[];
@@ -214,7 +215,7 @@ function RenderJSON({ output }: { output: unknown }) {
   return <pre className="json-pre" dangerouslySetInnerHTML={{ __html: highlightJSON(output) }} />;
 }
 
-function RenderCompare({ kind, cur, prior }: { kind: string; cur: unknown; prior: unknown }) {
+function RenderCompare({ kind, cur, prior }: { kind: OutputKind; cur: unknown; prior: unknown }) {
   const renderer = COMPARE_RENDERERS[kind];
   if (!renderer) return <p className="muted">No compare renderer.</p>;
   return renderer(cur, prior);

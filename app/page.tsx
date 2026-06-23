@@ -1,10 +1,4 @@
-'use client';
-
-import dynamic from 'next/dynamic';
-
-// The App component uses browser APIs (window.location.hash, localStorage)
-// during initialization, so it must be rendered exclusively on the client.
-const App = dynamic(() => import('../src/App').then((m) => ({ default: m.App })), { ssr: false });
+import { App } from '../src/App';
 
 export default function Page() {
   return <App />;
