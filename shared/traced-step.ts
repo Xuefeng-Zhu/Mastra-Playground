@@ -14,7 +14,7 @@
 
 import type { Tracer } from './tracer';
 
-type StepKind = 'llm' | 'tool' | 'branch' | 'passthrough';
+type StepKind = 'llm' | 'tool' | 'branch' | 'passthrough' | 'input';
 
 export interface StepSpec {
   id: string;

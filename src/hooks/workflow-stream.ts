@@ -8,8 +8,13 @@ interface StreamWorkflowOptions {
   onEvent: (event: TraceEvent) => void;
 }
 
-export async function streamWorkflow({ slug, requestBody, signal, onEvent }: StreamWorkflowOptions) {
-  const response = await fetch(`/api/stream/${encodeURIComponent(slug)}`, {
+async function streamEvents(
+  endpoint: string,
+  requestBody: Record<string, unknown>,
+  signal: AbortSignal,
+  onEvent: (event: TraceEvent) => void,
+) {
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
     body: JSON.stringify(requestBody),
@@ -36,4 +41,16 @@ export async function streamWorkflow({ slug, requestBody, signal, onEvent }: Str
   parser.push(decoder.decode());
   parser.finish();
   if (!completed) throw new Error('The workflow stream disconnected before it completed.');
+}
+
+export async function streamWorkflow({ slug, requestBody, signal, onEvent }: StreamWorkflowOptions) {
+  await streamEvents(`/api/stream/${encodeURIComponent(slug)}`, requestBody, signal, onEvent);
+}
+
+export async function streamCustomWorkflow({
+  requestBody,
+  signal,
+  onEvent,
+}: Omit<StreamWorkflowOptions, 'slug'>) {
+  await streamEvents('/api/custom-workflow/stream', requestBody, signal, onEvent);
 }

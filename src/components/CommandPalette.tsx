@@ -9,13 +9,34 @@
 import { useEffect, useRef, useState } from 'react';
 import { EXAMPLES, EXAMPLE_IDS, type PlaygroundExample } from '../registry/examples';
 import type { ExampleId } from '../../shared/example-manifest';
+import { CUSTOM_WORKFLOW_HASH } from '../registry/custom-workflow';
+import type { ActiveWorkspaceId } from '../App';
 
 interface CommandPaletteProps {
   open: boolean;
   onClose: () => void;
-  onSelect: (id: ExampleId) => void;
-  activeId: ExampleId;
+  onSelect: (id: ActiveWorkspaceId) => void;
+  activeId: ActiveWorkspaceId;
 }
+
+type PaletteItem =
+  | { id: ExampleId; example: PlaygroundExample; kind: 'example' }
+  | { id: typeof CUSTOM_WORKFLOW_HASH; example: PlaygroundExample; kind: 'builder' };
+
+const BUILDER_ITEM: PaletteItem = {
+  id: CUSTOM_WORKFLOW_HASH,
+  kind: 'builder',
+  example: {
+    num: 0,
+    name: 'Workflow Builder',
+    primTags: ['workflow', 'tool'],
+    description: 'Compose safe custom workflows.',
+    graph: { nodes: [], edges: [] },
+    form: { fields: [], samples: [] },
+    output: { kind: 'research' },
+    runLabel: 'Run',
+  },
+};
 
 function fuzzyMatch(query: string, target: string): boolean {
   const q = query.toLowerCase();
@@ -29,15 +50,18 @@ function fuzzyMatch(query: string, target: string): boolean {
   return qi === q.length;
 }
 
-function getFilteredExamples(query: string): { id: ExampleId; example: PlaygroundExample }[] {
+function getFilteredExamples(query: string): PaletteItem[] {
+  const allItems: PaletteItem[] = [
+    BUILDER_ITEM,
+    ...EXAMPLE_IDS.map((id): PaletteItem => ({ id, example: EXAMPLES[id], kind: 'example' })),
+  ];
   if (!query.trim()) {
-    return EXAMPLE_IDS.map((id) => ({ id, example: EXAMPLES[id] }));
+    return allItems;
   }
-  return EXAMPLE_IDS.filter((id) => {
-    const ex = EXAMPLES[id];
-    const searchable = `${ex.num} ${ex.name} ${id} ${ex.primTags.join(' ')}`;
+  return allItems.filter(({ id, example, kind }) => {
+    const searchable = `${kind === 'builder' ? 'builder custom' : example.num} ${example.name} ${id} ${example.primTags.join(' ')}`;
     return fuzzyMatch(query, searchable);
-  }).map((id) => ({ id, example: EXAMPLES[id] }));
+  });
 }
 
 export function CommandPalette({ open, onClose, onSelect, activeId }: CommandPaletteProps) {
@@ -127,7 +151,7 @@ export function CommandPalette({ open, onClose, onSelect, activeId }: CommandPal
         </div>
         <div className="cp-list" ref={listRef} role="listbox">
           {results.length === 0 && <div className="cp-empty">No matching examples</div>}
-          {results.map(({ id, example }, i) => (
+          {results.map(({ id, example, kind }, i) => (
             <button
               key={id}
               className={`cp-item${i === selectedIndex ? ' cp-item-active' : ''}${id === activeId ? ' cp-item-current' : ''}`}
@@ -139,7 +163,9 @@ export function CommandPalette({ open, onClose, onSelect, activeId }: CommandPal
               }}
               onMouseEnter={() => setSelectedIndex(i)}
             >
-              <span className="cp-item-num">{String(example.num).padStart(2, '0')}</span>
+              <span className="cp-item-num">
+                {kind === 'builder' ? '＋' : String(example.num).padStart(2, '0')}
+              </span>
               <span className="cp-item-name">{example.name}</span>
               <span className="cp-item-tags">
                 {example.primTags.map((tag) => (
