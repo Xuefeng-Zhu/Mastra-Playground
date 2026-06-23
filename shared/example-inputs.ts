@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ValidationError, isPlainObject, sanitizeText } from './validation';
 import type { ExampleId } from './example-manifest';
+import type { LlmRequestConfig } from './llm';
 
 const model = z.string().trim().min(1).optional();
 const provider = z.enum(['google', 'openrouter', 'custom']).optional();
@@ -18,6 +19,7 @@ const requiredText = (field: string, maxLength = 4096) =>
  * input and passed via RunContext so they never reach example code directly.
  */
 const customLlmFields = {
+  providerApiKey: z.string().trim().max(2048).optional(),
   customBaseUrl: z.string().trim().max(2048).optional(),
   customApiKey: z.string().trim().max(2048).optional(),
   customModel: z.string().trim().max(512).optional(),
@@ -101,11 +103,23 @@ export function validateExampleInput(name: ExampleId, body: unknown): Record<str
  */
 export function prepareExampleInput(input: Record<string, unknown>): {
   input: Record<string, unknown>;
-  customLlm?: { baseUrl: string; apiKey: string; model: string };
+  llmConfig?: LlmRequestConfig;
 } {
-  const { customBaseUrl, customApiKey, customModel, ...exampleInput } = input;
+  const { providerApiKey, customBaseUrl, customApiKey, customModel, ...exampleInput } = input;
 
-  if (exampleInput.provider !== 'custom') return { input: exampleInput };
+  if (exampleInput.provider !== 'custom') {
+    if (
+      typeof providerApiKey === 'string' &&
+      providerApiKey.trim().length > 0 &&
+      (exampleInput.provider === 'google' || exampleInput.provider === 'openrouter')
+    ) {
+      return {
+        input: exampleInput,
+        llmConfig: { provider: exampleInput.provider, apiKey: providerApiKey.trim() },
+      };
+    }
+    return { input: exampleInput };
+  }
 
   if (!customBaseUrl || typeof customBaseUrl !== 'string' || customBaseUrl.trim().length === 0) {
     throw new ValidationError('Custom provider requires a base URL.', 'customBaseUrl');
@@ -133,7 +147,8 @@ export function prepareExampleInput(input: Record<string, unknown>): {
 
   return {
     input: exampleInput,
-    customLlm: {
+    llmConfig: {
+      provider: 'custom',
       baseUrl: customBaseUrl.trim(),
       apiKey: customApiKey.trim(),
       model: customModel.trim(),

@@ -16,11 +16,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ exa
 
     const raw = await readWebJsonBody(req);
     const validatedInput = validateExampleInput(name as ExampleId, raw);
-    const { input, customLlm } = prepareExampleInput(validatedInput);
+    const { input, llmConfig } = prepareExampleInput(validatedInput);
 
     const fn = await loadRunFn(name);
     const tracer = new Tracer();
-    const result = await fn(input, tracer, { customLlm });
+    const result = await fn(input, tracer, { llmConfig });
 
     return NextResponse.json({ ok: true, result });
   } catch (err) {

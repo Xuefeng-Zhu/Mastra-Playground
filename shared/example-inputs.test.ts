@@ -87,8 +87,38 @@ describe('validateExampleInput', () => {
     };
     expect(prepareExampleInput(original)).toEqual({
       input: { provider: 'custom', topic: 'agents' },
-      customLlm: { baseUrl: 'https://example.com/v1', apiKey: 'secret', model: 'model-id' },
+      llmConfig: {
+        provider: 'custom',
+        baseUrl: 'https://example.com/v1',
+        apiKey: 'secret',
+        model: 'model-id',
+      },
     });
     expect(original.customApiKey).toBe('secret');
+  });
+
+  it('strips provider API keys while preserving env fallback when blank', () => {
+    expect(
+      prepareExampleInput({
+        provider: 'openrouter',
+        topic: 'agents',
+        model: 'openai/gpt-oss-20b:free',
+        providerApiKey: ' sk-or-test ',
+      }),
+    ).toEqual({
+      input: { provider: 'openrouter', topic: 'agents', model: 'openai/gpt-oss-20b:free' },
+      llmConfig: { provider: 'openrouter', apiKey: 'sk-or-test' },
+    });
+
+    expect(
+      prepareExampleInput({
+        provider: 'google',
+        topic: 'agents',
+        model: 'gemini-2.5-flash',
+        providerApiKey: '',
+      }),
+    ).toEqual({
+      input: { provider: 'google', topic: 'agents', model: 'gemini-2.5-flash' },
+    });
   });
 });

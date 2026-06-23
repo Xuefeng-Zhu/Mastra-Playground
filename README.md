@@ -111,9 +111,10 @@ running server. CI boots the production build and runs this same suite.
 - **Markdown export** — "Copy as Markdown" button on every result. Produces
   a Slack/PR-friendly summary with structured output, timing, and captured
   sources.
-- **Provider-aware model preference** — provider and model selections are
-  persisted together in `localStorage`. Switching providers immediately swaps
-  the available model list, and the server uses both values per request.
+- **Provider-aware model preference** — provider, model selections, optional
+  Gemini/OpenRouter API keys, and custom model IDs are persisted in
+  `localStorage`. Switching providers immediately restores that provider's
+  settings. Blank Gemini/OpenRouter keys fall back to the server `.env` keys.
   A third "Custom endpoint" option lets you configure any OpenAI-compatible
   URL, model ID, and API key from the browser.
 - **Multi-turn chat UI** — Ex 05 renders the conversation as chat bubbles with
@@ -136,7 +137,7 @@ running server. CI boots the production build and runs this same suite.
 └────────┬────────┘                                └────────┬────────┘
          │                                                 │
          │ localStorage                                    │ Mastra
-         │ (provider + model preference)                   │ runtime
+         │ (provider/model + optional keys)                │ runtime
          │                                                 ▼
          │                                       ┌─────────────────┐
          │                                       │  examples/*/    │
@@ -203,6 +204,17 @@ OPENAI_API_KEY=sk-or-...
 OPENAI_BASE_URL=https://openrouter.ai/api/v1
 OPENAI_MODEL=openai/gpt-oss-20b:free
 ```
+
+The browser UI can also override Gemini and OpenRouter per request:
+
+1. Pick **Gemini** or **OpenRouter** in the provider dropdown.
+2. Choose a preset model, or choose **Custom model…** and enter any model ID.
+3. Click **Settings** to enter an optional provider API key.
+
+Those browser-entered keys are stored in `localStorage` and sent only in POST
+bodies for runs. If the key field is blank, the server uses the corresponding
+`.env` key (`GOOGLE_GENERATIVE_AI_API_KEY` for Gemini, `OPENAI_API_KEY` for
+OpenRouter).
 
 For a Custom endpoint (browser-managed, no server env vars needed):
 
@@ -350,8 +362,8 @@ need to rebuild first with `npm run build`.
 - **trycloudflare.com tunnel URLs rotate** on cloudflared restarts. The
   server works fine locally without a tunnel.
 - **Provider and model pickers are real.** Gemini 2.5 Flash-Lite is the default.
-  Switching providers replaces the model list with valid choices for that
-  provider. Provider quotas and model availability may vary.
+  Switching providers restores that provider's presets, custom model ID, and
+  optional browser API key. Provider quotas and model availability may vary.
 - **The playground is per-session.** To make it survive reboots, pin the
   server + cloudflared as systemd services.
 - **This is a learning project, not a product.** No authentication, no
@@ -364,8 +376,9 @@ plan to point a real tunnel at it:
 
 **What the server enforces automatically:**
 
-- **Rejects LLM runs** if the selected provider's API key is missing. The UI and health route
-  can still load so configuration problems remain diagnosable.
+- **Rejects LLM runs** if neither a browser-supplied key nor the selected
+  provider's server environment key is available. The UI and health route can
+  still load so configuration problems remain diagnosable.
 - **Structured helper logging** for validation/tracing internals. Next.js also
   writes its normal request log in development.
 - **Request validation** on all body-bearing endpoints: 64KB body cap, type

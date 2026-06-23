@@ -184,7 +184,7 @@ export interface RunOptions {
 export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'content-pipeline', input, STEPS);
 
-  const useModel = resolveModel(input.model, input.provider, context?.customLlm);
+  const useModel = resolveModel(input.model, input.provider, context?.llmConfig);
   const researcher = new Agent({
     id: 'researcher',
     name: 'Researcher',

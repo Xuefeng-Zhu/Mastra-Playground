@@ -7,7 +7,7 @@ import { OutputPanel } from './OutputPanel';
 import { SourceViewer } from './SourceViewer';
 import { CustomProviderModal } from './CustomProviderModal';
 import { useWorkspace, type ReceivedTraceEvent } from '../hooks/useWorkspace';
-import { useModelPreferences } from '../hooks/useModelPreferences';
+import { CUSTOM_MODEL_OPTION, useModelPreferences } from '../hooks/useModelPreferences';
 
 export function traceEventToTimelineEntry(received: ReceivedTraceEvent, active: boolean): TimelineEntry {
   const { event } = received;
@@ -88,6 +88,10 @@ export function Workspace({ example }: WorkspaceProps) {
   const [showSource, setShowSource] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const providerLabel =
+    PROVIDER_OPTIONS.find((option) => option.value === preferences.provider)?.label.split(' · ')[0] ??
+    'Provider';
+  const isCustomProvider = preferences.provider === 'custom';
   const timeline = useMemo(
     () =>
       ws.traceEvents.map((event, index) =>
@@ -176,17 +180,20 @@ export function Workspace({ example }: WorkspaceProps) {
               ))}
             </select>
           </label>
-          {preferences.provider !== 'custom' && (
+          {!isCustomProvider && (
             <label className="model-picker">
               <span className="model-label">Model</span>
               <select
                 className="model-select"
                 value={preferences.model}
-                onChange={(e) => preferences.setModel(e.target.value)}
+                onChange={(e) => {
+                  preferences.setModel(e.target.value);
+                  if (e.target.value === CUSTOM_MODEL_OPTION) setShowCustomModal(true);
+                }}
                 title={
                   preferences.provider === 'google'
-                    ? 'Uses GOOGLE_GENERATIVE_AI_API_KEY — see README.'
-                    : 'Uses OPENAI_API_KEY with the OpenRouter endpoint — see README.'
+                    ? 'Uses your Gemini API key when set; otherwise falls back to GOOGLE_GENERATIVE_AI_API_KEY.'
+                    : 'Uses your OpenRouter API key when set; otherwise falls back to OPENAI_API_KEY.'
                 }
               >
                 {preferences.modelOptions.map((o) => (
@@ -197,17 +204,19 @@ export function Workspace({ example }: WorkspaceProps) {
               </select>
             </label>
           )}
-          {preferences.provider === 'custom' && (
-            <button
-              type="button"
-              className="custom-configure-btn"
-              title="Configure custom endpoint"
-              onClick={() => setShowCustomModal(true)}
-            >
-              <span className="custom-configure-icon">⚙</span>
-              {preferences.customModel || 'Configure'}
-            </button>
-          )}
+          <button
+            type="button"
+            className="custom-configure-btn"
+            title={isCustomProvider ? 'Configure custom endpoint' : `Configure ${providerLabel}`}
+            onClick={() => setShowCustomModal(true)}
+          >
+            <span className="custom-configure-icon">⚙</span>
+            {isCustomProvider
+              ? preferences.customModel || 'Setting'
+              : preferences.providerApiKey
+                ? 'Key set'
+                : 'Settings'}
+          </button>
         </div>
       </div>
 
@@ -269,13 +278,25 @@ export function Workspace({ example }: WorkspaceProps) {
 
       {showCustomModal && (
         <CustomProviderModal
+          title={isCustomProvider ? 'Custom endpoint' : `${providerLabel} settings`}
+          showBaseUrl={isCustomProvider}
           baseUrl={preferences.customBaseUrl}
-          apiKey={preferences.customApiKey}
-          model={preferences.customModel}
+          apiKey={isCustomProvider ? preferences.customApiKey : preferences.providerApiKey}
+          model={isCustomProvider ? preferences.customModel : preferences.providerCustomModel}
+          apiKeyPlaceholder={
+            isCustomProvider ? 'sk-...' : preferences.provider === 'google' ? 'AIza...' : 'sk-or-...'
+          }
+          modelPlaceholder={
+            isCustomProvider
+              ? 'gpt-4o-mini'
+              : preferences.provider === 'google'
+                ? 'gemini-2.5-flash'
+                : 'openai/gpt-oss-20b:free'
+          }
           onBaseUrlChange={preferences.setCustomBaseUrl}
-          onApiKeyChange={preferences.setCustomApiKey}
-          onModelChange={preferences.setCustomModel}
-          onClear={preferences.clearCustomSettings}
+          onApiKeyChange={isCustomProvider ? preferences.setCustomApiKey : preferences.setProviderApiKey}
+          onModelChange={isCustomProvider ? preferences.setCustomModel : preferences.setProviderCustomModel}
+          onClear={preferences.clearCurrentProviderSettings}
           onClose={() => setShowCustomModal(false)}
         />
       )}

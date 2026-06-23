@@ -1,10 +1,14 @@
 import { useEffect } from 'react';
 
 interface CustomProviderModalProps {
-  baseUrl: string;
+  title: string;
+  showBaseUrl: boolean;
+  baseUrl?: string;
   apiKey: string;
   model: string;
-  onBaseUrlChange: (value: string) => void;
+  apiKeyPlaceholder: string;
+  modelPlaceholder: string;
+  onBaseUrlChange?: (value: string) => void;
   onApiKeyChange: (value: string) => void;
   onModelChange: (value: string) => void;
   onClear: () => void;
@@ -12,9 +16,13 @@ interface CustomProviderModalProps {
 }
 
 export function CustomProviderModal({
+  title,
+  showBaseUrl,
   baseUrl,
   apiKey,
   model,
+  apiKeyPlaceholder,
+  modelPlaceholder,
   onBaseUrlChange,
   onApiKeyChange,
   onModelChange,
@@ -30,49 +38,47 @@ export function CustomProviderModal({
   }, [onClose]);
 
   return (
-    <div
-      className="custom-modal-overlay"
-      onClick={onClose}
-      role="dialog"
-      aria-label="Custom provider settings"
-    >
+    <div className="custom-modal-overlay" onClick={onClose} role="dialog" aria-label={`${title} settings`}>
       <div className="custom-modal" onClick={(event) => event.stopPropagation()}>
         <div className="custom-modal-header">
-          <h2 className="custom-modal-title">Custom Endpoint</h2>
+          <h2 className="custom-modal-title">{title}</h2>
           <button
             type="button"
             className="icon-btn"
             title="Close (Esc)"
-            aria-label="Close custom provider settings"
+            aria-label={`Close ${title} settings`}
             onClick={onClose}
           >
             ✕
           </button>
         </div>
         <div className="custom-modal-body">
+          {showBaseUrl && (
+            <label className="custom-modal-field">
+              <span className="custom-modal-label">Base URL</span>
+              <input
+                type="url"
+                className="custom-modal-input"
+                placeholder="https://api.example.com/v1"
+                value={baseUrl ?? ''}
+                onChange={(event) => onBaseUrlChange?.(event.target.value)}
+                spellCheck={false}
+                autoComplete="off"
+                autoFocus
+              />
+            </label>
+          )}
           <label className="custom-modal-field">
-            <span className="custom-modal-label">Base URL</span>
-            <input
-              type="url"
-              className="custom-modal-input"
-              placeholder="https://api.example.com/v1"
-              value={baseUrl}
-              onChange={(event) => onBaseUrlChange(event.target.value)}
-              spellCheck={false}
-              autoComplete="off"
-              autoFocus
-            />
-          </label>
-          <label className="custom-modal-field">
-            <span className="custom-modal-label">Model ID</span>
+            <span className="custom-modal-label">Custom model ID</span>
             <input
               type="text"
               className="custom-modal-input"
-              placeholder="gpt-4o-mini"
+              placeholder={modelPlaceholder}
               value={model}
               onChange={(event) => onModelChange(event.target.value)}
               spellCheck={false}
               autoComplete="off"
+              autoFocus={!showBaseUrl}
             />
           </label>
           <label className="custom-modal-field">
@@ -80,19 +86,22 @@ export function CustomProviderModal({
             <input
               type="password"
               className="custom-modal-input"
-              placeholder="sk-..."
+              placeholder={apiKeyPlaceholder}
               value={apiKey}
               onChange={(event) => onApiKeyChange(event.target.value)}
               autoComplete="off"
             />
           </label>
           <p className="custom-modal-warning">
-            ⚠ Credentials are stored in localStorage. HTTP endpoints transmit them without TLS.
+            ⚠ Credentials are stored in localStorage.{' '}
+            {showBaseUrl
+              ? 'HTTP endpoints transmit them without TLS.'
+              : 'Leave the API key blank to use the server environment key.'}
           </p>
         </div>
         <div className="custom-modal-footer">
           <button type="button" className="custom-modal-clear-btn" onClick={onClear}>
-            Clear all
+            Clear provider
           </button>
           <button type="button" className="custom-modal-done-btn" onClick={onClose}>
             Done

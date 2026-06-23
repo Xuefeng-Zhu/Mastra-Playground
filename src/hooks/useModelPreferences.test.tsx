@@ -37,9 +37,17 @@ describe('useModelPreferences', () => {
     await act(async () => root.render(<Harness expose={(value) => (preferences = value)} />));
     expect(preferences?.provider).toBe('openrouter');
     expect(preferences?.model).toBe('openrouter/free');
-    expect(JSON.parse(localStorage.getItem('mpg:llm:v2') ?? '{}')).toEqual({
+    expect(localStorage.getItem('mpg:llm:v2')).toBeNull();
+    expect(JSON.parse(localStorage.getItem('mpg:llm:v3') ?? '{}')).toMatchObject({
       provider: 'openrouter',
-      model: 'openrouter/free',
+      providers: {
+        openrouter: {
+          model: 'openrouter/free',
+          apiKey: '',
+          customModel: '',
+          useCustomModel: false,
+        },
+      },
     });
   });
 
@@ -57,9 +65,10 @@ describe('useModelPreferences', () => {
     await act(async () => root.render(<Harness expose={(value) => (preferences = value)} />));
     expect(preferences?.provider).toBe('custom');
 
-    await act(async () => preferences?.clearCustomSettings());
+    await act(async () => preferences?.clearAllSettings());
 
     expect(preferences?.provider).toBe('google');
     expect(localStorage.getItem('mpg:llm:v2')).toBeNull();
+    expect(localStorage.getItem('mpg:llm:v3')).toBeNull();
   });
 });

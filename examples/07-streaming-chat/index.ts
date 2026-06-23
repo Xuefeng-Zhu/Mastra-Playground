@@ -150,7 +150,7 @@ export interface RunOptions {
 export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'streaming-chat', input, STEPS);
 
-  const useModel = resolveModel(input.model, input.provider, context?.customLlm);
+  const useModel = resolveModel(input.model, input.provider, context?.llmConfig);
   const mastra = buildMastra(tracer, useModel);
   const wf = mastra.getWorkflow('streaming-chat');
   const run = await wf.createRun();

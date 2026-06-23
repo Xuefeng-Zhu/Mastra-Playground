@@ -63,7 +63,7 @@ export interface RunOptions {
 export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'research', input, STEPS);
 
-  const useModel = resolveModel(input.model, input.provider, context?.customLlm);
+  const useModel = resolveModel(input.model, input.provider, context?.llmConfig);
   const researcherAgent = new Agent({
     id: 'research-agent',
     name: 'Research Agent',

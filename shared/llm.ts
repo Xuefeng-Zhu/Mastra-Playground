@@ -18,10 +18,17 @@ export type LlmProvider = 'google' | 'openrouter' | 'custom';
 
 /** Browser-supplied configuration for the Custom provider. */
 export interface CustomLlmConfig {
+  provider: 'custom';
   baseUrl: string;
   apiKey: string;
   model: string;
 }
+
+/** Browser-supplied request-scoped provider override. */
+export type LlmRequestConfig =
+  | { provider: 'google'; apiKey: string }
+  | { provider: 'openrouter'; apiKey: string }
+  | CustomLlmConfig;
 
 const DEFAULT_PROVIDER: LlmProvider = 'google';
 const DEFAULT_MODELS: Record<LlmProvider, string> = {
@@ -29,13 +36,14 @@ const DEFAULT_MODELS: Record<LlmProvider, string> = {
   openrouter: 'openai/gpt-oss-20b:free',
   custom: 'gpt-3.5-turbo',
 };
+const OPENROUTER_BASE_URL = process.env.OPENAI_BASE_URL || 'https://openrouter.ai/api/v1';
 
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY,
 });
 const openrouter = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL || 'https://openrouter.ai/api/v1',
+  baseURL: OPENROUTER_BASE_URL,
 });
 
 function parseProvider(value: string | undefined): LlmProvider {
@@ -65,6 +73,19 @@ export function getModel(id: string, provider: LlmProvider = providerId) {
   return openrouter(id);
 }
 
+export function getGeminiModel(id: string, apiKey: string) {
+  const client = createGoogleGenerativeAI({ apiKey });
+  return client(id);
+}
+
+export function getOpenRouterModel(id: string, apiKey: string) {
+  const client = createOpenAI({
+    apiKey,
+    baseURL: OPENROUTER_BASE_URL,
+  });
+  return client(id);
+}
+
 /**
  * Build a request-scoped model instance for the Custom provider.
  * Creates a fresh OpenAI-compatible client using the browser-supplied
@@ -86,18 +107,21 @@ export function getCustomModel(config: CustomLlmConfig) {
  * function throws if it's missing, to avoid silently falling back to
  * server-side credentials.
  */
-export function resolveModel(
-  inputModel?: string,
-  inputProvider?: LlmProvider,
-  customConfig?: CustomLlmConfig,
-) {
+export function resolveModel(inputModel?: string, inputProvider?: LlmProvider, llmConfig?: LlmRequestConfig) {
   if (inputProvider === 'custom') {
-    if (!customConfig) {
+    if (llmConfig?.provider !== 'custom') {
       throw new Error('Custom provider selected but no configuration supplied.');
     }
-    return getCustomModel(customConfig);
+    return getCustomModel(llmConfig);
+  }
+  const provider = inputProvider ?? providerId;
+  const resolvedModelId = inputModel ?? DEFAULT_MODELS[provider];
+  if (llmConfig?.provider === 'google' && provider === 'google') {
+    return getGeminiModel(resolvedModelId, llmConfig.apiKey);
+  }
+  if (llmConfig?.provider === 'openrouter' && provider === 'openrouter') {
+    return getOpenRouterModel(resolvedModelId, llmConfig.apiKey);
   }
   if (!inputModel && !inputProvider) return model;
-  const provider = inputProvider ?? providerId;
-  return getModel(inputModel ?? DEFAULT_MODELS[provider], provider);
+  return getModel(resolvedModelId, provider);
 }

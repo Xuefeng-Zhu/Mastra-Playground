@@ -1,10 +1,10 @@
-import type { CustomLlmConfig } from './llm';
+import type { LlmRequestConfig } from './llm';
 import { logger } from './logger';
 
 export interface RunContext {
   signal?: AbortSignal;
-  /** Request-scoped custom LLM configuration (browser-supplied, never logged). */
-  customLlm?: CustomLlmConfig;
+  /** Request-scoped LLM configuration (browser-supplied, never logged). */
+  llmConfig?: LlmRequestConfig;
 }
 
 interface CancellableRun {

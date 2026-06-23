@@ -16,7 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ exa
     checkRateLimit(requestClientIp(req) + ':stream');
     const raw = await readWebJsonBody(req);
     const validatedInput = validateExampleInput(name as ExampleId, raw);
-    const { input, customLlm } = prepareExampleInput(validatedInput);
+    const { input, llmConfig } = prepareExampleInput(validatedInput);
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ exa
           const tracer = new Tracer();
           const unsubscribe = tracer.subscribe(send);
           try {
-            await fn(input, tracer, { signal: req.signal, customLlm });
+            await fn(input, tracer, { signal: req.signal, llmConfig });
           } finally {
             unsubscribe();
           }

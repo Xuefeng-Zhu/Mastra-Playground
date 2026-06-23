@@ -177,7 +177,7 @@ export interface RunOptions {
 export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'code-review', input, STEPS);
 
-  const useModel = resolveModel(input.model, input.provider, context?.customLlm);
+  const useModel = resolveModel(input.model, input.provider, context?.llmConfig);
   const reviewerAgent = new Agent({
     id: 'code-reviewer',
     name: 'Code Reviewer',
