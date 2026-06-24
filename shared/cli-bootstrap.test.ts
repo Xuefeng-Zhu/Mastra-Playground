@@ -16,14 +16,14 @@ describe('isMain', () => {
 });
 
 describe('runCliExample', () => {
-  it('invokes the demo with a silent Tracer without forcing process exit', async () => {
+  it('invokes the demo with a silent Tracer and exits successfully', async () => {
     const exit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
     const demo = vi.fn().mockResolvedValue(undefined);
     await runCliExample(demo);
     expect(demo).toHaveBeenCalledTimes(1);
     const arg = demo.mock.calls[0][0];
     expect(arg.constructor.name).toBe('Tracer');
-    expect(exit).not.toHaveBeenCalled();
+    expect(exit).toHaveBeenCalledWith(0);
     exit.mockRestore();
   });
 

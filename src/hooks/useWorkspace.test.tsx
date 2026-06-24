@@ -5,8 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EXAMPLES } from '../registry/examples';
 import { useWorkspace } from './useWorkspace';
 
-function Harness({ expose }: { expose: (workspace: ReturnType<typeof useWorkspace>) => void }) {
-  const workspace = useWorkspace(EXAMPLES.research);
+function Harness({
+  expose,
+  example = EXAMPLES.research,
+}: {
+  expose: (workspace: ReturnType<typeof useWorkspace>) => void;
+  example?: (typeof EXAMPLES)[keyof typeof EXAMPLES];
+}) {
+  const workspace = useWorkspace(example);
   useEffect(() => {
     expose(workspace);
   }, [expose, workspace]);
@@ -112,5 +118,30 @@ describe('useWorkspace stream lifecycle', () => {
     expect(container.firstElementChild?.getAttribute('data-running')).toBe('false');
     expect(container.firstElementChild?.getAttribute('data-active')).toBe('idle');
     expect(container.firstElementChild?.getAttribute('data-error')).toBe('provider unavailable');
+  });
+
+  it('uses the nested HITL suspend payload as the pending classification', async () => {
+    fetchMock.mockResolvedValue(
+      sseResponse([
+        {
+          type: 'suspend',
+          token: 'run-token',
+          payload: { classified: { amount: 500, urgency: 'critical', reasoning: 'Needs approval' } },
+        },
+        { type: 'done', status: 'suspended', output: { token: 'run-token' }, totalMs: 8 },
+      ]),
+    );
+    let workspace: ReturnType<typeof useWorkspace> | undefined;
+    await act(async () =>
+      root.render(<Harness example={EXAMPLES['hitl-approval']} expose={(value) => (workspace = value)} />),
+    );
+    act(() => workspace!.run({ action: 'Refund $500', actionType: 'refund' }));
+    await settle();
+
+    expect(workspace!.output).toEqual({
+      token: 'run-token',
+      classified: { amount: 500, urgency: 'critical', reasoning: 'Needs approval' },
+    });
+    expect(container.firstElementChild?.getAttribute('data-active')).toBe('suspended');
   });
 });

@@ -224,6 +224,7 @@ function renderStreaming(value: unknown, ctx: RenderContext) {
 
 function renderHitl(value: unknown, ctx: RenderContext) {
   const out = value as HitlOutput | null;
+  if (!out) return <p className="muted">(no output)</p>;
   if (out?.token && out?.classified && out?.decision === undefined) {
     const token = out.token;
     return (

@@ -85,4 +85,59 @@ describe('OutputPanel tabs', () => {
     expect(container.textContent).toContain('primary → specialist');
     expect(container.textContent).not.toContain('Send a message to start the conversation.');
   });
+
+  it('does not show a blocked HITL result before the workflow runs', async () => {
+    await act(async () =>
+      root.render(
+        <OutputPanel
+          kind="hitl"
+          output={null}
+          priorOutput={null}
+          sources={[]}
+          totalMs={0}
+          streamingText=""
+          streamingModel=""
+          streamingTokenCount={0}
+          activeTab="result"
+          setActiveTab={vi.fn()}
+          onHitlApprove={vi.fn()}
+          onHitlReject={vi.fn()}
+          error={null}
+        />,
+      ),
+    );
+
+    expect(container.textContent).toContain('(no output)');
+    expect(container.textContent).not.toContain('Action blocked');
+  });
+
+  it('renders the HITL final message without duplicating the status label', async () => {
+    await act(async () =>
+      root.render(
+        <OutputPanel
+          kind="hitl"
+          output={{
+            classified: { amount: 500, urgency: 'critical', reasoning: 'Needs review' },
+            decision: 'approved',
+            executed: true,
+            message: 'Action executed: critical-$500 action approved.',
+          }}
+          priorOutput={null}
+          sources={[]}
+          totalMs={10}
+          streamingText=""
+          streamingModel=""
+          streamingTokenCount={0}
+          activeTab="result"
+          setActiveTab={vi.fn()}
+          onHitlApprove={vi.fn()}
+          onHitlReject={vi.fn()}
+          error={null}
+        />,
+      ),
+    );
+
+    expect(container.textContent).toContain('Action executed: critical-$500 action approved.');
+    expect(container.textContent).not.toContain('Action executed: Action executed');
+  });
 });

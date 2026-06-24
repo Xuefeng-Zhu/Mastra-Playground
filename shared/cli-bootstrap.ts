@@ -28,6 +28,7 @@ export async function runCliExample(demo: CliDemo): Promise<void> {
   const silentTracer = new Tracer();
   try {
     await demo(silentTracer);
+    process.exit(0);
   } catch (err) {
     console.error(err);
     process.exit(1);

@@ -148,13 +148,12 @@ export function HitlFinal({
   executed: boolean;
   message: string;
 }) {
+  const statusLabel = executed ? 'Action executed' : 'Action blocked';
   return (
     <>
       <div className={`hitl-final-banner ${executed ? 'executed' : 'blocked'}`}>
         <span className="icon">{executed ? '✅' : '🛑'}</span>
-        <span>
-          {executed ? 'Action executed' : 'Action blocked'}: {message}
-        </span>
+        <span>{message || statusLabel}</span>
       </div>
       <div className="output-section">
         <h3>Classification</h3>

@@ -70,7 +70,7 @@ export function getModel(id: string, provider: LlmProvider = providerId) {
   if (provider === 'google') {
     return google(id);
   }
-  return openrouter(id);
+  return openrouter.chat(id);
 }
 
 export function getGeminiModel(id: string, apiKey: string) {
@@ -83,7 +83,7 @@ export function getOpenRouterModel(id: string, apiKey: string) {
     apiKey,
     baseURL: OPENROUTER_BASE_URL,
   });
-  return client(id);
+  return client.chat(id);
 }
 
 /**
@@ -96,7 +96,7 @@ export function getCustomModel(config: CustomLlmConfig) {
     apiKey: config.apiKey,
     baseURL: config.baseUrl,
   });
-  return client(config.model);
+  return client.chat(config.model);
 }
 
 /**

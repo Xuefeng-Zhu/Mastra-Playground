@@ -91,7 +91,12 @@ export function useWorkspace(example: PlaygroundExample) {
         break;
       case 'suspend':
         // HITL: render the pending approval card immediately.
-        setOutput({ classified: ev.payload, token: ev.token });
+        const payload = ev.payload;
+        const classified =
+          payload && typeof payload === 'object' && 'classified' in payload
+            ? (payload as { classified: unknown }).classified
+            : payload;
+        setOutput({ classified, token: ev.token });
         setActiveTab('result');
         setActiveNode('suspended');
         break;
