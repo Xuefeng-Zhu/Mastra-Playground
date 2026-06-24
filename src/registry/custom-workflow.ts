@@ -31,11 +31,29 @@ export const SEEDED_CLIENT_CUSTOM_WORKFLOW: CustomWorkflowDefinition = {
       promptTemplate: 'User request: {{input.prompt}}\n\nWrite a practical answer.',
       outputKey: 'draft',
     },
-    { id: 'output', type: 'output', label: 'Output', template: '{{draft}}' },
+    {
+      id: 'branch-1',
+      type: 'branch',
+      label: 'Needs enrichment?',
+      sourceKey: 'draft',
+      operator: 'nonEmpty',
+      trueTarget: 'tool-1',
+      falseTarget: 'output',
+    },
+    {
+      id: 'tool-1',
+      type: 'tool',
+      label: 'Echo context',
+      toolId: 'echo',
+      inputTemplate: '{{draft}}',
+      outputKey: 'echo_result',
+    },
+    { id: 'output', type: 'output', label: 'Output', template: '{{draft}}\n\n{{echo_result}}' },
   ],
   edges: [
     { from: 'input', to: 'draft' },
-    { from: 'draft', to: 'output' },
+    { from: 'draft', to: 'branch-1' },
+    { from: 'tool-1', to: 'output' },
   ],
 };
 

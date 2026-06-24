@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkflowBuilder } from './WorkflowBuilder';
 import { CUSTOM_WORKFLOW_STORAGE_KEY, SEEDED_CLIENT_CUSTOM_WORKFLOW } from '../registry/custom-workflow';
+import { CUSTOM_WORKFLOW_LAYOUT_STORAGE_KEY } from '../registry/custom-workflow-flow';
 import { streamCustomWorkflow } from '../hooks/workflow-stream';
 
 vi.mock('../hooks/workflow-stream', () => ({
@@ -22,11 +23,24 @@ async function settle() {
   });
 }
 
+function buttonWithText(container: HTMLElement, text: string) {
+  return Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
+    button.textContent?.includes(text),
+  );
+}
+
 describe('WorkflowBuilder', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
   beforeEach(() => {
+    class ResizeObserverStub {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub);
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
     window.localStorage.clear();
     container = document.createElement('div');
@@ -44,19 +58,49 @@ describe('WorkflowBuilder', () => {
   it('adds/selects nodes, saves/imports JSON, and streams a run', async () => {
     await act(async () => root.render(<WorkflowBuilder />));
 
-    const mockToolButton = Array.from(
-      container.querySelectorAll<HTMLButtonElement>('.builder-palette-btn'),
-    ).find((button) => button.textContent === 'Mock tool');
-    await act(async () => mockToolButton?.click());
-    expect(container.querySelector('.builder-node-selected')?.textContent).toContain('Tool step');
+    await act(async () => buttonWithText(container, 'Classifier')?.click());
+    expect(container.querySelector('.builder-flow-node-selected')?.textContent).toContain('Classifier');
+    expect(container.querySelector('.builder-flow-node-selected')?.textContent).toContain('classification');
+
+    await act(async () => buttonWithText(container, 'Summarize')?.click());
+    expect(container.querySelector('.builder-flow-node-selected')?.textContent).toContain('Summarize');
+    expect(container.querySelector<HTMLSelectElement>('.builder-inspector select')?.value).toBe('summarize');
+    expect(container.textContent).toContain('Summarize added before Output');
+
+    await act(async () => buttonWithText(container, 'Contains Text')?.click());
+    expect(container.querySelector('.builder-flow-node-selected')?.textContent).toContain('Contains Text');
+    expect(container.querySelector<HTMLSelectElement>('.builder-inspector select')?.value).toBe('contains');
+    expect(
+      Array.from(container.querySelectorAll<HTMLInputElement>('.builder-inspector input')).some(
+        (input) => input.value === 'approved',
+      ),
+    ).toBe(true);
+    expect(
+      Array.from(container.querySelectorAll<HTMLButtonElement>('.builder-toolbar button')).map((button) =>
+        button.textContent?.trim(),
+      ),
+    ).not.toEqual(expect.arrayContaining(['Save', 'Load', 'Reset']));
 
     await act(async () => {
-      Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
-        .find((button) => button.textContent === 'Save Draft')
+      buttonWithText(container, 'Save')?.click();
+    });
+    expect(window.localStorage.getItem(CUSTOM_WORKFLOW_STORAGE_KEY)).toContain('classification');
+    expect(window.localStorage.getItem(CUSTOM_WORKFLOW_STORAGE_KEY)).toContain('summarize');
+    expect(window.localStorage.getItem(CUSTOM_WORKFLOW_STORAGE_KEY)).toContain('contains');
+    expect(window.localStorage.getItem(CUSTOM_WORKFLOW_LAYOUT_STORAGE_KEY)).toContain('branch-2');
+
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('.builder-palette-footer button'))
+        .find((button) => button.textContent === 'Import JSON')
         ?.click();
     });
-    expect(window.localStorage.getItem(CUSTOM_WORKFLOW_STORAGE_KEY)).toContain('tool-1');
+    expect(container.querySelector<HTMLTextAreaElement>('.builder-import textarea')).toBeTruthy();
 
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('.builder-console-tabs button'))
+        .find((button) => button.textContent === 'json')
+        ?.click();
+    });
     const imported = { ...SEEDED_CLIENT_CUSTOM_WORKFLOW, id: 'imported-flow', name: 'Imported Flow' };
     const importArea = container.querySelector<HTMLTextAreaElement>('.builder-import textarea');
     await act(async () => {
@@ -65,8 +109,8 @@ describe('WorkflowBuilder', () => {
       importArea!.dispatchEvent(new Event('input', { bubbles: true }));
     });
     await act(async () => {
-      Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
-        .find((button) => button.textContent === 'Import JSON')
+      Array.from(container.querySelectorAll<HTMLButtonElement>('.builder-import button'))
+        .find((button) => button.textContent === 'Import JSON' && !button.disabled)
         ?.click();
     });
     expect(container.textContent).toContain('Imported Flow');
@@ -74,7 +118,7 @@ describe('WorkflowBuilder', () => {
 
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
-        .find((button) => button.textContent?.includes('Run custom workflow'))
+        .find((button) => button.textContent?.includes('Run') && button.classList.contains('builder-run-btn'))
         ?.click();
     });
     await settle();

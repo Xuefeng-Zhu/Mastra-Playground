@@ -99,12 +99,14 @@ describe('custom workflow runner', () => {
     vi.clearAllMocks();
   });
 
-  it('runs a linear LLM workflow and emits trace events', async () => {
+  it('runs the seeded LLM branch/tool workflow and emits trace events', async () => {
     const tracer = new Tracer();
     const events = captureEvents(tracer);
     const result = await runCustomWorkflow(cloneWorkflow(), { prompt: 'hello' }, tracer);
 
-    expect(result.output).toMatchObject({ answer: 'mock llm output' });
+    expect(result.output).toMatchObject({
+      answer: 'mock llm output\n\n{"text":"mock llm output"}',
+    });
     expect(events.map((event) => event.type)).toEqual([
       'start',
       'step:start',
@@ -112,6 +114,12 @@ describe('custom workflow runner', () => {
       'step:start',
       'llm:start',
       'llm:end',
+      'step:end',
+      'step:start',
+      'branch:evaluate',
+      'step:end',
+      'step:start',
+      'tool:call',
       'step:end',
       'step:start',
       'step:end',

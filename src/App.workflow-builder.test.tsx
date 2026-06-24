@@ -16,6 +16,13 @@ describe('Workflow Builder navigation', () => {
   let root: ReturnType<typeof createRoot>;
 
   beforeEach(() => {
+    class ResizeObserverStub {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub);
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
       callback(0);
       return 1;
