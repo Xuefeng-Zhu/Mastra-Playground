@@ -194,6 +194,22 @@ describe('OutputPanel tabs', () => {
     expect(markdown).toContain('gemini-test');
     expect(markdown).toContain('## Sources (1)');
     expect(markdown).toContain('"title": "Result"');
+    expect(container.textContent).toContain('Copied');
+  });
+
+  it('shows copy failures in the output toolbar', async () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockRejectedValue(new Error('Clipboard blocked')) },
+    });
+
+    await act(async () => renderPanel(root));
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[aria-label="Copy as Markdown"]')?.click();
+    });
+
+    expect(container.textContent).toContain('Clipboard blocked');
   });
 
   it.each([

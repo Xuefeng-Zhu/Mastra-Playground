@@ -937,6 +937,13 @@ main {
 }
 .output-tabs-right {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.output-copy-status {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
 }
 
 .output-body {
@@ -2732,6 +2739,13 @@ body.mp .output-tab:hover {
 }
 body.mp .output-tabs-right {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+body.mp .output-copy-status {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
 }
 body.mp .output-tabs-right .icon-btn {
   width: 28px;

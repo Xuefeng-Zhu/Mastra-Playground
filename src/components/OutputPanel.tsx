@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { CapturedSource } from '../registry/renderers';
 import {
   RESULT_RENDERERS,
@@ -55,24 +56,28 @@ function buildMarkdown(props: OutputPanelProps): string {
 
 async function copyAsMarkdown(props: OutputPanelProps): Promise<void> {
   const md = buildMarkdown(props);
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(md);
-    } else {
-      // Fallback for non-secure-context browsers.
-      const ta = document.createElement('textarea');
-      ta.value = md;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-    }
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.warn('Copy as Markdown failed', err);
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(md);
+    return;
   }
+
+  // Fallback for non-secure-context browsers.
+  const ta = document.createElement('textarea');
+  ta.value = md;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  try {
+    ta.select();
+    const copied = document.execCommand('copy');
+    if (!copied) throw new Error('Unable to copy Markdown.');
+  } finally {
+    document.body.removeChild(ta);
+  }
+}
+
+function copyErrorMessage(error: unknown) {
+  return error instanceof Error && error.message ? error.message : 'Unable to copy Markdown.';
 }
 
 function OutputTabs({
@@ -82,6 +87,7 @@ function OutputTabs({
   onChange,
   sourceCount,
   onCopy,
+  copyStatus,
 }: {
   hasSources: boolean;
   hasCompare: boolean;
@@ -89,6 +95,7 @@ function OutputTabs({
   onChange: (tab: OutputTab) => void;
   sourceCount: number;
   onCopy: () => void;
+  copyStatus: string | null;
 }) {
   return (
     <div
@@ -162,6 +169,11 @@ function OutputTabs({
         </button>
       )}
       <div className="output-tabs-right">
+        {copyStatus ? (
+          <span className="output-copy-status" role="status" aria-live="polite">
+            {copyStatus}
+          </span>
+        ) : null}
         <button className="icon-btn" title="Copy as Markdown" aria-label="Copy as Markdown" onClick={onCopy}>
           ⧉
         </button>
@@ -222,6 +234,16 @@ function RenderCompare({ kind, cur, prior }: { kind: OutputKind; cur: unknown; p
 }
 
 export function OutputPanel(props: OutputPanelProps) {
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const copyMarkdown = async () => {
+    try {
+      await copyAsMarkdown(props);
+      setCopyStatus('Copied');
+    } catch (err) {
+      setCopyStatus(copyErrorMessage(err));
+    }
+  };
+
   return (
     <section className="output-panel" aria-label="Output">
       <OutputTabs
@@ -230,7 +252,8 @@ export function OutputPanel(props: OutputPanelProps) {
         active={props.activeTab}
         onChange={props.setActiveTab}
         sourceCount={props.sources.length}
-        onCopy={() => void copyAsMarkdown(props)}
+        onCopy={() => void copyMarkdown()}
+        copyStatus={copyStatus}
       />
       <div className="output-body">
         {props.activeTab === 'result' && (
