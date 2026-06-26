@@ -71,4 +71,32 @@ describe('useModelPreferences', () => {
     expect(localStorage.getItem('mpg:llm:v2')).toBeNull();
     expect(localStorage.getItem('mpg:llm:v3')).toBeNull();
   });
+
+  it('continues with in-memory settings when browser storage throws', async () => {
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('storage unavailable');
+    });
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota exceeded');
+    });
+    const removeItem = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('storage unavailable');
+    });
+
+    try {
+      let preferences: ReturnType<typeof useModelPreferences> | undefined;
+      await act(async () => root.render(<Harness expose={(value) => (preferences = value)} />));
+      expect(preferences?.provider).toBe('google');
+
+      await act(async () => preferences?.selectProvider('openrouter'));
+      expect(preferences?.provider).toBe('openrouter');
+
+      await act(async () => preferences?.clearAllSettings());
+      expect(preferences?.provider).toBe('google');
+    } finally {
+      getItem.mockRestore();
+      setItem.mockRestore();
+      removeItem.mockRestore();
+    }
+  });
 });

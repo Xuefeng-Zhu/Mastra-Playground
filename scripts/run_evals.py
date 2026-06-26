@@ -95,7 +95,7 @@ def build_payload(example: str, topic: str, run_idx: int, threshold: int, max_it
             "examples/02-research-agent/index.ts",
             "examples/04-parallel-research/index.ts",
             "examples/08-critic-loop/index.ts",
-            "examples/10-content-pipeline/index.ts",
+            "examples/11-content-pipeline/index.ts",
         ]
         return {"path": paths[run_idx % len(paths)]}
     if example == "multi-turn-chat":
@@ -147,7 +147,6 @@ PRIMARY_TEXT_FIELD = {
     "streaming-chat": "finalText",
     "multi-agent-handoff": "specialistResponse",
     "mastra-memory": "turn2",  # dict with .output — measure inner text
-    "content-pipeline": "edited",
     "guardrail-redaction": "answer",
     "plan-and-execute": "answer",
 }

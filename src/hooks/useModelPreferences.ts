@@ -53,6 +53,31 @@ const DEFAULT_BUILT_IN_SETTINGS: Record<BuiltInProvider, BuiltInSettings> = {
   openrouter: { model: DEFAULT_MODELS.openrouter, customModel: '', apiKey: '', useCustomModel: false },
 };
 
+function readStorage(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function removeStorage(key: string) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Ignore unavailable storage; in-memory state is still updated.
+  }
+}
+
 function isBuiltInProvider(value: unknown): value is BuiltInProvider {
   return value === 'google' || value === 'openrouter';
 }
@@ -98,8 +123,8 @@ export function useModelPreferences() {
   const skipNextPreferenceWrite = useRef(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem(PREFERENCE_KEY);
-    const legacySaved = LEGACY_PREFERENCE_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
+    const saved = readStorage(PREFERENCE_KEY);
+    const legacySaved = LEGACY_PREFERENCE_KEYS.map((key) => readStorage(key)).find(Boolean);
     const rawPreference = saved ?? legacySaved;
 
     if (rawPreference) {
@@ -135,11 +160,11 @@ export function useModelPreferences() {
           setCustomModel(customSettings.customModel);
         }
       } catch {
-        localStorage.removeItem(PREFERENCE_KEY);
+        removeStorage(PREFERENCE_KEY);
       }
     }
 
-    for (const key of LEGACY_PREFERENCE_KEYS) localStorage.removeItem(key);
+    for (const key of LEGACY_PREFERENCE_KEYS) removeStorage(key);
   }, []);
 
   useEffect(() => {
@@ -148,7 +173,7 @@ export function useModelPreferences() {
       return;
     }
 
-    localStorage.setItem(
+    writeStorage(
       PREFERENCE_KEY,
       JSON.stringify({
         provider,
@@ -233,8 +258,8 @@ export function useModelPreferences() {
     setCustomBaseUrl('');
     setCustomApiKey('');
     setCustomModel('');
-    localStorage.removeItem(PREFERENCE_KEY);
-    for (const key of LEGACY_PREFERENCE_KEYS) localStorage.removeItem(key);
+    removeStorage(PREFERENCE_KEY);
+    for (const key of LEGACY_PREFERENCE_KEYS) removeStorage(key);
   }, []);
 
   const addToRequest = useCallback(
