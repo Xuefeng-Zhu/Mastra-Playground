@@ -16,7 +16,11 @@ export function createTraceEventParser(onEvent: (event: TraceEvent) => void) {
         .map((line) => line.slice(5).trimStart())
         .join('\n');
       if (!data) continue;
-      onEvent(JSON.parse(data) as TraceEvent);
+      try {
+        onEvent(JSON.parse(data) as TraceEvent);
+      } catch (error) {
+        throw new Error('Malformed trace event in workflow stream.', { cause: error });
+      }
     }
   };
 

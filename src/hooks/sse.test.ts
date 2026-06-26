@@ -12,4 +12,9 @@ describe('createTraceEventParser', () => {
     expect(events).toHaveLength(2);
     expect(events.map((event) => (event as { type: string }).type)).toEqual(['llm:delta', 'done']);
   });
+
+  it('throws a stream-specific error for malformed event data', () => {
+    const parser = createTraceEventParser(() => undefined);
+    expect(() => parser.push('data: {not-json}\n\n')).toThrow('Malformed trace event');
+  });
 });
