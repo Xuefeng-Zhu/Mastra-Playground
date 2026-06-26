@@ -99,4 +99,26 @@ describe('useModelPreferences', () => {
       removeItem.mockRestore();
     }
   });
+
+  it('omits blank custom endpoint model from request bodies', async () => {
+    let preferences: ReturnType<typeof useModelPreferences> | undefined;
+    await act(async () => root.render(<Harness expose={(value) => (preferences = value)} />));
+
+    await act(async () => preferences?.selectProvider('custom'));
+
+    expect(preferences?.addToRequest({ prompt: 'hello' })).toEqual({
+      prompt: 'hello',
+      provider: 'custom',
+      customBaseUrl: '',
+      customApiKey: '',
+      customModel: '',
+    });
+
+    await act(async () => preferences?.setCustomModel(' demo-model '));
+
+    expect(preferences?.addToRequest({ prompt: 'hello' })).toMatchObject({
+      model: 'demo-model',
+      customModel: ' demo-model ',
+    });
+  });
 });

@@ -13,6 +13,8 @@
 
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
+import { validateCustomBaseUrl } from './llm-request-config';
+import { ValidationError } from './validation';
 
 export type LlmProvider = 'google' | 'openrouter' | 'custom';
 
@@ -92,6 +94,11 @@ export function getOpenRouterModel(id: string, apiKey: string) {
  * baseUrl and apiKey. Never falls back to server-side credentials.
  */
 export function getCustomModel(config: CustomLlmConfig) {
+  if (!config.baseUrl) throw new ValidationError('Custom provider requires a base URL.', 'customBaseUrl');
+  if (!config.apiKey) throw new ValidationError('Custom provider requires an API key.', 'customApiKey');
+  if (!config.model) throw new ValidationError('Custom provider requires a model ID.', 'customModel');
+  validateCustomBaseUrl(config.baseUrl);
+
   const client = createOpenAI({
     apiKey: config.apiKey,
     baseURL: config.baseUrl,

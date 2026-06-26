@@ -154,7 +154,7 @@ describe('custom workflow definition validation', () => {
 });
 
 describe('custom workflow run request validation', () => {
-  it('uses shared request-scoped provider validation', () => {
+  it('uses shared request-scoped provider normalization', () => {
     expect(
       validateCustomWorkflowRunRequest({
         workflow: cloneWorkflow(),
@@ -176,16 +176,19 @@ describe('custom workflow run request validation', () => {
       },
     });
 
-    expect(() =>
+    expect(
       validateCustomWorkflowRunRequest({
         workflow: cloneWorkflow(),
         input: { prompt: 'hello' },
         provider: 'custom',
-        customBaseUrl: 'https://user:pass@provider.example/v1',
-        customApiKey: 'secret',
-        customModel: 'custom-model',
+        customBaseUrl: '',
+        customApiKey: '',
+        customModel: '',
       }),
-    ).toThrow('embedded credentials');
+    ).toMatchObject({
+      provider: 'custom',
+      llmConfig: { provider: 'custom', baseUrl: '', apiKey: '', model: '' },
+    });
   });
 });
 

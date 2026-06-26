@@ -206,4 +206,23 @@ describe('WorkflowBuilder', () => {
     await act(async () => consoleTab(container, 'trace')?.click());
     expect(container.textContent).toContain('Events');
   });
+
+  it('renders JSON-like custom workflow answers as structured output', async () => {
+    vi.mocked(streamCustomWorkflow).mockImplementationOnce(async ({ onEvent }) => {
+      onEvent({ type: 'start', workflow: 'Tool Only', input: {}, steps: [] });
+      onEvent({
+        type: 'done',
+        status: 'success',
+        output: { answer: '{"text":"hello","count":1}' },
+        totalMs: 1,
+      });
+    });
+    await act(async () => root.render(<WorkflowBuilder />));
+
+    await act(async () => buttonWithText(container, 'Run')?.click());
+    await settle();
+
+    expect(container.querySelector('.json-pre')?.textContent).toContain('"text": "hello"');
+    expect(container.querySelector('.json-pre')?.textContent).toContain('"count": 1');
+  });
 });

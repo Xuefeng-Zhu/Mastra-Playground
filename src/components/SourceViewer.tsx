@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { exampleNameToId } from '../registry/utils';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 interface SourceViewerProps {
   exampleNum: number;
@@ -44,6 +45,7 @@ export function SourceViewer({ exampleNum, exampleName, onClose }: SourceViewerP
   const [copyError, setCopyError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dialogRef = useDialogFocus<HTMLDivElement>(onClose, 'button[aria-label="Close source viewer"]');
 
   const slug = exampleNameToId(exampleNum, exampleName);
 
@@ -94,20 +96,18 @@ export function SourceViewer({ exampleNum, exampleName, onClose }: SourceViewerP
     [],
   );
 
-  // Close on Escape
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [onClose]);
-
   const lineCount = source?.split('\n').length ?? 0;
 
   return (
-    <div className="source-viewer-overlay" onClick={onClose} role="dialog" aria-label="Example source code">
-      <div className="source-viewer" onClick={(e) => e.stopPropagation()}>
+    <div className="source-viewer-overlay" onClick={onClose}>
+      <div
+        className="source-viewer"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Example source code"
+        ref={dialogRef}
+      >
         <div className="source-viewer-header">
           <span className="source-viewer-filename">{filename || 'Loading…'}</span>
           <span className="source-viewer-meta">{source !== null && `${lineCount} lines`}</span>

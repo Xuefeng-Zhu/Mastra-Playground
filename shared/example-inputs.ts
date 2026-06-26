@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ValidationError, isPlainObject, sanitizeText } from './validation';
 import type { ExampleId } from './example-manifest';
 import type { LlmRequestConfig } from './llm';
-import { builtInLlmConfigFromProviderKey, customLlmConfigFromFields } from './llm-request-config';
+import { builtInLlmConfigFromProviderKey, deferredCustomLlmConfigFromFields } from './llm-request-config';
 
 const model = z.string().trim().min(1).optional();
 const provider = z.enum(['google', 'openrouter', 'custom']).optional();
@@ -113,7 +113,7 @@ export function prepareExampleInput(input: Record<string, unknown>): {
   if (exampleInput.provider === 'custom') {
     return {
       input: exampleInput,
-      llmConfig: customLlmConfigFromFields({ customBaseUrl, customApiKey, customModel }),
+      llmConfig: deferredCustomLlmConfigFromFields({ customBaseUrl, customApiKey, customModel }),
     };
   }
 

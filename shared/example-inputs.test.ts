@@ -99,16 +99,19 @@ describe('validateExampleInput', () => {
     expect(original.customApiKey).toBe('secret');
   });
 
-  it('uses the shared custom provider validation for unsafe base URLs', () => {
-    expect(() =>
+  it('defers custom provider validation so no-LLM branches can still run', () => {
+    expect(
       prepareExampleInput({
         provider: 'custom',
         topic: 'agents',
-        customBaseUrl: 'https://user:pass@example.com/v1',
-        customApiKey: 'secret',
-        customModel: 'model-id',
+        customBaseUrl: '',
+        customApiKey: '',
+        customModel: '',
       }),
-    ).toThrow('embedded credentials');
+    ).toEqual({
+      input: { provider: 'custom', topic: 'agents' },
+      llmConfig: { provider: 'custom', baseUrl: '', apiKey: '', model: '' },
+    });
   });
 
   it('strips provider API keys while preserving env fallback when blank', () => {

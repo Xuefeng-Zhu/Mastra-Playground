@@ -1187,7 +1187,9 @@ body.mp .skip-link:focus {
   }
   .rail {
     position: static;
+    max-height: 220px;
     height: auto;
+    overflow: auto;
     border-right: none;
     border-bottom: 1px solid var(--border);
   }

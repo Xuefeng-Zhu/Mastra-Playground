@@ -73,8 +73,8 @@ explicitly with the InboxPilot equivalent in each example's README.
 | 12  | [Guardrail + Redaction](examples/12-guardrail-redaction/) | Workflow guardrail + `PIIDetector` processors        | Redact before the LLM, then branch or answer with processor backup.       |
 | 13  | [Plan-and-Execute Agent](examples/13-plan-and-execute/)   | Planner + executor + summarizer agents               | Decompose a task, execute steps sequentially, then summarize the result.  |
 
-Each example is <350 lines including the CLI demo. The shared modules in
-`shared/` are <300 lines total.
+Each example is intentionally small enough to read in one sitting, with
+cross-example behavior kept in `shared/`.
 
 ## Endpoints
 

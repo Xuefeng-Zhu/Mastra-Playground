@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useDialogFocus } from '../hooks/useDialogFocus';
 
 interface CustomProviderModalProps {
   title: string;
@@ -29,17 +29,18 @@ export function CustomProviderModal({
   onClear,
   onClose,
 }: CustomProviderModalProps) {
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [onClose]);
+  const dialogRef = useDialogFocus<HTMLDivElement>(onClose);
 
   return (
-    <div className="custom-modal-overlay" onClick={onClose} role="dialog" aria-label={`${title} settings`}>
-      <div className="custom-modal" onClick={(event) => event.stopPropagation()}>
+    <div className="custom-modal-overlay" onClick={onClose}>
+      <div
+        className="custom-modal"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${title} settings`}
+        ref={dialogRef}
+      >
         <div className="custom-modal-header">
           <h2 className="custom-modal-title">{title}</h2>
           <button

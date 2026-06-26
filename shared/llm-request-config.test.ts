@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   builtInLlmConfigFromProviderKey,
   customLlmConfigFromFields,
+  deferredCustomLlmConfigFromFields,
   parseRequestProvider,
 } from './llm-request-config';
 import { ValidationError } from './validation';
@@ -49,6 +50,21 @@ describe('LLM request config helpers', () => {
         customModel: 'demo-model',
       }),
     ).toThrow('embedded credentials');
+  });
+
+  it('can defer custom provider validation until a workflow actually resolves a model', () => {
+    expect(
+      deferredCustomLlmConfigFromFields({
+        customBaseUrl: '',
+        customApiKey: '',
+        customModel: '',
+      }),
+    ).toEqual({
+      provider: 'custom',
+      baseUrl: '',
+      apiKey: '',
+      model: '',
+    });
   });
 
   it('parses only supported request provider ids', () => {

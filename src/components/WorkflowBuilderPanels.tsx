@@ -30,6 +30,18 @@ export function JsonBlock({ value }: { value: unknown }) {
   return <pre className="json-pre">{JSON.stringify(value, null, 2)}</pre>;
 }
 
+function parseJsonAnswer(answer: unknown): unknown | null {
+  if (typeof answer !== 'string') return null;
+  const trimmed = answer.trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null;
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 function TextField({
   label,
   value,
@@ -432,6 +444,7 @@ export function BuilderConsole({
   exportedJson: string;
 }) {
   const out = output && typeof output === 'object' ? (output as { answer?: unknown }) : null;
+  const parsedAnswer = parseJsonAnswer(out?.answer);
   return (
     <section className="builder-console" aria-label="Workflow run console">
       <div className="builder-run-strip">
@@ -469,7 +482,11 @@ export function BuilderConsole({
           {error ? <p className="muted output-error">⚠ {error}</p> : null}
           {activeTab === 'result' && !error ? (
             output ? (
-              <p className="response-text">{String(out?.answer ?? '')}</p>
+              parsedAnswer ? (
+                <JsonBlock value={parsedAnswer} />
+              ) : (
+                <p className="response-text">{String(out?.answer ?? '')}</p>
+              )
             ) : (
               <p className="muted">Run the custom workflow to see output.</p>
             )

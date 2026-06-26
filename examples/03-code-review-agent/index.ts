@@ -94,7 +94,7 @@ function makeCheckFileStep(tracer: Tracer) {
   });
 }
 
-function makeGenerateReviewStep(tracer: Tracer, agent: Agent) {
+function makeGenerateReviewStep(tracer: Tracer, input: RunOptions, context?: RunContext) {
   return createStep({
     id: 'generate-review',
     description: 'Use the LLM to write the review comment',
@@ -102,6 +102,17 @@ function makeGenerateReviewStep(tracer: Tracer, agent: Agent) {
     outputSchema: ReviewOutputSchema,
     execute: async ({ inputData, abortSignal }) => {
       stepStart(tracer, 'generate-review', { path: inputData.path, issueCount: inputData.issues.length });
+      const agent = new Agent({
+        id: 'code-reviewer',
+        name: 'Code Reviewer',
+        instructions: [
+          'You are a code reviewer.',
+          'Given a list of issues and the file content, write a short Markdown review comment.',
+          'Lead with the most important issues. Be specific (cite line numbers).',
+          'Keep it under 200 words. No pleasantries.',
+        ].join('\n'),
+        model: resolveModel(input.model, input.provider, context?.llmConfig),
+      });
       const issueList = inputData.issues
         .map((i) => `- [${i.severity}] line ${i.line}: ${i.message}`)
         .join('\n');
@@ -139,7 +150,7 @@ function makeApproveStep(tracer: Tracer) {
   });
 }
 
-function makeWorkflow(tracer: Tracer, reviewerAgent: Agent) {
+function makeWorkflow(tracer: Tracer, input: RunOptions, context?: RunContext) {
   return createWorkflow({
     id: 'review',
     inputSchema: z.object({ path: z.string() }),
@@ -162,7 +173,7 @@ function makeWorkflow(tracer: Tracer, reviewerAgent: Agent) {
           branchEvaluate(tracer, 'branch.issues', matched, `issues.length > 0`);
           return matched;
         },
-        makeGenerateReviewStep(tracer, reviewerAgent),
+        makeGenerateReviewStep(tracer, input, context),
       ],
     ])
     .commit();
@@ -177,21 +188,8 @@ export interface RunOptions {
 export async function runOne(input: RunOptions, tracer: Tracer, context?: RunContext) {
   const t0 = startRun(tracer, 'code-review', input, STEPS);
 
-  const useModel = resolveModel(input.model, input.provider, context?.llmConfig);
-  const reviewerAgent = new Agent({
-    id: 'code-reviewer',
-    name: 'Code Reviewer',
-    instructions: [
-      'You are a code reviewer.',
-      'Given a list of issues and the file content, write a short Markdown review comment.',
-      'Lead with the most important issues. Be specific (cite line numbers).',
-      'Keep it under 200 words. No pleasantries.',
-    ].join('\n'),
-    model: useModel,
-  });
   const mastra = new Mastra({
-    agents: { reviewer: reviewerAgent },
-    workflows: { review: makeWorkflow(tracer, reviewerAgent) },
+    workflows: { review: makeWorkflow(tracer, input, context) },
     logger,
   });
 

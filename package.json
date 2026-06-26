@@ -26,7 +26,7 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,css,html,md,json}\" --ignore-path .gitignore --ignore-path .prettierignore",
     "dev": "next dev --port 8917",
     "build": "next build",
-    "start": "next start --port 8917",
+    "start": "node scripts/prepare-standalone-static.mjs && PORT=8917 node .next/standalone/server.js",
     "health": "curl -s http://localhost:8917/api/health | head -c 500",
     "smoke": "tsx scripts/smoke.ts",
     "test": "vitest run",

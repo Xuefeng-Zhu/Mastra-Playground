@@ -60,4 +60,15 @@ describe('LLM provider factory', () => {
     expect(mocks.openAIChat).toHaveBeenCalledWith('qwen/qwen3-next-80b-a3b-instruct:free');
     expect(mocks.openAIChat).toHaveBeenCalledWith('x');
   });
+
+  it('requires complete custom provider config when resolving a custom model', () => {
+    expect(() =>
+      getCustomModel({
+        provider: 'custom',
+        baseUrl: '',
+        apiKey: '',
+        model: '',
+      }),
+    ).toThrow('Custom provider requires a base URL.');
+  });
 });

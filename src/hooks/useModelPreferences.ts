@@ -269,7 +269,7 @@ export function useModelPreferences() {
         body.customBaseUrl = customBaseUrl;
         body.customApiKey = customApiKey;
         body.customModel = customModel;
-        body.model = customModel;
+        if (customModel.trim()) body.model = customModel.trim();
       } else {
         const settings = builtInSettings[provider];
         const resolvedModel = settings.useCustomModel

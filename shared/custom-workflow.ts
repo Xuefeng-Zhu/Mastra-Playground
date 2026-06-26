@@ -4,7 +4,7 @@ import { ValidationError, isPlainObject, sanitizeText } from './validation';
 import { resolveModel, type LlmProvider, type LlmRequestConfig } from './llm';
 import {
   builtInLlmConfigFromProviderKey,
-  customLlmConfigFromFields,
+  deferredCustomLlmConfigFromFields,
   parseRequestProvider,
 } from './llm-request-config';
 import type { RunContext } from './cancellable-run';
@@ -321,7 +321,7 @@ export function validateCustomWorkflowRunRequest(body: unknown): CustomWorkflowR
       input: { prompt },
       provider,
       model,
-      llmConfig: customLlmConfigFromFields({
+      llmConfig: deferredCustomLlmConfigFromFields({
         customBaseUrl: body.customBaseUrl,
         customApiKey: body.customApiKey,
         customModel: body.customModel,

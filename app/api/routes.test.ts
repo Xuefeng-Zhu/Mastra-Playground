@@ -101,6 +101,61 @@ describe('API routes', () => {
     expect(body).toContain('hello from route test');
   });
 
+  it('allows no-LLM flows to run with an incomplete custom provider config', async () => {
+    const run = await runExample(
+      post(
+        '/api/run/code-review',
+        { path: 'clean.ts', provider: 'custom', customBaseUrl: '', customApiKey: '', customModel: '' },
+        'route-test-run-custom-no-llm',
+      ),
+      { params: Promise.resolve({ example: 'code-review' }) },
+    );
+    expect(run.status).toBe(200);
+    await expect(run.json()).resolves.toMatchObject({
+      ok: true,
+      result: { status: 'success', output: { action: 'approved' } },
+    });
+
+    const workflow = {
+      version: 1,
+      id: 'tool-only-custom-provider',
+      name: 'Tool Only Custom Provider',
+      input: { label: 'Prompt' },
+      nodes: [
+        { id: 'input', type: 'input', label: 'Input' },
+        {
+          id: 'echo',
+          type: 'tool',
+          label: 'Echo',
+          toolId: 'echo',
+          inputTemplate: '{{input.prompt}}',
+          outputKey: 'echo_result',
+        },
+        { id: 'output', type: 'output', label: 'Output', template: '{{echo_result}}' },
+      ],
+      edges: [
+        { from: 'input', to: 'echo' },
+        { from: 'echo', to: 'output' },
+      ],
+    };
+    const stream = await streamCustomWorkflow(
+      post(
+        '/api/custom-workflow/stream',
+        {
+          provider: 'custom',
+          customBaseUrl: '',
+          customApiKey: '',
+          customModel: '',
+          workflow,
+          input: { prompt: 'custom provider not needed' },
+        },
+        'route-test-custom-workflow-custom-no-llm',
+      ),
+    );
+    expect(stream.status).toBe(200);
+    await expect(stream.text()).resolves.toContain('"status":"success"');
+  });
+
   it('rejects invalid HITL decisions', async () => {
     const response = await resumeExample(
       post('/api/resume/token', { decision: 'maybe' }, 'route-test-resume'),

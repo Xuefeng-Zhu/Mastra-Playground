@@ -17,6 +17,22 @@ export function customLlmConfigFromFields(fields: {
   customApiKey: unknown;
   customModel: unknown;
 }): Extract<LlmRequestConfig, { provider: 'custom' }> {
+  const config = deferredCustomLlmConfigFromFields(fields);
+
+  if (!config.baseUrl) throw new ValidationError('Custom provider requires a base URL.', 'customBaseUrl');
+  if (!config.apiKey) throw new ValidationError('Custom provider requires an API key.', 'customApiKey');
+  if (!config.model) throw new ValidationError('Custom provider requires a model ID.', 'customModel');
+
+  validateCustomBaseUrl(config.baseUrl);
+
+  return config;
+}
+
+export function deferredCustomLlmConfigFromFields(fields: {
+  customBaseUrl: unknown;
+  customApiKey: unknown;
+  customModel: unknown;
+}): Extract<LlmRequestConfig, { provider: 'custom' }> {
   const customBaseUrl = typeof fields.customBaseUrl === 'string' ? fields.customBaseUrl.trim() : '';
   const customApiKey = typeof fields.customApiKey === 'string' ? fields.customApiKey.trim() : '';
   const customModel =
@@ -24,10 +40,15 @@ export function customLlmConfigFromFields(fields: {
       ? sanitizeText(fields.customModel, 512).trim()
       : '';
 
-  if (!customBaseUrl) throw new ValidationError('Custom provider requires a base URL.', 'customBaseUrl');
-  if (!customApiKey) throw new ValidationError('Custom provider requires an API key.', 'customApiKey');
-  if (!customModel) throw new ValidationError('Custom provider requires a model ID.', 'customModel');
+  return {
+    provider: 'custom',
+    baseUrl: customBaseUrl,
+    apiKey: customApiKey,
+    model: customModel,
+  };
+}
 
+export function validateCustomBaseUrl(customBaseUrl: string) {
   let parsed: URL;
   try {
     parsed = new URL(customBaseUrl);
@@ -40,13 +61,6 @@ export function customLlmConfigFromFields(fields: {
   if (parsed.username || parsed.password) {
     throw new ValidationError('Custom base URL must not contain embedded credentials.', 'customBaseUrl');
   }
-
-  return {
-    provider: 'custom',
-    baseUrl: customBaseUrl,
-    apiKey: customApiKey,
-    model: customModel,
-  };
 }
 
 export function parseRequestProvider(value: unknown): LlmProvider | undefined {

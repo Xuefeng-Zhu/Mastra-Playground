@@ -1,0 +1,14 @@
+const ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" fill="#c7f52c"/>
+  <path d="M32 12 42 32 32 52 22 32Z" fill="#08111f"/>
+  <circle cx="32" cy="32" r="5" fill="#f7ffe8"/>
+</svg>`;
+
+export function GET() {
+  return new Response(ICON_SVG, {
+    headers: {
+      'Cache-Control': 'public, max-age=86400',
+      'Content-Type': 'image/svg+xml',
+    },
+  });
+}
