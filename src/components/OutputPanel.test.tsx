@@ -3,6 +3,32 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OutputPanel } from './OutputPanel';
+import type { OutputTab } from '../hooks/useWorkspace';
+import type { OutputKind } from '../registry/examples';
+
+function renderPanel(
+  root: ReturnType<typeof createRoot>,
+  overrides: Partial<Parameters<typeof OutputPanel>[0]> = {},
+) {
+  return root.render(
+    <OutputPanel
+      kind="research"
+      output={{ formatted: 'answer' }}
+      priorOutput={null}
+      sources={[]}
+      totalMs={12}
+      streamingText=""
+      streamingModel=""
+      streamingTokenCount={0}
+      activeTab="result"
+      setActiveTab={vi.fn()}
+      onHitlApprove={vi.fn()}
+      onHitlReject={vi.fn()}
+      error={null}
+      {...overrides}
+    />,
+  );
+}
 
 describe('OutputPanel tabs', () => {
   let container: HTMLDivElement;
@@ -140,4 +166,55 @@ describe('OutputPanel tabs', () => {
     expect(container.textContent).toContain('Action executed: critical-$500 action approved.');
     expect(container.textContent).not.toContain('Action executed: Action executed');
   });
+
+  it('copies the current output as markdown', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    await act(async () =>
+      renderPanel(root, {
+        kind: 'parallel',
+        output: { synthesis: 'Combined answer' },
+        sources: [{ tool: 'web', input: 'query', output: { title: 'Result' } }],
+        streamingModel: 'gemini-test',
+        streamingTokenCount: 7,
+      }),
+    );
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[aria-label="Copy as Markdown"]')?.click();
+    });
+
+    expect(writeText).toHaveBeenCalledTimes(1);
+    const markdown = writeText.mock.calls[0]?.[0] as string;
+    expect(markdown).toContain('# parallel result');
+    expect(markdown).toContain('gemini-test');
+    expect(markdown).toContain('## Sources (1)');
+    expect(markdown).toContain('"title": "Result"');
+  });
+
+  it.each([
+    ['sources', 'web', 'query'],
+    ['json', '"synthesis"', 'Current'],
+    ['compare', 'Current', 'Previous'],
+  ] satisfies Array<[OutputTab, string, string]>)(
+    'renders the %s tab content',
+    async (activeTab, firstText, secondText) => {
+      await act(async () =>
+        renderPanel(root, {
+          kind: 'parallel' as OutputKind,
+          output: { synthesis: 'Current' },
+          priorOutput: { synthesis: 'Previous' },
+          sources: [{ tool: 'web', input: 'query', output: { title: 'Result' } }],
+          activeTab,
+        }),
+      );
+
+      expect(container.textContent).toContain(firstText);
+      expect(container.textContent).toContain(secondText);
+    },
+  );
 });
