@@ -156,6 +156,33 @@ describe('WorkflowBuilder', () => {
     expect(window.localStorage.getItem(CUSTOM_WORKFLOW_STORAGE_KEY)).toBeNull();
   });
 
+  it('keeps working when browser storage is unavailable', async () => {
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('storage unavailable');
+    });
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota exceeded');
+    });
+    const removeItem = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('storage unavailable');
+    });
+
+    try {
+      await act(async () => root.render(<WorkflowBuilder />));
+      expect(container.textContent).toContain('Starter Workflow');
+
+      await act(async () => buttonWithText(container, 'Save')?.click());
+      expect(container.textContent).toContain('Save failed');
+
+      await act(async () => buttonWithText(container, 'Load')?.click());
+      expect(container.textContent).toContain('No saved draft found');
+    } finally {
+      getItem.mockRestore();
+      setItem.mockRestore();
+      removeItem.mockRestore();
+    }
+  });
+
   it('keeps diagnostic tabs usable after a failed custom workflow run', async () => {
     vi.mocked(streamCustomWorkflow).mockImplementationOnce(async ({ onEvent }) => {
       onEvent({ type: 'start', workflow: 'Starter Workflow', input: {}, steps: [] });
