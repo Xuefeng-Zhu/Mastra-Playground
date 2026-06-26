@@ -8,6 +8,7 @@ import { POST as streamCustomWorkflow } from './custom-workflow/stream/route';
 import { POST as resumeExample } from './resume/[token]/route';
 import { GET as getSource } from './source/[example]/route';
 import { apiErrorResponse, requestClientIp } from './route-helpers';
+import { registerSuspendedRun } from '../../shared/suspended-store';
 
 function post(path: string, body: unknown, ip: string) {
   return new NextRequest(`http://localhost${path}`, {
@@ -109,6 +110,56 @@ describe('API routes', () => {
     );
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({ field: 'decision' });
+  });
+
+  it('returns 404 for missing suspended runs', async () => {
+    const response = await resumeExample(
+      post('/api/resume/missing-token', { decision: 'approved' }, 'route-test-resume-missing'),
+      {
+        params: Promise.resolve({ token: 'missing-token' }),
+      },
+    );
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({ error: expect.stringContaining('missing-token') });
+  });
+
+  it('resumes a registered suspended run once', async () => {
+    const token = `route-token-${crypto.randomUUID()}`;
+    const resume = vi.fn().mockResolvedValue({
+      status: 'success',
+      result: { executed: true, message: 'approved' },
+    });
+    registerSuspendedRun(token, {
+      run: { resume },
+      step: 'gate',
+      workflow: 'hitl',
+      mastra: null,
+    });
+
+    const response = await resumeExample(
+      post(`/api/resume/${token}`, { decision: 'approved' }, 'route-test-resume-success'),
+      {
+        params: Promise.resolve({ token }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      result: {
+        status: 'success',
+        output: { executed: true, message: 'approved' },
+      },
+    });
+    expect(resume).toHaveBeenCalledWith({ step: 'gate', resumeData: { decision: 'approved' } });
+
+    const second = await resumeExample(
+      post(`/api/resume/${token}`, { decision: 'approved' }, 'route-test-resume-consumed'),
+      {
+        params: Promise.resolve({ token }),
+      },
+    );
+    expect(second.status).toBe(404);
   });
 
   it('normalizes client IPs and hides unexpected server errors', async () => {
