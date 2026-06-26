@@ -4,6 +4,7 @@ import { GET as getExamples } from './examples/route';
 import { GET as getHealth } from './health/route';
 import { POST as runExample } from './run/[example]/route';
 import { POST as streamExample } from './stream/[example]/route';
+import { POST as streamCustomWorkflow } from './custom-workflow/stream/route';
 import { POST as resumeExample } from './resume/[token]/route';
 import { GET as getSource } from './source/[example]/route';
 import { apiErrorResponse, requestClientIp } from './route-helpers';
@@ -48,6 +49,55 @@ describe('API routes', () => {
     });
     expect(stream.status).toBe(400);
     await expect(stream.json()).resolves.toMatchObject({ field: 'topic' });
+  });
+
+  it('validates custom workflow stream requests before opening a stream', async () => {
+    const response = await streamCustomWorkflow(
+      post('/api/custom-workflow/stream', { input: { prompt: 'hello' } }, 'route-test-custom-invalid'),
+    );
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ field: 'workflow' });
+  });
+
+  it('streams a tool-only custom workflow without an LLM provider', async () => {
+    const workflow = {
+      version: 1,
+      id: 'tool-only',
+      name: 'Tool Only',
+      input: { label: 'Prompt' },
+      nodes: [
+        { id: 'input', type: 'input', label: 'Input' },
+        {
+          id: 'echo',
+          type: 'tool',
+          label: 'Echo',
+          toolId: 'echo',
+          inputTemplate: '{{input.prompt}}',
+          outputKey: 'echo_result',
+        },
+        { id: 'output', type: 'output', label: 'Output', template: '{{echo_result}}' },
+      ],
+      edges: [
+        { from: 'input', to: 'echo' },
+        { from: 'echo', to: 'output' },
+      ],
+    };
+
+    const response = await streamCustomWorkflow(
+      post(
+        '/api/custom-workflow/stream',
+        { workflow, input: { prompt: 'hello from route test' } },
+        'route-test-custom-success',
+      ),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('text/event-stream');
+
+    const body = await response.text();
+    expect(body).toContain(': connected');
+    expect(body).toContain('"type":"tool:call"');
+    expect(body).toContain('"status":"success"');
+    expect(body).toContain('hello from route test');
   });
 
   it('rejects invalid HITL decisions', async () => {
