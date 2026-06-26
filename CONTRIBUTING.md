@@ -20,19 +20,20 @@ For a production build: `npm run build && npm run start`.
 
 ## Useful scripts
 
-| Command                   | What it does                                 |
-| ------------------------- | -------------------------------------------- |
-| `npm run typecheck`       | TypeScript type-check (no emit)              |
-| `npm run format`          | Format all files with Prettier               |
-| `npm run format:check`    | Check formatting without writing             |
-| `npm run dev`             | Next.js dev server (Fast Refresh, port 8917) |
-| `npm run build`           | Next.js production build                     |
-| `npm run start`           | Start the production server (port 8917)      |
-| `npm run ci`              | format:check + typecheck + test + build      |
-| `npm run health`          | Curl `/api/health`                           |
-| `npm run example:01`–`13` | Run a single example as a CLI demo           |
-| `npm run smoke`           | End-to-end smoke against running server      |
-| `npm test`                | Vitest run (shared/ + scripts/)              |
+| Command                   | What it does                                             |
+| ------------------------- | -------------------------------------------------------- |
+| `npm run typecheck`       | TypeScript type-check (no emit)                          |
+| `npm run format`          | Format all files with Prettier                           |
+| `npm run format:check`    | Check formatting without writing                         |
+| `npm run dev`             | Next.js dev server (Fast Refresh, port 8917)             |
+| `npm run build`           | Next.js production build                                 |
+| `npm run start`           | Start the production server (port 8917)                  |
+| `npm run ci`              | format:check + typecheck + coverage + docs:check + build |
+| `npm run health`          | Curl `/api/health`                                       |
+| `npm run example:01`–`13` | Run a single example as a CLI demo                       |
+| `npm run smoke`           | End-to-end smoke against running server                  |
+| `npm test`                | Vitest run (shared/ + scripts/)                          |
+| `npm run docs:check`      | Check local Markdown links                               |
 
 ## Adding a new example
 
@@ -82,4 +83,4 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/).
 
 - One example per PR
 - PR description should link the corresponding `notes/learning-log.md` entry
-- All CI checks must pass (format:check, typecheck, build, static-asset smoke)
+- All CI checks must pass (format:check, typecheck, coverage, docs:check, build)
