@@ -31,6 +31,12 @@ function highlightTs(code: string): string {
   return html;
 }
 
+type SourceResponse = { source?: string; filename?: string; error?: string };
+
+function isSourceResponse(value: unknown): value is SourceResponse {
+  return value !== null && typeof value === 'object';
+}
+
 export function SourceViewer({ exampleNum, exampleName, onClose }: SourceViewerProps) {
   const [source, setSource] = useState<string | null>(null);
   const [filename, setFilename] = useState('');
@@ -47,8 +53,11 @@ export function SourceViewer({ exampleNum, exampleName, onClose }: SourceViewerP
     void (async () => {
       try {
         const resp = await fetch(`/api/source/${encodeURIComponent(slug)}`, { signal: request.signal });
-        const json = (await resp.json()) as { source?: string; filename?: string; error?: string };
-        if (!resp.ok || json.error) {
+        const json = (await resp.json().catch(() => null)) as unknown;
+        if (request.signal.aborted) return;
+        if (!isSourceResponse(json)) {
+          setError(`Failed to load source (${resp.status})`);
+        } else if (!resp.ok || json.error) {
           setError(json.error ?? `Failed to load source (${resp.status})`);
         } else {
           setSource(json.source ?? '');

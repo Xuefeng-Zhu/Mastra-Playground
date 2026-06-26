@@ -61,4 +61,24 @@ describe('SourceViewer', () => {
     await act(async () => copy.click());
     expect(container.textContent).toContain('Clipboard blocked');
   });
+
+  it('shows a useful message when the source endpoint returns non-JSON', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response('Internal Server Error', {
+          status: 500,
+          headers: { 'Content-Type': 'text/plain' },
+        }),
+      ),
+    );
+
+    await act(async () => {
+      root.render(<SourceViewer exampleNum={2} exampleName="Research" onClose={vi.fn()} />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain('Failed to load source (500)');
+  });
 });
