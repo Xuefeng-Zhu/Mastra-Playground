@@ -319,13 +319,6 @@ export function parseWorkflowJson(text: string): CustomWorkflowDefinition {
   return parsed;
 }
 
-export function traceErrorMessage(output: unknown, fallback: string) {
-  if (!output || typeof output !== 'object') return fallback;
-  const { error, errorId } = output as { error?: unknown; errorId?: unknown };
-  const message = typeof error === 'string' && error.trim() ? error : fallback;
-  return typeof errorId === 'string' && errorId.trim() ? `${message} (${errorId})` : message;
-}
-
 export function loadInitialWorkflow(): CustomWorkflowDefinition {
   const saved = readBrowserStorage(CUSTOM_WORKFLOW_STORAGE_KEY);
   if (!saved) return cloneSeedWorkflow();

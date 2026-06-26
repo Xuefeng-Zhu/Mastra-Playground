@@ -14,7 +14,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PlaygroundExample } from '../registry/examples';
 import type { TraceEvent } from '../registry/utils';
 import type { CapturedSource } from '../registry/renderers';
-import { exampleNameToId } from '../registry/utils';
+import { exampleNameToId, traceErrorMessage } from '../registry/utils';
 import { streamWorkflow } from './workflow-stream';
 
 export type OutputTab = 'result' | 'sources' | 'json' | 'compare';
@@ -23,13 +23,6 @@ export interface ReceivedTraceEvent {
   id: string;
   ts: number;
   event: TraceEvent;
-}
-
-function traceErrorMessage(output: unknown, fallback: string) {
-  if (!output || typeof output !== 'object') return fallback;
-  const { error, errorId } = output as { error?: unknown; errorId?: unknown };
-  const message = typeof error === 'string' && error.trim() ? error : fallback;
-  return typeof errorId === 'string' && errorId.trim() ? `${message} (${errorId})` : message;
 }
 
 export function useWorkspace(example: PlaygroundExample) {

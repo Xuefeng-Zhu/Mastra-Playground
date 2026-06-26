@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ exa
 
     const fn = await loadRunFn(name);
     const tracer = new Tracer();
-    const result = await fn(input, tracer, { llmConfig });
+    const result = await fn(input, tracer, { signal: req.signal, llmConfig });
 
     return NextResponse.json({ ok: true, result });
   } catch (err) {

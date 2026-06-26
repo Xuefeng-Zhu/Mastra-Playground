@@ -11,11 +11,10 @@ import {
   type NodeChange,
 } from '@xyflow/react';
 import { CustomProviderModal } from './CustomProviderModal';
-import { PROVIDER_OPTIONS } from '../registry/examples';
-import { CUSTOM_MODEL_OPTION, useModelPreferences } from '../hooks/useModelPreferences';
+import { useModelPreferences } from '../hooks/useModelPreferences';
 import { streamCustomWorkflow } from '../hooks/workflow-stream';
 import type { ReceivedTraceEvent } from '../hooks/useWorkspace';
-import type { TraceEvent } from '../registry/utils';
+import { traceErrorMessage, type TraceEvent } from '../registry/utils';
 import type { CapturedSource } from '../registry/renderers';
 import type { TimelineEntry } from './TracePane';
 import {
@@ -45,6 +44,7 @@ import {
   type InspectorTab,
   type PalettePreset,
 } from './WorkflowBuilderPanels';
+import { providerDisplayLabel, WorkflowBuilderHeader } from './WorkflowBuilderHeader';
 import {
   type BuilderNodeData,
   firstConfigurableNodeId,
@@ -58,11 +58,10 @@ import {
   parseWorkflowJson,
   readBrowserStorage,
   removeBrowserStorage,
-  type NodeStatus,
-  traceErrorMessage,
   uniqueNodeId,
   writeBrowserStorage,
   removeNode,
+  type NodeStatus,
 } from './workflow-builder-model';
 
 const nodeTypes = { builderNode: WorkflowFlowNode };
@@ -389,9 +388,7 @@ export function WorkflowBuilder() {
     [workflow],
   );
 
-  const providerLabel =
-    PROVIDER_OPTIONS.find((option) => option.value === preferences.provider)?.label.split(' · ')[0] ??
-    'Provider';
+  const providerLabel = providerDisplayLabel(preferences.provider);
   const isCustomProvider = preferences.provider === 'custom';
   const isValid = validationIssues.length === 0;
 
@@ -401,72 +398,25 @@ export function WorkflowBuilder() {
       id="mp-workspace"
       data-example="prim-tag-workflow"
     >
-      <h1 className="builder-page-title">Workflow Builder</h1>
-      <div className="builder-topbar">
-        <div className="builder-breadcrumb">
-          <span>Workflows</span>
-          <strong>{workflow.name}</strong>
-          <span className="builder-version">v1 {isValid ? 'valid' : 'needs review'}</span>
-        </div>
-        <div className="builder-toolbar">
-          <label className="model-picker">
-            <span className="model-label">Provider</span>
-            <select
-              className="model-select"
-              value={preferences.provider}
-              onChange={(event) => {
-                const nextProvider = PROVIDER_OPTIONS.find(
-                  ({ value }) => value === event.target.value,
-                )?.value;
-                if (nextProvider) preferences.selectProvider(nextProvider);
-              }}
-            >
-              {PROVIDER_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          {!isCustomProvider ? (
-            <label className="model-picker">
-              <span className="model-label">Model</span>
-              <select
-                className="model-select"
-                value={preferences.model}
-                onChange={(event) => {
-                  preferences.setModel(event.target.value);
-                  if (event.target.value === CUSTOM_MODEL_OPTION) setShowCustomModal(true);
-                }}
-              >
-                {preferences.modelOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          <button type="button" className="custom-configure-btn" onClick={() => setShowCustomModal(true)}>
-            <span className="custom-configure-icon">⚙</span>
-            {isCustomProvider
-              ? preferences.customModel || 'Setting'
-              : preferences.providerApiKey
-                ? 'Key set'
-                : 'Settings'}
-          </button>
-        </div>
-      </div>
-
-      <div className="builder-statusbar" aria-live="polite">
-        <span className={running ? 'builder-status-live' : ''}>{running ? 'Running' : 'Ready to run'}</span>
-        <span>
-          {workflow.nodes.length}/{MAX_NODES} nodes
-        </span>
-        <span>{executableNodes} editable steps</span>
-        <span>{isValid ? 'Workflow valid' : `${validationIssues.length} issue(s)`}</span>
-        <span>{builderNotice}</span>
-      </div>
+      <WorkflowBuilderHeader
+        workflowName={workflow.name}
+        isValid={isValid}
+        issueCount={validationIssues.length}
+        running={running}
+        nodeCount={workflow.nodes.length}
+        maxNodes={MAX_NODES}
+        executableNodes={executableNodes}
+        notice={builderNotice}
+        provider={preferences.provider}
+        model={preferences.model}
+        modelOptions={preferences.modelOptions}
+        isCustomProvider={isCustomProvider}
+        providerApiKey={preferences.providerApiKey}
+        customModel={preferences.customModel}
+        onProviderChange={preferences.selectProvider}
+        onModelChange={preferences.setModel}
+        onOpenSettings={() => setShowCustomModal(true)}
+      />
 
       <div className="builder-shell">
         <NodePalette
