@@ -167,6 +167,102 @@ describe('OutputPanel tabs', () => {
     expect(container.textContent).not.toContain('Action executed: Action executed');
   });
 
+  it.each([
+    [
+      'triage',
+      {
+        action: 'bot_reply',
+        triage: {
+          intent: 'billing',
+          urgency: 'low',
+          confidence: 0.75,
+          requires_human: false,
+          summary: 'Billing summary',
+          response_text: 'Here is a reply',
+        },
+      },
+      'Billing summary',
+    ],
+    [
+      'codeReview',
+      { action: 'reviewed', issueCount: 1, review: 'Wrap fetch in error handling.' },
+      'Wrap fetch',
+    ],
+    [
+      'chat',
+      {
+        allMessages: [
+          { role: 'user', content: 'hello', ts: 0 },
+          { role: 'assistant', content: 'hi there', ts: 1 },
+        ],
+        escalated: true,
+        escalationReason: 'billing',
+      },
+      'ESCALATED: billing',
+    ],
+    [
+      'streaming',
+      { finalText: 'streamed answer', model: 'demo-model', durationMs: 1000, deltas: ['a'] },
+      'demo-model',
+    ],
+    [
+      'criticLoop',
+      {
+        draft: 'Final draft',
+        score: 8,
+        iterations: 2,
+        threshold: 7,
+        history: [{ index: 0, score: 5, draft: 'Draft 1', feedback: 'Tighten' }],
+      },
+      'Iteration history (1)',
+    ],
+    [
+      'contentPipeline',
+      { research: 'Research notes', draft: 'Draft copy', score: 9, edited: 'Edited copy' },
+      'Edited copy',
+    ],
+    [
+      'mastraMemory',
+      {
+        recalled: true,
+        historyLength: 2,
+        turn1: { output: 'First answer' },
+        turn2: { output: 'Second answer' },
+      },
+      'Second answer',
+    ],
+    [
+      'guardrailRedaction',
+      {
+        redactedMessage: 'Contact [EMAIL]',
+        detections: { email: 1 },
+        guardrail: { allowed: false, risk: 'high', reason: 'PII detected' },
+        action: 'blocked',
+        answer: 'I cannot help with that.',
+      },
+      'PII detected',
+    ],
+    [
+      'planAndExecute',
+      {
+        plan: {
+          steps: [{ id: 's1', title: 'Plan step', objective: 'Check state', successCriteria: 'Done' }],
+        },
+        executions: [{ stepId: 's1', title: 'Plan step', status: 'done', result: 'Checked' }],
+        answer: 'Plan complete',
+        caveats: ['Verify manually'],
+      },
+      'Plan complete',
+    ],
+  ] satisfies Array<[OutputKind, unknown, string]>)(
+    'renders the %s result renderer',
+    async (kind, output, expectedText) => {
+      await act(async () => renderPanel(root, { kind, output }));
+
+      expect(container.textContent).toContain(expectedText);
+    },
+  );
+
   it('copies the current output as markdown', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {
