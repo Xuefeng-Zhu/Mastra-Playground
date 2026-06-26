@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from 'react';
+import { act, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CustomProviderModal } from './CustomProviderModal';
@@ -20,6 +20,12 @@ describe('CustomProviderModal', () => {
     container.remove();
     vi.unstubAllGlobals();
   });
+
+  async function settleFocus() {
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
+  }
 
   it('updates provider fields and clears settings', async () => {
     const onBaseUrlChange = vi.fn();
@@ -102,5 +108,54 @@ describe('CustomProviderModal', () => {
     });
 
     expect(onClose).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not reset field focus when controlled values update', async () => {
+    const onClose = vi.fn();
+
+    function ControlledModal() {
+      const [apiKey, setApiKey] = useState('');
+      return (
+        <CustomProviderModal
+          title="Custom endpoint"
+          showBaseUrl
+          baseUrl="https://api.example.com/v1"
+          apiKey={apiKey}
+          model="model-a"
+          apiKeyPlaceholder="sk-..."
+          modelPlaceholder="model-id"
+          onBaseUrlChange={vi.fn()}
+          onApiKeyChange={setApiKey}
+          onModelChange={vi.fn()}
+          onClear={vi.fn()}
+          onClose={onClose}
+        />
+      );
+    }
+
+    await act(async () => root.render(<ControlledModal />));
+    await settleFocus();
+
+    const inputs = Array.from(container.querySelectorAll<HTMLInputElement>('input'));
+    expect(document.activeElement).toBe(inputs[0]);
+
+    const apiKeyInput = inputs[2]!;
+    apiKeyInput.focus();
+
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      setter?.call(apiKeyInput, 'sk-next');
+      apiKeyInput.dispatchEvent(new Event('input', { bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(document.activeElement).toBe(apiKeyInput);
+
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

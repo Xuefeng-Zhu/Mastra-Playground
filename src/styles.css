@@ -2003,6 +2003,9 @@ body.mp .custom-modal-title {
   color: var(--text-bright);
   margin: 0;
 }
+body.mp .custom-modal-form {
+  display: contents;
+}
 body.mp .custom-modal-body {
   padding: 16px 20px;
   display: flex;

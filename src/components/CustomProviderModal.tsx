@@ -29,7 +29,7 @@ export function CustomProviderModal({
   onClear,
   onClose,
 }: CustomProviderModalProps) {
-  const dialogRef = useDialogFocus<HTMLDivElement>(onClose);
+  const dialogRef = useDialogFocus<HTMLDivElement>(onClose, '.custom-modal-input');
 
   return (
     <div className="custom-modal-overlay" onClick={onClose}>
@@ -53,61 +53,69 @@ export function CustomProviderModal({
             ✕
           </button>
         </div>
-        <div className="custom-modal-body">
-          {showBaseUrl && (
+        <form
+          className="custom-modal-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onClose();
+          }}
+        >
+          <div className="custom-modal-body">
+            {showBaseUrl && (
+              <label className="custom-modal-field">
+                <span className="custom-modal-label">Base URL</span>
+                <input
+                  type="url"
+                  className="custom-modal-input"
+                  placeholder="https://api.example.com/v1"
+                  value={baseUrl ?? ''}
+                  onChange={(event) => onBaseUrlChange?.(event.target.value)}
+                  spellCheck={false}
+                  autoComplete="off"
+                  autoFocus
+                />
+              </label>
+            )}
             <label className="custom-modal-field">
-              <span className="custom-modal-label">Base URL</span>
+              <span className="custom-modal-label">Custom model ID</span>
               <input
-                type="url"
+                type="text"
                 className="custom-modal-input"
-                placeholder="https://api.example.com/v1"
-                value={baseUrl ?? ''}
-                onChange={(event) => onBaseUrlChange?.(event.target.value)}
+                placeholder={modelPlaceholder}
+                value={model}
+                onChange={(event) => onModelChange(event.target.value)}
                 spellCheck={false}
                 autoComplete="off"
-                autoFocus
+                autoFocus={!showBaseUrl}
               />
             </label>
-          )}
-          <label className="custom-modal-field">
-            <span className="custom-modal-label">Custom model ID</span>
-            <input
-              type="text"
-              className="custom-modal-input"
-              placeholder={modelPlaceholder}
-              value={model}
-              onChange={(event) => onModelChange(event.target.value)}
-              spellCheck={false}
-              autoComplete="off"
-              autoFocus={!showBaseUrl}
-            />
-          </label>
-          <label className="custom-modal-field">
-            <span className="custom-modal-label">API Key</span>
-            <input
-              type="password"
-              className="custom-modal-input"
-              placeholder={apiKeyPlaceholder}
-              value={apiKey}
-              onChange={(event) => onApiKeyChange(event.target.value)}
-              autoComplete="off"
-            />
-          </label>
-          <p className="custom-modal-warning">
-            ⚠ Credentials are stored in localStorage.{' '}
-            {showBaseUrl
-              ? 'HTTP endpoints transmit them without TLS.'
-              : 'Leave the API key blank to use the server environment key.'}
-          </p>
-        </div>
-        <div className="custom-modal-footer">
-          <button type="button" className="custom-modal-clear-btn" onClick={onClear}>
-            Clear provider
-          </button>
-          <button type="button" className="custom-modal-done-btn" onClick={onClose}>
-            Done
-          </button>
-        </div>
+            <label className="custom-modal-field">
+              <span className="custom-modal-label">API Key</span>
+              <input
+                type="password"
+                className="custom-modal-input"
+                placeholder={apiKeyPlaceholder}
+                value={apiKey}
+                onChange={(event) => onApiKeyChange(event.target.value)}
+                autoComplete="off"
+              />
+            </label>
+            <p className="custom-modal-warning">
+              ⚠ Credentials are stored in localStorage.{' '}
+              {showBaseUrl
+                ? 'HTTP endpoints transmit them without TLS.'
+                : 'Leave the API key blank to use the server environment key.'}
+            </p>
+          </div>
+          <div className="custom-modal-footer">
+            <button type="button" className="custom-modal-clear-btn" onClick={onClear}>
+              Clear provider
+            </button>
+            <button type="submit" className="custom-modal-done-btn">
+              Done
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
