@@ -99,6 +99,18 @@ describe('validateExampleInput', () => {
     expect(original.customApiKey).toBe('secret');
   });
 
+  it('uses the shared custom provider validation for unsafe base URLs', () => {
+    expect(() =>
+      prepareExampleInput({
+        provider: 'custom',
+        topic: 'agents',
+        customBaseUrl: 'https://user:pass@example.com/v1',
+        customApiKey: 'secret',
+        customModel: 'model-id',
+      }),
+    ).toThrow('embedded credentials');
+  });
+
   it('strips provider API keys while preserving env fallback when blank', () => {
     expect(
       prepareExampleInput({

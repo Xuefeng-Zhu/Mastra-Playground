@@ -2,6 +2,11 @@ import { z } from 'zod';
 import { Agent } from '@mastra/core/agent';
 import { ValidationError, isPlainObject, sanitizeText } from './validation';
 import { resolveModel, type LlmProvider, type LlmRequestConfig } from './llm';
+import {
+  builtInLlmConfigFromProviderKey,
+  customLlmConfigFromFields,
+  parseRequestProvider,
+} from './llm-request-config';
 import type { RunContext } from './cancellable-run';
 import type { Tracer } from './tracer';
 import { SEEDED_CUSTOM_WORKFLOW } from './custom-workflow-seed';
@@ -306,50 +311,25 @@ export function validateCustomWorkflowRunRequest(body: unknown): CustomWorkflowR
   if (!prompt.trim())
     throw new ValidationError('Field "input.prompt" must be a non-empty string.', 'input.prompt');
 
-  const provider =
-    body.provider === 'google' || body.provider === 'openrouter' || body.provider === 'custom'
-      ? body.provider
-      : undefined;
+  const provider = parseRequestProvider(body.provider);
   const model =
     typeof body.model === 'string' && body.model.trim() ? sanitizeText(body.model, 512) : undefined;
 
   if (provider === 'custom') {
-    const customBaseUrl = typeof body.customBaseUrl === 'string' ? body.customBaseUrl.trim() : '';
-    const customApiKey = typeof body.customApiKey === 'string' ? body.customApiKey.trim() : '';
-    const customModel =
-      typeof body.customModel === 'string' && body.customModel.trim()
-        ? sanitizeText(body.customModel, 512)
-        : '';
-    if (!customBaseUrl) throw new ValidationError('Custom provider requires a base URL.', 'customBaseUrl');
-    if (!customApiKey) throw new ValidationError('Custom provider requires an API key.', 'customApiKey');
-    if (!customModel) throw new ValidationError('Custom provider requires a model ID.', 'customModel');
-    let parsed: URL;
-    try {
-      parsed = new URL(customBaseUrl);
-    } catch {
-      throw new ValidationError('Custom base URL must be a valid absolute URL.', 'customBaseUrl');
-    }
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw new ValidationError('Custom base URL must use http: or https: protocol.', 'customBaseUrl');
-    }
-    if (parsed.username || parsed.password) {
-      throw new ValidationError('Custom base URL must not contain embedded credentials.', 'customBaseUrl');
-    }
     return {
       workflow,
       input: { prompt },
       provider,
       model,
-      llmConfig: { provider: 'custom', baseUrl: customBaseUrl, apiKey: customApiKey, model: customModel },
+      llmConfig: customLlmConfigFromFields({
+        customBaseUrl: body.customBaseUrl,
+        customApiKey: body.customApiKey,
+        customModel: body.customModel,
+      }),
     };
   }
 
-  const providerApiKey = typeof body.providerApiKey === 'string' ? body.providerApiKey.trim() : '';
-  let llmConfig: LlmRequestConfig | undefined;
-  if (providerApiKey && provider === 'google') llmConfig = { provider: 'google', apiKey: providerApiKey };
-  if (providerApiKey && provider === 'openrouter') {
-    llmConfig = { provider: 'openrouter', apiKey: providerApiKey };
-  }
+  const llmConfig = builtInLlmConfigFromProviderKey(provider, body.providerApiKey);
   return { workflow, input: { prompt }, provider, model, llmConfig };
 }
 

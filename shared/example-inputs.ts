@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ValidationError, isPlainObject, sanitizeText } from './validation';
 import type { ExampleId } from './example-manifest';
 import type { LlmRequestConfig } from './llm';
+import { builtInLlmConfigFromProviderKey, customLlmConfigFromFields } from './llm-request-config';
 
 const model = z.string().trim().min(1).optional();
 const provider = z.enum(['google', 'openrouter', 'custom']).optional();
@@ -109,51 +110,13 @@ export function prepareExampleInput(input: Record<string, unknown>): {
 } {
   const { providerApiKey, customBaseUrl, customApiKey, customModel, ...exampleInput } = input;
 
-  if (exampleInput.provider !== 'custom') {
-    if (
-      typeof providerApiKey === 'string' &&
-      providerApiKey.trim().length > 0 &&
-      (exampleInput.provider === 'google' || exampleInput.provider === 'openrouter')
-    ) {
-      return {
-        input: exampleInput,
-        llmConfig: { provider: exampleInput.provider, apiKey: providerApiKey.trim() },
-      };
-    }
-    return { input: exampleInput };
+  if (exampleInput.provider === 'custom') {
+    return {
+      input: exampleInput,
+      llmConfig: customLlmConfigFromFields({ customBaseUrl, customApiKey, customModel }),
+    };
   }
 
-  if (!customBaseUrl || typeof customBaseUrl !== 'string' || customBaseUrl.trim().length === 0) {
-    throw new ValidationError('Custom provider requires a base URL.', 'customBaseUrl');
-  }
-  if (!customApiKey || typeof customApiKey !== 'string' || customApiKey.trim().length === 0) {
-    throw new ValidationError('Custom provider requires an API key.', 'customApiKey');
-  }
-  if (!customModel || typeof customModel !== 'string' || customModel.trim().length === 0) {
-    throw new ValidationError('Custom provider requires a model ID.', 'customModel');
-  }
-
-  // Validate base URL: must be absolute http or https, no embedded credentials
-  let parsed: URL;
-  try {
-    parsed = new URL(customBaseUrl);
-  } catch {
-    throw new ValidationError('Custom base URL must be a valid absolute URL.', 'customBaseUrl');
-  }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new ValidationError('Custom base URL must use http: or https: protocol.', 'customBaseUrl');
-  }
-  if (parsed.username || parsed.password) {
-    throw new ValidationError('Custom base URL must not contain embedded credentials.', 'customBaseUrl');
-  }
-
-  return {
-    input: exampleInput,
-    llmConfig: {
-      provider: 'custom',
-      baseUrl: customBaseUrl.trim(),
-      apiKey: customApiKey.trim(),
-      model: customModel.trim(),
-    },
-  };
+  const llmConfig = builtInLlmConfigFromProviderKey(exampleInput.provider, providerApiKey);
+  return llmConfig ? { input: exampleInput, llmConfig } : { input: exampleInput };
 }

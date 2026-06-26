@@ -3,6 +3,7 @@ import { Tracer, type TraceEvent } from './tracer';
 import {
   SEEDED_CUSTOM_WORKFLOW,
   runCustomWorkflow,
+  validateCustomWorkflowRunRequest,
   validateCustomWorkflowDefinition,
   type CustomWorkflowDefinition,
 } from './custom-workflow';
@@ -149,6 +150,42 @@ describe('custom workflow definition validation', () => {
       outputKey: 'fallback',
     });
     expect(() => validateCustomWorkflowDefinition(danglingRoute)).toThrow('exactly one outgoing edge');
+  });
+});
+
+describe('custom workflow run request validation', () => {
+  it('uses shared request-scoped provider validation', () => {
+    expect(
+      validateCustomWorkflowRunRequest({
+        workflow: cloneWorkflow(),
+        input: { prompt: 'hello' },
+        provider: 'custom',
+        model: 'body-model',
+        customBaseUrl: 'https://provider.example/v1',
+        customApiKey: 'secret',
+        customModel: 'custom-model',
+      }),
+    ).toMatchObject({
+      provider: 'custom',
+      model: 'body-model',
+      llmConfig: {
+        provider: 'custom',
+        baseUrl: 'https://provider.example/v1',
+        apiKey: 'secret',
+        model: 'custom-model',
+      },
+    });
+
+    expect(() =>
+      validateCustomWorkflowRunRequest({
+        workflow: cloneWorkflow(),
+        input: { prompt: 'hello' },
+        provider: 'custom',
+        customBaseUrl: 'https://user:pass@provider.example/v1',
+        customApiKey: 'secret',
+        customModel: 'custom-model',
+      }),
+    ).toThrow('embedded credentials');
   });
 });
 
