@@ -6,8 +6,9 @@
 [![Mastra 1.43](https://img.shields.io/badge/Mastra-1.43-FF6B6B)](https://mastra.ai)
 
 A small, isolated TypeScript repo for learning [Mastra](https://mastra.ai) by
-example. Twelve real workflows exercising the framework's primitives, with a
-React + Next.js browser UI that visualizes the execution trace in real time.
+example. Thirteen real workflows plus a visual workflow builder exercise the
+framework's primitives, with a React + Next.js browser UI that visualizes the
+execution trace in real time.
 
 **Not for production. Not part of InboxPilot.**
 
@@ -78,14 +79,15 @@ cross-example behavior kept in `shared/`.
 
 ## Endpoints
 
-| Method | Path                   | Purpose                                            | Rate limit    |
-| ------ | ---------------------- | -------------------------------------------------- | ------------- |
-| GET    | `/`, `/_next/static/*` | UI shell + Next.js bundled JS/CSS                  | none          |
-| GET    | `/api/health`          | Liveness probe (`{ ok, uptimeSec, exampleCount }`) | none          |
-| GET    | `/api/examples`        | List available examples                            | none          |
-| POST   | `/api/run/:example`    | One-shot JSON result                               | 30 req/min/IP |
-| POST   | `/api/stream/:example` | SSE trace stream; JSON input stays in request body | 30 req/min/IP |
-| POST   | `/api/resume/:token`   | Resume a suspended workflow                        | 30 req/min/IP |
+| Method | Path                          | Purpose                                                       | Rate limit    |
+| ------ | ----------------------------- | ------------------------------------------------------------- | ------------- |
+| GET    | `/`, `/_next/static/*`        | UI shell + Next.js bundled JS/CSS                             | none          |
+| GET    | `/api/health`                 | Liveness probe (`{ ok, uptimeSec, exampleCount }`)            | none          |
+| GET    | `/api/examples`               | List available examples                                       | none          |
+| POST   | `/api/run/:example`           | One-shot JSON result                                          | 30 req/min/IP |
+| POST   | `/api/stream/:example`        | SSE trace stream; JSON input stays in request body            | 30 req/min/IP |
+| POST   | `/api/resume/:token`          | Resume a suspended workflow                                   | 30 req/min/IP |
+| POST   | `/api/custom-workflow/stream` | SSE trace stream for the browser-built custom workflow canvas | 30 req/min/IP |
 
 Regular API requests return JSON; successful stream requests return
 `text/event-stream`. Errors carry `{ error, field?, detail? }` with appropriate
@@ -119,6 +121,12 @@ running server. CI boots the production build and runs this same suite.
   settings. Blank Gemini/OpenRouter keys fall back to the server `.env` keys.
   A third "Custom endpoint" option lets you configure any OpenAI-compatible
   URL, model ID, and API key from the browser.
+- **Workflow Builder** — a visual custom-workflow canvas appears alongside the
+  numbered examples. It supports LLM, tool, branch, and output nodes, validates
+  the graph in the browser and server, imports/exports JSON, saves drafts in
+  `localStorage`, and streams runs through `/api/custom-workflow/stream`.
+- **Command palette and keyboard shortcuts** — use Cmd/Ctrl+K to jump between
+  examples and Cmd/Ctrl+Enter to run the active workspace.
 - **Multi-turn chat UI** — Ex 05 renders the conversation as chat bubbles with
   the agent's tool calls visible inline.
 - **HITL approval panel** — Ex 06 shows an orange pulsing "PENDING APPROVAL"
@@ -132,7 +140,7 @@ running server. CI boots the production build and runs this same suite.
 │   Browser       │ ◄──────────────────────────── │  Next.js server │
 │  (React client  │                                │  (app/api/)     │
 │   components)   │    POST /api/run/:example     │                 │
-│  13 tabs        │ ────────────────────────────► │  loads example  │
+│  13 examples    │ ────────────────────────────► │  loads example  │
 │  1 graph each   │                                │  via static     │
 │  trace events   │    POST /api/resume/:token    │  import map     │
 │  result tabs    │ ◄──────────────────────────── │                 │
@@ -174,21 +182,28 @@ The React UI lives in `src/` and is served by Next.js (App Router).
 The `app/` directory contains the layout, page, and API route handlers.
 There is no separate hand-written JS bundle to ship.
 
+The visual Workflow Builder uses the same trace protocol as the numbered
+examples, but its workflow definition comes from browser state instead of
+`examples/*/index.ts`. Its server contract is validated in
+`shared/custom-workflow.ts`; supported custom node types are input, LLM, tool,
+branch, and output.
+
 ## Environment variables
 
 All variables are read at server startup. None are required for `npm run
 typecheck` or `npm run format:check` (CI runs those without secrets).
 
-| Variable                       | Default                        | Required?           | Purpose                                                               |
-| ------------------------------ | ------------------------------ | ------------------- | --------------------------------------------------------------------- |
-| `LLM_PROVIDER`                 | `google`                       | No                  | CLI default provider: `google`, `openrouter`, or `custom`.            |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | _(none)_                       | For Gemini runs     | Gemini API key. Never expose it in browser code or commit it.         |
-| `GOOGLE_MODEL`                 | `gemini-3.1-flash-lite`        | No                  | Default Gemini model for CLI runs.                                    |
-| `OPENAI_API_KEY`               | _(none)_                       | For OpenRouter runs | OpenRouter API key.                                                   |
-| `OPENAI_BASE_URL`              | `https://openrouter.ai/api/v1` | No                  | OpenRouter's OpenAI-compatible endpoint.                              |
-| `OPENAI_MODEL`                 | `openai/gpt-oss-20b:free`      | No                  | Default OpenRouter model for CLI runs.                                |
-| `PORT`                         | `8917`                         | No                  | Server port.                                                          |
-| `NODE_ENV`                     | _(unset)_                      | No                  | Set automatically by Next.js for development and production commands. |
+| Variable                       | Default                        | Required?           | Purpose                                                                    |
+| ------------------------------ | ------------------------------ | ------------------- | -------------------------------------------------------------------------- |
+| `LLM_PROVIDER`                 | `google`                       | No                  | CLI/server default provider for env-backed runs: `google` or `openrouter`. |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | _(none)_                       | For Gemini runs     | Gemini API key. Never expose it in browser code or commit it.              |
+| `GEMINI_API_KEY`               | _(none)_                       | Optional alias      | Fallback alias read only when `GOOGLE_GENERATIVE_AI_API_KEY` is unset.     |
+| `GOOGLE_MODEL`                 | `gemini-3.1-flash-lite`        | No                  | Default Gemini model for CLI runs.                                         |
+| `OPENAI_API_KEY`               | _(none)_                       | For OpenRouter runs | OpenRouter API key.                                                        |
+| `OPENAI_BASE_URL`              | `https://openrouter.ai/api/v1` | No                  | OpenRouter's OpenAI-compatible endpoint.                                   |
+| `OPENAI_MODEL`                 | `openai/gpt-oss-20b:free`      | No                  | Default OpenRouter model for CLI runs.                                     |
+| `PORT`                         | `8917`                         | No                  | Server port.                                                               |
+| `NODE_ENV`                     | _(unset)_                      | No                  | Set automatically by Next.js for development and production commands.      |
 
 For Gemini (the default provider):
 
@@ -227,6 +242,9 @@ Select "Custom endpoint" in the provider dropdown. Enter:
 - **API Key** — your endpoint's API key (stored in `localStorage`, sent in POST bodies only)
 
 See `SECURITY.md` for credential-storage and cleartext-transport caveats.
+Do not use `LLM_PROVIDER=custom` as the `.env` default for CLI examples; the
+Custom endpoint requires per-request browser fields (`customBaseUrl`,
+`customModel`, and `customApiKey`).
 
 ## Project layout
 
@@ -279,7 +297,7 @@ mastra-playground/
                                     # TracePane, Workspace, CommandPalette
     hooks/useWorkspace.ts           # SSE EventSource consumer
     registry/                       # examples.ts, renderers.tsx, graphs.ts, utils.ts
-  scripts/                          # smoke, eval, ui-smoke, diagnostics
+  scripts/                          # smoke, eval, docs check, standalone helper
   .next/                            # gitignored — Next.js build output
 ```
 

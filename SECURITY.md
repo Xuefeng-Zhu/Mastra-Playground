@@ -33,7 +33,8 @@ and reproduction steps.
   browser key is blank, and fail if neither key is available
 - User input is sanitized (control characters stripped, length capped at 4KB)
 - 30 req/min/IP rate limit across `/api/run/*`, `/api/stream/*`,
-  `/api/resume/*` (429 includes `Retry-After`)
+  `/api/resume/*`, and `/api/custom-workflow/stream` (429 includes
+  `Retry-After`)
 - 64KB body cap on all body-bearing endpoints
 - Streamed prompts are sent in POST bodies, not query strings
 - Client disconnects propagate cancellation to workflows and model calls

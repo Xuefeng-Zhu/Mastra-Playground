@@ -2,17 +2,19 @@
 
 ## What this is
 
-A reproducible measurement harness for **all 11 examples** in the
+A reproducible measurement harness for **all 13 examples** in the
 mastra-playground. Runs the same 5-topic set against each example, captures
 per-run structured data, prints a summary table, writes raw JSON to
 `evals/results-<timestamp>.json`. Now covers every example — including the
 ones that need two-turn state (`mastra-memory`), a suspension flow
-(`hitl-approval`), or a multi-agent pipeline (`content-pipeline`).
+(`hitl-approval`), a multi-agent pipeline (`content-pipeline`), a guardrail
+workflow (`guardrail-redaction`), and planner/executor decomposition
+(`plan-and-execute`).
 
 The eval script lives at `scripts/run_evals.py`. Run it any time with:
 
 ```bash
-python3 scripts/run_evals.py                                    # default: 11 examples, 5 topics
+python3 scripts/run_evals.py                                    # default: 13 examples, 5 topics
 python3 scripts/run_evals.py --threshold=9 --max-iterations=4   # harder critic calibration
 python3 scripts/run_evals.py --example critic-loop --topic "..." # single example/topic
 ```
@@ -48,8 +50,13 @@ plus example-specific fields:
 - `multi-agent-handoff`: `delegated`, `agentPath` (which agents handled the request)
 - `mastra-memory`: `recalled` (true if the second turn recalled the first-turn fact), `historyLength`
 - `multi-turn-chat`: `assistantMsgLen`, `escalated`
+- `guardrail-redaction`: `action`, `risk`
+- `plan-and-execute`: `totalSteps`
 
-## Findings — full 11-example eval (5 topics each, 55 runs)
+## Historical findings — full 11-example eval (5 topics each, 55 runs)
+
+The table below is a historical snapshot from before examples 12 and 13 were
+added. Re-run the harness to produce a current 13-example report.
 
 | example             |   n |    ok |   avg ms | p95 ms | avg chars | avg iters | avg score |
 | ------------------- | --: | ----: | -------: | -----: | --------: | --------: | --------: |
@@ -146,9 +153,9 @@ critic with a wider anchor.**
 
 ## Re-run frequency
 
-- **Before every change** to `examples/*/index.ts`, `server/server.ts`,
-  `public/index.html`, or `scripts/run_evals.py`. The custom skill
-  `mastra-playground-evals` (in `~/.hermes/skills/`) automates this.
+- **Before every behavior change** to `examples/*/index.ts`,
+  `shared/examples-registry.ts`, API routes under `app/api/`, or
+  `scripts/run_evals.py`.
 - **After model upgrades** in `shared/llm.ts`.
 - **After the topic set or example list changes** (the harness auto-runs
-  all 11 × 5 = 55 by default).
+  all 13 × 5 = 65 by default).
