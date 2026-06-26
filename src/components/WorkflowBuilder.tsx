@@ -236,13 +236,109 @@ const PALETTE_ITEMS: PalettePreset[] = [
   },
 ];
 
+function isWorkflowDefinitionLike(value: unknown): value is CustomWorkflowDefinition {
+  if (value === null || typeof value !== 'object') return false;
+  const candidate = value as {
+    version?: unknown;
+    id?: unknown;
+    name?: unknown;
+    description?: unknown;
+    input?: unknown;
+    nodes?: unknown;
+    edges?: unknown;
+  };
+  const input = candidate.input as { label?: unknown; placeholder?: unknown } | null;
+  return (
+    candidate.version === 1 &&
+    typeof candidate.id === 'string' &&
+    typeof candidate.name === 'string' &&
+    (candidate.description === undefined || typeof candidate.description === 'string') &&
+    input !== null &&
+    typeof input === 'object' &&
+    typeof input.label === 'string' &&
+    (input.placeholder === undefined || typeof input.placeholder === 'string') &&
+    Array.isArray(candidate.nodes) &&
+    candidate.nodes.every(isWorkflowNodeLike) &&
+    Array.isArray(candidate.edges) &&
+    candidate.edges.every(isWorkflowEdgeLike)
+  );
+}
+
+function isWorkflowNodeLike(value: unknown): value is CustomWorkflowNode {
+  if (value === null || typeof value !== 'object') return false;
+  const node = value as Record<string, unknown>;
+  if (typeof node.id !== 'string' || typeof node.label !== 'string') return false;
+  if (node.type === 'input') return true;
+  if (node.type === 'llm') {
+    return (
+      typeof node.instruction === 'string' &&
+      typeof node.promptTemplate === 'string' &&
+      typeof node.outputKey === 'string'
+    );
+  }
+  if (node.type === 'tool') {
+    return (
+      CLIENT_CUSTOM_TOOL_OPTIONS.some((tool) => tool.value === node.toolId) &&
+      typeof node.inputTemplate === 'string' &&
+      typeof node.outputKey === 'string'
+    );
+  }
+  if (node.type === 'branch') {
+    return (
+      typeof node.sourceKey === 'string' &&
+      (node.operator === 'contains' || node.operator === 'equals' || node.operator === 'nonEmpty') &&
+      (node.value === undefined || typeof node.value === 'string') &&
+      typeof node.trueTarget === 'string' &&
+      typeof node.falseTarget === 'string'
+    );
+  }
+  return node.type === 'output' && typeof node.template === 'string';
+}
+
+function isWorkflowEdgeLike(value: unknown) {
+  if (value === null || typeof value !== 'object') return false;
+  const edge = value as { from?: unknown; to?: unknown; label?: unknown };
+  return (
+    typeof edge.from === 'string' &&
+    typeof edge.to === 'string' &&
+    (edge.label === undefined || typeof edge.label === 'string')
+  );
+}
+
+function parseWorkflowJson(text: string): CustomWorkflowDefinition {
+  const parsed = JSON.parse(text) as unknown;
+  if (!isWorkflowDefinitionLike(parsed)) {
+    throw new Error('Workflow JSON is missing required fields.');
+  }
+  const issues = validateWorkflowClient(parsed);
+  if (issues.length > 0) {
+    throw new Error(issues[0]);
+  }
+  return parsed;
+}
+
+function tryWriteStorage(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function traceErrorMessage(output: unknown, fallback: string) {
+  if (!output || typeof output !== 'object') return fallback;
+  const { error, errorId } = output as { error?: unknown; errorId?: unknown };
+  const message = typeof error === 'string' && error.trim() ? error : fallback;
+  return typeof errorId === 'string' && errorId.trim() ? `${message} (${errorId})` : message;
+}
+
 function loadInitialWorkflow(): CustomWorkflowDefinition {
   if (typeof window === 'undefined') return cloneSeedWorkflow();
   const saved = window.localStorage.getItem(CUSTOM_WORKFLOW_STORAGE_KEY);
   if (!saved) return cloneSeedWorkflow();
   try {
-    const parsed = JSON.parse(saved) as CustomWorkflowDefinition;
-    if (parsed.version === 1 && Array.isArray(parsed.nodes)) return parsed;
+    return parseWorkflowJson(saved);
   } catch {
     window.localStorage.removeItem(CUSTOM_WORKFLOW_STORAGE_KEY);
   }
@@ -843,14 +939,14 @@ function BuilderConsole({
         </div>
         <div className="builder-console-body">
           {error ? <p className="muted output-error">⚠ {error}</p> : null}
-          {!error && activeTab === 'result' ? (
+          {activeTab === 'result' && !error ? (
             output ? (
               <p className="response-text">{String(out?.answer ?? '')}</p>
             ) : (
               <p className="muted">Run the custom workflow to see output.</p>
             )
           ) : null}
-          {!error && activeTab === 'trace' ? (
+          {activeTab === 'trace' ? (
             <TracePane
               graphContainerId="mp-custom-graph"
               graphDef={graph}
@@ -861,14 +957,14 @@ function BuilderConsole({
               totalMs={totalMs}
             />
           ) : null}
-          {!error && activeTab === 'sources' ? (
+          {activeTab === 'sources' ? (
             sources.length > 0 ? (
               <JsonBlock value={sources} />
             ) : (
               <p className="muted">No tool calls captured yet.</p>
             )
           ) : null}
-          {!error && activeTab === 'json' ? (
+          {activeTab === 'json' ? (
             <div className="builder-json-grid">
               <div className="builder-import">
                 <label className="builder-field">
@@ -1013,7 +1109,7 @@ export function WorkflowBuilder() {
   }, [workflow]);
 
   useEffect(() => {
-    localStorage.setItem(CUSTOM_WORKFLOW_LAYOUT_STORAGE_KEY, JSON.stringify(normalizedLayout));
+    tryWriteStorage(CUSTOM_WORKFLOW_LAYOUT_STORAGE_KEY, JSON.stringify(normalizedLayout));
   }, [normalizedLayout]);
 
   useEffect(() => {
@@ -1059,9 +1155,9 @@ export function WorkflowBuilder() {
   };
 
   const saveWorkflow = () => {
-    localStorage.setItem(CUSTOM_WORKFLOW_STORAGE_KEY, JSON.stringify(workflow));
-    localStorage.setItem(CUSTOM_WORKFLOW_LAYOUT_STORAGE_KEY, JSON.stringify(normalizedLayout));
-    setBuilderNotice('Draft saved in this browser');
+    const savedWorkflow = tryWriteStorage(CUSTOM_WORKFLOW_STORAGE_KEY, JSON.stringify(workflow));
+    const savedLayout = tryWriteStorage(CUSTOM_WORKFLOW_LAYOUT_STORAGE_KEY, JSON.stringify(normalizedLayout));
+    setBuilderNotice(savedWorkflow && savedLayout ? 'Draft saved in this browser' : 'Save failed');
   };
 
   const loadSavedWorkflow = () => {
@@ -1070,27 +1166,39 @@ export function WorkflowBuilder() {
       setBuilderNotice('No saved draft found');
       return;
     }
-    const parsed = JSON.parse(saved) as CustomWorkflowDefinition;
-    setWorkflow(parsed);
-    setLayout(loadInitialLayout(parsed));
-    setSelectedId(firstConfigurableNodeId(parsed));
-    setBuilderNotice('Saved draft loaded');
+    try {
+      const parsed = parseWorkflowJson(saved);
+      setWorkflow(parsed);
+      setLayout(loadInitialLayout(parsed));
+      setSelectedId(firstConfigurableNodeId(parsed));
+      setBuilderNotice('Saved draft loaded');
+    } catch {
+      localStorage.removeItem(CUSTOM_WORKFLOW_STORAGE_KEY);
+      setBuilderNotice('Saved draft was invalid and has been cleared');
+    }
   };
 
   const importWorkflow = () => {
+    let parsed: CustomWorkflowDefinition;
     try {
-      const parsed = JSON.parse(importText) as CustomWorkflowDefinition;
-      const nextLayout = defaultWorkflowLayout(parsed);
-      setWorkflow(parsed);
-      setLayout(nextLayout);
-      setSelectedId(firstConfigurableNodeId(parsed));
-      localStorage.setItem(CUSTOM_WORKFLOW_STORAGE_KEY, JSON.stringify(parsed));
-      localStorage.setItem(CUSTOM_WORKFLOW_LAYOUT_STORAGE_KEY, JSON.stringify(nextLayout));
-      setImportText('');
-      setBuilderNotice('Workflow JSON imported and saved');
+      parsed = parseWorkflowJson(importText);
     } catch {
       setBuilderNotice('Import failed: JSON could not be parsed');
+      return;
     }
+
+    const nextLayout = defaultWorkflowLayout(parsed);
+    setWorkflow(parsed);
+    setLayout(nextLayout);
+    setSelectedId(firstConfigurableNodeId(parsed));
+    const savedWorkflow = tryWriteStorage(CUSTOM_WORKFLOW_STORAGE_KEY, JSON.stringify(parsed));
+    const savedLayout = tryWriteStorage(CUSTOM_WORKFLOW_LAYOUT_STORAGE_KEY, JSON.stringify(nextLayout));
+    setImportText('');
+    setBuilderNotice(
+      savedWorkflow && savedLayout
+        ? 'Workflow JSON imported and saved'
+        : 'Workflow JSON imported, but browser save failed',
+    );
   };
 
   const handleEvent = useCallback((event: TraceEvent) => {
@@ -1126,7 +1234,8 @@ export function WorkflowBuilder() {
           setOutput(event.output);
           setBuilderNotice('Run completed');
         } else {
-          setError((event.output as { error?: string } | null)?.error ?? 'Workflow failed');
+          setOutput(event.output);
+          setError(traceErrorMessage(event.output, 'Workflow failed'));
           setBuilderNotice('Run failed');
         }
         break;

@@ -198,11 +198,28 @@ function firstLinearTarget(definition: CustomWorkflowDefinition, nodeIdValue: st
   return outgoingEdges(definition, nodeIdValue)[0]?.to;
 }
 
+function producedKey(node: CustomWorkflowNode): string | null {
+  return node.type === 'llm' || node.type === 'tool' ? node.outputKey : null;
+}
+
 function validateGraph(definition: CustomWorkflowDefinition, ctx: z.RefinementCtx) {
   const ids = new Set<string>();
+  const outputKeys = new Map<string, string>();
   for (const [index, node] of definition.nodes.entries()) {
     if (ids.has(node.id)) addIssue(ctx, `Duplicate node id "${node.id}".`, ['nodes', index, 'id']);
     ids.add(node.id);
+    if (node.type === 'llm' || node.type === 'tool') {
+      const previousNodeId = outputKeys.get(node.outputKey);
+      if (previousNodeId) {
+        addIssue(ctx, `Output key "${node.outputKey}" is already produced by "${previousNodeId}".`, [
+          'nodes',
+          index,
+          'outputKey',
+        ]);
+      } else {
+        outputKeys.set(node.outputKey, node.id);
+      }
+    }
   }
 
   const inputNodes = definition.nodes.filter((node) => node.type === 'input');
@@ -218,11 +235,32 @@ function validateGraph(definition: CustomWorkflowDefinition, ctx: z.RefinementCt
   }
 
   for (const [index, node] of definition.nodes.entries()) {
-    if (node.type !== 'branch') continue;
-    if (!ids.has(node.trueTarget))
-      addIssue(ctx, `Branch true target "${node.trueTarget}" is missing.`, ['nodes', index]);
-    if (!ids.has(node.falseTarget)) {
-      addIssue(ctx, `Branch false target "${node.falseTarget}" is missing.`, ['nodes', index]);
+    if (node.type === 'output') {
+      if (outgoingEdges(definition, node.id).length > 0) {
+        addIssue(ctx, 'Output nodes must not have outgoing edges.', ['nodes', index]);
+      }
+      continue;
+    }
+
+    if (node.type === 'branch') {
+      if (!outputKeys.has(node.sourceKey)) {
+        addIssue(ctx, `Branch source key "${node.sourceKey}" is not produced by an earlier step.`, [
+          'nodes',
+          index,
+          'sourceKey',
+        ]);
+      }
+      if (!ids.has(node.trueTarget))
+        addIssue(ctx, `Branch true target "${node.trueTarget}" is missing.`, ['nodes', index]);
+      if (!ids.has(node.falseTarget)) {
+        addIssue(ctx, `Branch false target "${node.falseTarget}" is missing.`, ['nodes', index]);
+      }
+      continue;
+    }
+
+    const outgoing = outgoingEdges(definition, node.id);
+    if (outgoing.length !== 1) {
+      addIssue(ctx, `Node "${node.id}" must have exactly one outgoing edge.`, ['nodes', index]);
     }
   }
 
@@ -244,6 +282,9 @@ function validateGraph(definition: CustomWorkflowDefinition, ctx: z.RefinementCt
       node.type === 'branch'
         ? [node.trueTarget, node.falseTarget]
         : outgoingEdges(definition, id).map((edge) => edge.to);
+    if (node.type !== 'output' && targets.length === 0) {
+      addIssue(ctx, `Node "${node.id}" does not route to the output node.`, ['nodes']);
+    }
     for (const target of targets) visit(target);
     visiting.delete(id);
     visited.add(id);
@@ -253,6 +294,37 @@ function validateGraph(definition: CustomWorkflowDefinition, ctx: z.RefinementCt
   for (const node of definition.nodes) {
     if (!visited.has(node.id)) addIssue(ctx, `Node "${node.id}" is not reachable from input.`, ['nodes']);
   }
+
+  const branchSourceIssues = new Set<string>();
+  const validateProducedKeys = (id: string, availableKeys: Set<string>, path: Set<string>) => {
+    if (path.has(id)) return;
+    const node = definition.nodes.find((candidate) => candidate.id === id);
+    if (!node) return;
+
+    const nextPath = new Set(path).add(id);
+    let nextKeys = availableKeys;
+    if (node.type === 'branch') {
+      if (!availableKeys.has(node.sourceKey) && !branchSourceIssues.has(node.id)) {
+        branchSourceIssues.add(node.id);
+        const index = definition.nodes.findIndex((candidate) => candidate.id === node.id);
+        addIssue(ctx, `Branch source key "${node.sourceKey}" is not available before "${node.id}".`, [
+          'nodes',
+          index,
+          'sourceKey',
+        ]);
+      }
+    } else {
+      const key = producedKey(node);
+      if (key) nextKeys = new Set(availableKeys).add(key);
+    }
+
+    const targets =
+      node.type === 'branch'
+        ? [node.trueTarget, node.falseTarget]
+        : outgoingEdges(definition, id).map((edge) => edge.to);
+    for (const target of targets) validateProducedKeys(target, nextKeys, nextPath);
+  };
+  validateProducedKeys(input.id, new Set(), new Set());
 }
 
 export const CustomWorkflowDefinitionSchema = RawCustomWorkflowDefinitionSchema.superRefine(validateGraph);
@@ -371,7 +443,6 @@ export async function runCustomWorkflow(
   const nodesById = new Map(workflow.nodes.map((node) => [node.id, node]));
   const steps = workflow.nodes.map((node) => ({ id: node.id, label: node.label, kind: nodeKind(node) }));
   const t0 = startRun(tracer, workflow.name, { prompt: safePrompt }, steps);
-  const model = resolveModel(request?.model, request?.provider, request?.llmConfig ?? context?.llmConfig);
 
   let current: string | undefined = workflow.nodes.find((node) => node.type === 'input')?.id;
   let output: unknown = null;
@@ -396,6 +467,7 @@ export async function runCustomWorkflow(
     if (node.type === 'llm') {
       const startedAt = Date.now();
       tracer.emit({ type: 'llm:start', stepId: node.id, model: request?.model });
+      const model = resolveModel(request?.model, request?.provider, request?.llmConfig ?? context?.llmConfig);
       const agent = new Agent({
         id: `custom-${workflow.id}-${node.id}`,
         name: node.label,

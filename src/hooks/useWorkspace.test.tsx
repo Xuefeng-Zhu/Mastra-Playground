@@ -107,7 +107,12 @@ describe('useWorkspace stream lifecycle', () => {
     fetchMock.mockResolvedValue(
       sseResponse([
         { type: 'step:start', stepId: 'research' },
-        { type: 'done', status: 'failed', output: { error: 'provider unavailable' }, totalMs: 8 },
+        {
+          type: 'done',
+          status: 'failed',
+          output: { error: 'provider unavailable', errorId: 'err-1' },
+          totalMs: 8,
+        },
       ]),
     );
     let workspace: ReturnType<typeof useWorkspace> | undefined;
@@ -117,7 +122,8 @@ describe('useWorkspace stream lifecycle', () => {
 
     expect(container.firstElementChild?.getAttribute('data-running')).toBe('false');
     expect(container.firstElementChild?.getAttribute('data-active')).toBe('idle');
-    expect(container.firstElementChild?.getAttribute('data-error')).toBe('provider unavailable');
+    expect(container.firstElementChild?.getAttribute('data-error')).toBe('provider unavailable (err-1)');
+    expect(workspace!.output).toEqual({ error: 'provider unavailable', errorId: 'err-1' });
   });
 
   it('uses the nested HITL suspend payload as the pending classification', async () => {
@@ -143,5 +149,51 @@ describe('useWorkspace stream lifecycle', () => {
       classified: { amount: 500, urgency: 'critical', reasoning: 'Needs approval' },
     });
     expect(container.firstElementChild?.getAttribute('data-active')).toBe('suspended');
+  });
+
+  it('clears stale HITL resume errors after a later successful resume', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        sseResponse([
+          {
+            type: 'suspend',
+            token: 'run-token',
+            payload: { classified: { amount: 500, urgency: 'critical', reasoning: 'Needs approval' } },
+          },
+          { type: 'done', status: 'suspended', output: { token: 'run-token' }, totalMs: 8 },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ ok: false, error: 'temporary resume failure' }), { status: 500 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            ok: true,
+            result: {
+              status: 'success',
+              output: { executed: true, message: 'Approved', classified: { amount: 500 } },
+            },
+          }),
+          { status: 200 },
+        ),
+      );
+    let workspace: ReturnType<typeof useWorkspace> | undefined;
+    await act(async () =>
+      root.render(<Harness example={EXAMPLES['hitl-approval']} expose={(value) => (workspace = value)} />),
+    );
+    act(() => workspace!.run({ action: 'Refund $500', actionType: 'refund' }));
+    await settle();
+
+    await act(async () => {
+      await workspace!.hitlDecide('run-token', 'approved');
+    });
+    expect(container.firstElementChild?.getAttribute('data-error')).toBe('temporary resume failure');
+
+    await act(async () => {
+      await workspace!.hitlDecide('run-token', 'approved');
+    });
+    expect(container.firstElementChild?.getAttribute('data-error')).toBe('');
+    expect(workspace!.output).toMatchObject({ executed: true, message: 'Approved' });
   });
 });

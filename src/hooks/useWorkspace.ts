@@ -25,6 +25,13 @@ export interface ReceivedTraceEvent {
   event: TraceEvent;
 }
 
+function traceErrorMessage(output: unknown, fallback: string) {
+  if (!output || typeof output !== 'object') return fallback;
+  const { error, errorId } = output as { error?: unknown; errorId?: unknown };
+  const message = typeof error === 'string' && error.trim() ? error : fallback;
+  return typeof errorId === 'string' && errorId.trim() ? `${message} (${errorId})` : message;
+}
+
 export function useWorkspace(example: PlaygroundExample) {
   const [output, setOutput] = useState<unknown>(null);
   const [sources, setSources] = useState<CapturedSource[]>([]);
@@ -110,7 +117,8 @@ export function useWorkspace(example: PlaygroundExample) {
         if (ev.status === 'success') {
           setOutput(ev.output);
         } else {
-          setError((ev.output as { error?: string } | null)?.error ?? 'workflow failed');
+          setOutput(ev.output);
+          setError(traceErrorMessage(ev.output, 'workflow failed'));
         }
         break;
     }
@@ -178,6 +186,7 @@ export function useWorkspace(example: PlaygroundExample) {
 
   // HITL: resume the suspended workflow with a decision.
   const hitlDecide = useCallback(async (token: string, decision: 'approved' | 'rejected') => {
+    setError(null);
     try {
       const resp = await fetch(`/api/resume/${encodeURIComponent(token)}`, {
         method: 'POST',
@@ -195,6 +204,7 @@ export function useWorkspace(example: PlaygroundExample) {
             : `Resume failed (${resp.status})`,
         );
       } else if (json.ok) {
+        setError(null);
         setOutput((prev: unknown) => {
           const out = json.result.output ?? {};
           const prior = prev && typeof prev === 'object' ? (prev as Record<string, unknown>) : {};

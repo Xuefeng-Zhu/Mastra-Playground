@@ -1798,7 +1798,7 @@ body.mp .workspace {
 }
 /* page-number corner badge on the workspace */
 body.mp .workspace::before {
-  content: attr(data-example-num) ' / 11';
+  content: attr(data-example-num);
   position: absolute;
   top: var(--sp-4);
   right: var(--sp-5);
@@ -3109,7 +3109,7 @@ body.mp > main::after {
 
 /* ── workspace examples reference marker (data-attribute driven) ── */
 body.mp .workspace[data-example]::before {
-  content: attr(data-example-num) ' / 11';
+  content: attr(data-example-num);
 }
 
 /* ── footer ── */

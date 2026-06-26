@@ -15,6 +15,21 @@ function outgoingIds(definition: CustomWorkflowDefinition, node: CustomWorkflowN
   return definition.edges.filter((edge) => edge.from === node.id).map((edge) => edge.to);
 }
 
+function producedKey(node: CustomWorkflowNode): string | null {
+  return node.type === 'llm' || node.type === 'tool' ? node.outputKey : null;
+}
+
+function isFinitePosition(value: unknown): value is WorkflowNodePosition {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    typeof (value as { x?: unknown }).x === 'number' &&
+    typeof (value as { y?: unknown }).y === 'number' &&
+    Number.isFinite((value as WorkflowNodePosition).x) &&
+    Number.isFinite((value as WorkflowNodePosition).y)
+  );
+}
+
 export function defaultWorkflowLayout(definition: CustomWorkflowDefinition): WorkflowLayout {
   const nodesById = new Map(definition.nodes.map((node) => [node.id, node]));
   const input = definition.nodes.find((node) => node.type === 'input') ?? definition.nodes[0];
@@ -53,12 +68,15 @@ export function defaultWorkflowLayout(definition: CustomWorkflowDefinition): Wor
 
 export function normalizeWorkflowLayout(
   definition: CustomWorkflowDefinition,
-  layout: WorkflowLayout,
+  layout: Partial<Record<string, unknown>>,
 ): WorkflowLayout {
   const fallback = defaultWorkflowLayout(definition);
-  return Object.fromEntries(
-    definition.nodes.map((node) => [node.id, layout[node.id] ?? fallback[node.id] ?? { x: 80, y: 110 }]),
-  );
+  const normalized: WorkflowLayout = {};
+  for (const node of definition.nodes) {
+    const stored = layout[node.id];
+    normalized[node.id] = isFinitePosition(stored) ? stored : (fallback[node.id] ?? { x: 80, y: 110 });
+  }
+  return normalized;
 }
 
 export function buildWorkflowGraphEdges(definition: CustomWorkflowDefinition): WorkflowGraphEdge[] {
@@ -107,9 +125,18 @@ export function applyWorkflowConnection(
 export function validateWorkflowClient(definition: CustomWorkflowDefinition): string[] {
   const issues: string[] = [];
   const ids = new Set<string>();
+  const outputKeys = new Map<string, string>();
   for (const node of definition.nodes) {
     if (ids.has(node.id)) issues.push(`Duplicate node id: ${node.id}`);
     ids.add(node.id);
+    if (node.type === 'llm' || node.type === 'tool') {
+      const previousNodeId = outputKeys.get(node.outputKey);
+      if (previousNodeId) {
+        issues.push(`Output key ${node.outputKey} is already produced by ${previousNodeId}.`);
+      } else {
+        outputKeys.set(node.outputKey, node.id);
+      }
+    }
   }
 
   if (definition.nodes.length > 12) issues.push('Workflow has more than 12 nodes.');
@@ -126,28 +153,75 @@ export function validateWorkflowClient(definition: CustomWorkflowDefinition): st
   }
 
   for (const node of definition.nodes) {
-    if (node.type !== 'branch') continue;
-    if (!ids.has(node.trueTarget)) issues.push(`${node.label} has a missing true target.`);
-    if (!ids.has(node.falseTarget)) issues.push(`${node.label} has a missing false target.`);
+    if (node.type === 'output') {
+      if (definition.edges.some((edge) => edge.from === node.id)) {
+        issues.push(`${node.label || node.id} must not have outgoing edges.`);
+      }
+      continue;
+    }
+
+    if (node.type === 'branch') {
+      if (!outputKeys.has(node.sourceKey)) issues.push(`${node.label} uses an unknown source key.`);
+      if (!ids.has(node.trueTarget)) issues.push(`${node.label} has a missing true target.`);
+      if (!ids.has(node.falseTarget)) issues.push(`${node.label} has a missing false target.`);
+      continue;
+    }
+
+    const outgoing = definition.edges.filter((edge) => edge.from === node.id);
+    if (outgoing.length !== 1) issues.push(`${node.label || node.id} needs exactly one outgoing edge.`);
   }
 
   const input = definition.nodes.find((node) => node.type === 'input');
   if (!input) return issues;
 
+  const visiting = new Set<string>();
   const reachable = new Set<string>();
-  const queue = [input.id];
-  while (queue.length > 0) {
-    const id = queue.shift();
-    if (!id || reachable.has(id)) continue;
-    reachable.add(id);
+  const visit = (id: string) => {
+    if (visiting.has(id)) {
+      issues.push(`Workflow contains a cycle at ${id}.`);
+      return;
+    }
+    if (reachable.has(id)) return;
     const node = definition.nodes.find((candidate) => candidate.id === id);
-    if (!node) continue;
-    queue.push(...outgoingIds(definition, node));
-  }
+    if (!node) return;
+    visiting.add(id);
+    const targets = outgoingIds(definition, node);
+    if (node.type !== 'output' && targets.length === 0) {
+      issues.push(`${node.label || node.id} does not route to the output node.`);
+    }
+    for (const target of targets) visit(target);
+    visiting.delete(id);
+    reachable.add(id);
+  };
+  visit(input.id);
 
   for (const node of definition.nodes) {
     if (!reachable.has(node.id)) issues.push(`${node.label || node.id} is not reachable from input.`);
   }
+
+  const branchSourceIssues = new Set<string>();
+  const validateProducedKeys = (id: string, availableKeys: Set<string>, path: Set<string>) => {
+    if (path.has(id)) return;
+    const node = definition.nodes.find((candidate) => candidate.id === id);
+    if (!node) return;
+
+    const nextPath = new Set(path).add(id);
+    let nextKeys = availableKeys;
+    if (node.type === 'branch') {
+      if (!availableKeys.has(node.sourceKey) && !branchSourceIssues.has(node.id)) {
+        branchSourceIssues.add(node.id);
+        issues.push(`${node.label} uses ${node.sourceKey} before it is produced.`);
+      }
+    } else {
+      const key = producedKey(node);
+      if (key) nextKeys = new Set(availableKeys).add(key);
+    }
+
+    for (const target of outgoingIds(definition, node)) {
+      validateProducedKeys(target, nextKeys, nextPath);
+    }
+  };
+  validateProducedKeys(input.id, new Set(), new Set());
 
   return issues;
 }

@@ -29,6 +29,12 @@ function buttonWithText(container: HTMLElement, text: string) {
   );
 }
 
+function consoleTab(container: HTMLElement, text: string) {
+  return Array.from(container.querySelectorAll<HTMLButtonElement>('.builder-console-tabs button')).find(
+    (button) => button.textContent === text,
+  );
+}
+
 describe('WorkflowBuilder', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
@@ -129,5 +135,48 @@ describe('WorkflowBuilder', () => {
     );
     expect(container.textContent).toContain('done');
     expect(container.textContent).toContain('Sources (1)');
+  });
+
+  it('recovers from corrupt saved workflow JSON when loading explicitly', async () => {
+    await act(async () => root.render(<WorkflowBuilder />));
+    window.localStorage.setItem(CUSTOM_WORKFLOW_STORAGE_KEY, '{not-json');
+
+    await act(async () => buttonWithText(container, 'Load')?.click());
+
+    expect(container.textContent).toContain('Saved draft was invalid and has been cleared');
+    expect(window.localStorage.getItem(CUSTOM_WORKFLOW_STORAGE_KEY)).toBeNull();
+
+    window.localStorage.setItem(
+      CUSTOM_WORKFLOW_STORAGE_KEY,
+      JSON.stringify({ version: 1, nodes: [], edges: [] }),
+    );
+    await act(async () => buttonWithText(container, 'Load')?.click());
+
+    expect(container.textContent).toContain('Saved draft was invalid and has been cleared');
+    expect(window.localStorage.getItem(CUSTOM_WORKFLOW_STORAGE_KEY)).toBeNull();
+  });
+
+  it('keeps diagnostic tabs usable after a failed custom workflow run', async () => {
+    vi.mocked(streamCustomWorkflow).mockImplementationOnce(async ({ onEvent }) => {
+      onEvent({ type: 'start', workflow: 'Starter Workflow', input: {}, steps: [] });
+      onEvent({
+        type: 'done',
+        status: 'failed',
+        output: { error: 'Workflow failed', errorId: 'err-123' },
+        totalMs: 0,
+      });
+    });
+    await act(async () => root.render(<WorkflowBuilder />));
+
+    await act(async () => buttonWithText(container, 'Run')?.click());
+    await settle();
+
+    expect(container.textContent).toContain('Workflow failed (err-123)');
+
+    await act(async () => consoleTab(container, 'json')?.click());
+    expect(container.querySelector<HTMLTextAreaElement>('.builder-import textarea')).toBeTruthy();
+
+    await act(async () => consoleTab(container, 'trace')?.click());
+    expect(container.textContent).toContain('Events');
   });
 });

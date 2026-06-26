@@ -38,7 +38,7 @@ describe('custom workflow definition validation', () => {
     cyclic.edges = [
       { from: 'input', to: 'draft' },
       { from: 'draft', to: 'input' },
-      { from: 'draft', to: 'output' },
+      { from: 'tool-1', to: 'output' },
     ];
     expect(() => validateCustomWorkflowDefinition(cyclic)).toThrow('cycle');
 
@@ -91,6 +91,64 @@ describe('custom workflow definition validation', () => {
     const llmNode = oversized.nodes.find((node) => node.type === 'llm');
     if (llmNode?.type === 'llm') llmNode.promptTemplate = 'x'.repeat(5000);
     expect(() => validateCustomWorkflowDefinition(oversized)).toThrow();
+  });
+
+  it('rejects ambiguous custom graph contracts before runtime', () => {
+    const duplicateOutputKey = cloneWorkflow();
+    const tool = duplicateOutputKey.nodes.find((node) => node.type === 'tool');
+    if (tool?.type === 'tool') tool.outputKey = 'draft';
+    expect(() => validateCustomWorkflowDefinition(duplicateOutputKey)).toThrow('Output key');
+
+    const missingSource = cloneWorkflow();
+    const branch = missingSource.nodes.find((node) => node.type === 'branch');
+    if (branch?.type === 'branch') branch.sourceKey = 'missing_key';
+    expect(() => validateCustomWorkflowDefinition(missingSource)).toThrow('source key');
+
+    const downstreamSource: CustomWorkflowDefinition = {
+      version: 1,
+      id: 'downstream-source',
+      name: 'Downstream Source',
+      input: { label: 'Prompt' },
+      nodes: [
+        { id: 'input', type: 'input', label: 'Input' },
+        {
+          id: 'branch',
+          type: 'branch',
+          label: 'Branch',
+          sourceKey: 'draft',
+          operator: 'nonEmpty',
+          trueTarget: 'draft',
+          falseTarget: 'output',
+        },
+        {
+          id: 'draft',
+          type: 'llm',
+          label: 'Draft',
+          instruction: 'Draft',
+          promptTemplate: '{{input.prompt}}',
+          outputKey: 'draft',
+        },
+        { id: 'output', type: 'output', label: 'Output', template: '{{draft}}' },
+      ],
+      edges: [
+        { from: 'input', to: 'branch' },
+        { from: 'draft', to: 'output' },
+      ],
+    };
+    expect(() => validateCustomWorkflowDefinition(downstreamSource)).toThrow('not available');
+
+    const danglingRoute = cloneWorkflow();
+    const originalBranch = danglingRoute.nodes.find((node) => node.type === 'branch');
+    if (originalBranch?.type === 'branch') originalBranch.falseTarget = 'fallback';
+    danglingRoute.nodes.splice(4, 0, {
+      id: 'fallback',
+      type: 'tool',
+      label: 'Fallback',
+      toolId: 'echo',
+      inputTemplate: 'fallback',
+      outputKey: 'fallback',
+    });
+    expect(() => validateCustomWorkflowDefinition(danglingRoute)).toThrow('exactly one outgoing edge');
   });
 });
 
@@ -165,6 +223,7 @@ describe('custom workflow runner', () => {
       edges: [
         { from: 'input', to: 'keywords' },
         { from: 'keywords', to: 'branch' },
+        { from: 'fallback', to: 'output' },
       ],
     };
     const tracer = new Tracer();
@@ -177,6 +236,34 @@ describe('custom workflow runner', () => {
     expect(events).toContainEqual(
       expect.objectContaining({ type: 'branch:evaluate', stepId: 'branch', matched: true }),
     );
+  });
+
+  it('runs tool-only workflows without resolving an LLM model', async () => {
+    const workflow: CustomWorkflowDefinition = {
+      version: 1,
+      id: 'tool-only',
+      name: 'Tool Only',
+      input: { label: 'Prompt' },
+      nodes: [
+        { id: 'input', type: 'input', label: 'Input' },
+        {
+          id: 'echo',
+          type: 'tool',
+          label: 'Echo',
+          toolId: 'echo',
+          inputTemplate: '{{input.prompt}}',
+          outputKey: 'echo_result',
+        },
+        { id: 'output', type: 'output', label: 'Output', template: '{{echo_result}}' },
+      ],
+      edges: [
+        { from: 'input', to: 'echo' },
+        { from: 'echo', to: 'output' },
+      ],
+    };
+    const result = await runCustomWorkflow(workflow, { prompt: 'hello without llm' }, new Tracer());
+
+    expect(result.output).toMatchObject({ answer: '{"text":"hello without llm"}' });
   });
 
   it('rejects invalid workflows before emitting start', async () => {
