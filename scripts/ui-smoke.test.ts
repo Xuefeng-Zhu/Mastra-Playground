@@ -14,11 +14,13 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
+import { EXAMPLE_IDS } from '../shared/example-manifest';
 
 const ROOT = process.cwd();
 const NEXT_DIR = resolve(ROOT, '.next');
+const describeBuildArtifacts = existsSync(NEXT_DIR) ? describe : describe.skip;
 
-describe('Next.js build artifacts', () => {
+describeBuildArtifacts('Next.js build artifacts', () => {
   it('.next/ directory exists', () => {
     expect(existsSync(NEXT_DIR)).toBe(true);
   });
@@ -49,31 +51,34 @@ describe('Next.js build artifacts', () => {
   });
 });
 
-describe('Source composition', () => {
-  it('examples-registry exports all 13 examples', async () => {
-    const { EXAMPLES } = await import('../shared/examples-registry');
-    const ids = Object.keys(EXAMPLES);
-    expect(ids).toHaveLength(13);
-    expect(ids).toContain('support-triage');
-    expect(ids).toContain('research');
-    expect(ids).toContain('code-review');
-    expect(ids).toContain('parallel-research');
-    expect(ids).toContain('multi-turn-chat');
-    expect(ids).toContain('hitl-approval');
-    expect(ids).toContain('streaming-chat');
-    expect(ids).toContain('critic-loop');
-    expect(ids).toContain('multi-agent-handoff');
-    expect(ids).toContain('mastra-memory');
-    expect(ids).toContain('content-pipeline');
-    expect(ids).toContain('guardrail-redaction');
-    expect(ids).toContain('plan-and-execute');
+describe('Example registry consistency', () => {
+  it('keeps every example registry aligned with the canonical manifest', async () => {
+    const serverRegistry = await import('../shared/examples-registry');
+    const inputRegistry = await import('../shared/example-inputs');
+    const clientRegistry = await import('../src/registry/examples');
+    const graphRegistry = await import('../src/registry/graphs');
+    const packageJson = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8')) as {
+      scripts?: Record<string, string>;
+    };
+
+    expect(Object.keys(serverRegistry.EXAMPLES).sort()).toEqual([...EXAMPLE_IDS].sort());
+    expect(Object.keys(serverRegistry.EXAMPLE_LOADERS).sort()).toEqual([...EXAMPLE_IDS].sort());
+    expect(Object.keys(clientRegistry.EXAMPLES).sort()).toEqual([...EXAMPLE_IDS].sort());
+
+    for (const id of EXAMPLE_IDS) {
+      const serverExample = serverRegistry.EXAMPLES[id];
+      const clientExample = clientRegistry.EXAMPLES[id];
+
+      expect(id in inputRegistry.EXAMPLE_INPUT_SCHEMAS).toBe(true);
+      expect(id in graphRegistry.GRAPHS).toBe(true);
+      expect(packageJson.scripts?.[`example:${String(clientExample.num).padStart(2, '0')}`]).toContain(
+        serverExample.file,
+      );
+      expect(clientExample.output.kind).toBeDefined();
+    }
   });
 
-  it('example-inputs has matching schemas for all registered examples', async () => {
-    const { EXAMPLES } = await import('../shared/examples-registry');
-    const { EXAMPLE_INPUT_SCHEMAS } = await import('../shared/example-inputs');
-    for (const id of Object.keys(EXAMPLES)) {
-      expect(id in EXAMPLE_INPUT_SCHEMAS).toBe(true);
-    }
+  it('documents the current example count once through the manifest', () => {
+    expect(EXAMPLE_IDS).toHaveLength(13);
   });
 });

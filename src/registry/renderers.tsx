@@ -100,10 +100,29 @@ type PlanAndExecuteOutput = {
   totalSteps?: number;
 };
 
+export type OutputByKind = {
+  triage: TriageOutput;
+  research: ResearchOutput;
+  codeReview: CodeReviewOutput;
+  parallel: ParallelOutput;
+  chat: ChatOutput;
+  handoff: HandoffOutput;
+  streaming: StreamingOutput;
+  hitl: HitlOutput;
+  criticLoop: CriticLoopOutput;
+  contentPipeline: ContentPipelineOutput;
+  mastraMemory: MemoryOutput;
+  guardrailRedaction: GuardrailRedactionOutput;
+  planAndExecute: PlanAndExecuteOutput;
+};
+
+type ResultRendererMap = {
+  [Kind in OutputKind]: (out: OutputByKind[Kind] | null, ctx: RenderContext) => React.ReactNode;
+};
+
 // ── the per-kind renderers ─────────────────────────────────────────────
 
-function renderTriage(value: unknown, ctx: RenderContext) {
-  const out = value as TriageOutput | null;
+function renderTriage(out: TriageOutput | null, ctx: RenderContext) {
   const t = out?.triage;
   const action = out?.action;
   if (!t || !action) return <p className="muted">(no output)</p>;
@@ -129,8 +148,7 @@ function renderTriage(value: unknown, ctx: RenderContext) {
   );
 }
 
-function renderResearch(value: unknown, ctx: RenderContext) {
-  const out = value as ResearchOutput | null;
+function renderResearch(out: ResearchOutput | null, ctx: RenderContext) {
   const formatted = out?.formatted;
   if (!formatted) return <p className="muted">(no output)</p>;
   const paragraphs = String(formatted)
@@ -144,8 +162,7 @@ function renderResearch(value: unknown, ctx: RenderContext) {
   );
 }
 
-function renderCodeReview(value: unknown, ctx: RenderContext) {
-  const out = value as CodeReviewOutput | null;
+function renderCodeReview(out: CodeReviewOutput | null, ctx: RenderContext) {
   if (!out || !out.action) return <p className="muted">(no output)</p>;
   const lgtm = out.action === 'approved';
   return (
@@ -163,8 +180,7 @@ function renderCodeReview(value: unknown, ctx: RenderContext) {
   );
 }
 
-function renderParallel(value: unknown, ctx: RenderContext) {
-  const out = value as ParallelOutput | null;
+function renderParallel(out: ParallelOutput | null, ctx: RenderContext) {
   const synth = out?.synthesis;
   if (!synth) return <p className="muted">Run the workflow to see the synthesized answer.</p>;
   const paragraphs = synth.split(/\n\n+/).map((p: string, i: number) => <p key={i}>{p}</p>);
@@ -179,8 +195,7 @@ function renderParallel(value: unknown, ctx: RenderContext) {
   );
 }
 
-function renderChat(value: unknown) {
-  const out = value as ChatOutput | null;
+function renderChat(out: ChatOutput | null) {
   // The expression must prefer `out.allMessages` when present (post-run
   // state). The previous code was `out?.allMessages || ctx.streamingText
   // ? [] : []` which JS parsed as `((out?.allMessages) ||
@@ -195,8 +210,7 @@ function renderChat(value: unknown) {
   return <ChatThread messages={messages} escalated={escalated} escalationReason={escalationReason} />;
 }
 
-function renderHandoff(value: unknown, ctx: RenderContext) {
-  const out = value as HandoffOutput | null;
+function renderHandoff(out: HandoffOutput | null, ctx: RenderContext) {
   if (!out?.message) return <p className="muted">Send a message to see the triage response.</p>;
 
   return (
@@ -213,8 +227,7 @@ function renderHandoff(value: unknown, ctx: RenderContext) {
   );
 }
 
-function renderStreaming(value: unknown, ctx: RenderContext) {
-  const out = value as StreamingOutput | null;
+function renderStreaming(out: StreamingOutput | null, ctx: RenderContext) {
   const text = ctx.streamingText || out?.finalText || '';
   const model = out?.model || ctx.streamingModel || '';
   const durationMs = out?.durationMs || ctx.totalMs;
@@ -222,8 +235,7 @@ function renderStreaming(value: unknown, ctx: RenderContext) {
   return <StreamingView text={text} tokens={tokens} durationMs={durationMs} model={model} />;
 }
 
-function renderHitl(value: unknown, ctx: RenderContext) {
-  const out = value as HitlOutput | null;
+function renderHitl(out: HitlOutput | null, ctx: RenderContext) {
   if (!out) return <p className="muted">(no output)</p>;
   if (out?.token && out?.classified && out?.decision === undefined) {
     const token = out.token;
@@ -246,8 +258,7 @@ function renderHitl(value: unknown, ctx: RenderContext) {
   );
 }
 
-function renderCriticLoop(value: unknown, ctx: RenderContext) {
-  const out = value as CriticLoopOutput | null;
+function renderCriticLoop(out: CriticLoopOutput | null, ctx: RenderContext) {
   if (!out || !out.draft) return <p className="muted">(no output)</p>;
   const history = out.history || [];
   return (
@@ -282,8 +293,7 @@ function renderCriticLoop(value: unknown, ctx: RenderContext) {
   );
 }
 
-function renderContentPipeline(value: unknown, ctx: RenderContext) {
-  const out = value as ContentPipelineOutput | null;
+function renderContentPipeline(out: ContentPipelineOutput | null, ctx: RenderContext) {
   if (!out) return <p className="muted">(no output)</p>;
   return (
     <>
@@ -298,8 +308,7 @@ function renderContentPipeline(value: unknown, ctx: RenderContext) {
   );
 }
 
-function renderMastraMemory(value: unknown, ctx: RenderContext) {
-  const out = value as MemoryOutput | null;
+function renderMastraMemory(out: MemoryOutput | null, ctx: RenderContext) {
   if (!out) return <p className="muted">(no output)</p>;
   const t1 = out.turn1;
   const t2 = out.turn2;
@@ -320,8 +329,7 @@ function renderMastraMemory(value: unknown, ctx: RenderContext) {
   );
 }
 
-function renderGuardrailRedaction(value: unknown, ctx: RenderContext) {
-  const out = value as GuardrailRedactionOutput | null;
+function renderGuardrailRedaction(out: GuardrailRedactionOutput | null, ctx: RenderContext) {
   if (!out) return <p className="muted">(no output)</p>;
   const detections = Object.entries(out.detections || {})
     .filter(([, count]) => count > 0)
@@ -353,8 +361,7 @@ function renderGuardrailRedaction(value: unknown, ctx: RenderContext) {
   );
 }
 
-function renderPlanAndExecute(value: unknown, ctx: RenderContext) {
-  const out = value as PlanAndExecuteOutput | null;
+function renderPlanAndExecute(out: PlanAndExecuteOutput | null, ctx: RenderContext) {
   if (!out) return <p className="muted">(no output)</p>;
   const steps = out.plan?.steps || [];
   const executions = out.executions || [];
@@ -421,7 +428,12 @@ export const RESULT_RENDERERS = {
   mastraMemory: renderMastraMemory,
   guardrailRedaction: renderGuardrailRedaction,
   planAndExecute: renderPlanAndExecute,
-} satisfies Record<OutputKind, (out: unknown, ctx: RenderContext) => React.ReactNode>;
+} satisfies ResultRendererMap;
+
+export function renderResultForKind(kind: OutputKind, output: unknown, ctx: RenderContext): React.ReactNode {
+  const renderer = RESULT_RENDERERS[kind] as (out: unknown, ctx: RenderContext) => React.ReactNode;
+  return renderer(output ?? null, ctx);
+}
 
 // The "parallel" kind has a Sources tab. Others don't.
 export const HAS_SOURCES_TAB = {

@@ -13,7 +13,7 @@ import {
 import { CustomProviderModal } from './CustomProviderModal';
 import { useModelPreferences } from '../hooks/useModelPreferences';
 import { streamCustomWorkflow } from '../hooks/workflow-stream';
-import type { ReceivedTraceEvent } from '../hooks/useWorkspace';
+import { useTraceStream } from '../hooks/useTraceStream';
 import { traceErrorMessage, type TraceEvent } from '../registry/utils';
 import type { CapturedSource } from '../registry/renderers';
 import type { TimelineEntry } from './TracePane';
@@ -86,23 +86,11 @@ export function WorkflowBuilder() {
   const [completedNodes, setCompletedNodes] = useState<string[]>([]);
   const [activeNode, setActiveNode] = useState('idle');
   const [error, setError] = useState<string | null>(null);
-  const [running, setRunning] = useState(false);
-  const [traceEvents, setTraceEvents] = useState<ReceivedTraceEvent[]>([]);
   const [showCustomModal, setShowCustomModal] = useState(false);
-  const requestRef = useRef<AbortController | null>(null);
-  const runStartRef = useRef(0);
-  const traceEventIdRef = useRef(0);
   const preferences = useModelPreferences();
 
   const selectedNode = workflow.nodes.find((node) => node.id === selectedId);
   const graph = useMemo(() => customWorkflowToGraph(workflow), [workflow]);
-  const timeline: TimelineEntry[] = useMemo(
-    () =>
-      traceEvents.map((event, index) =>
-        traceEventToTimelineEntry(event, running && index === traceEvents.length - 1),
-      ),
-    [running, traceEvents],
-  );
   const exportedJson = useMemo(() => JSON.stringify(workflow, null, 2), [workflow]);
   const executableNodes = workflow.nodes.filter(
     (node) => node.type !== 'input' && node.type !== 'output',
@@ -155,17 +143,6 @@ export function WorkflowBuilder() {
       }),
     [activeNode, completedNodes, workflow],
   );
-
-  const disposeStream = useCallback((request: AbortController) => {
-    request.abort();
-    if (requestRef.current === request) requestRef.current = null;
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (requestRef.current) disposeStream(requestRef.current);
-    };
-  }, [disposeStream]);
 
   useEffect(() => {
     if (!workflow.nodes.some((node) => node.id === selectedId)) {
@@ -273,9 +250,8 @@ export function WorkflowBuilder() {
     );
   };
 
-  const handleEvent = useCallback((event: TraceEvent) => {
+  const handleEvent = useCallback((event: TraceEvent, elapsedMs: number) => {
     const stepId = 'stepId' in event ? event.stepId : undefined;
-    const elapsed = runStartRef.current ? performance.now() - runStartRef.current : 0;
     switch (event.type) {
       case 'step:start':
         if (stepId) setActiveNode(stepId);
@@ -300,7 +276,7 @@ export function WorkflowBuilder() {
         setActiveNode('idle');
         break;
       case 'done':
-        setTotalMs(event.totalMs || elapsed);
+        setTotalMs(event.totalMs || elapsedMs);
         setActiveNode('idle');
         if (event.status === 'success') {
           setOutput(event.output);
@@ -316,51 +292,39 @@ export function WorkflowBuilder() {
     }
   }, []);
 
-  const runWorkflow = useCallback(() => {
-    if (requestRef.current) disposeStream(requestRef.current);
-    setOutput(null);
-    setSources([]);
-    setTotalMs(0);
-    setDoneCount(0);
-    setCompletedNodes([]);
+  const handleStreamError = useCallback((err: unknown) => {
+    setError(err instanceof Error ? err.message : String(err));
+    setBuilderNotice('Run failed');
     setActiveNode('idle');
-    setError(null);
-    setActiveTab('result');
-    setRunning(true);
-    setBuilderNotice('Running custom workflow');
-    setTraceEvents([]);
-    traceEventIdRef.current = 0;
-    runStartRef.current = performance.now();
+  }, []);
 
-    const request = new AbortController();
-    requestRef.current = request;
+  const traceStream = useTraceStream({ onEvent: handleEvent, onError: handleStreamError });
+
+  const timeline: TimelineEntry[] = useMemo(
+    () =>
+      traceStream.traceEvents.map((event, index) =>
+        traceEventToTimelineEntry(event, traceStream.running && index === traceStream.traceEvents.length - 1),
+      ),
+    [traceStream.running, traceStream.traceEvents],
+  );
+
+  const runWorkflow = useCallback(() => {
     const requestBody = preferences.addToRequest({ workflow, input: { prompt } });
-
-    const receive = (event: TraceEvent) => {
-      if (requestRef.current !== request) return;
-      const ts = runStartRef.current ? performance.now() - runStartRef.current : 0;
-      const id = String(++traceEventIdRef.current);
-      setTraceEvents((previous) => [...previous, { id, ts, event }]);
-      handleEvent(event);
-      if (event.type === 'done') {
-        requestRef.current = null;
-        setRunning(false);
-      }
-    };
-
-    void (async () => {
-      try {
-        await streamCustomWorkflow({ requestBody, signal: request.signal, onEvent: receive });
-      } catch (err) {
-        if (request.signal.aborted || requestRef.current !== request) return;
-        requestRef.current = null;
-        setError(err instanceof Error ? err.message : String(err));
-        setBuilderNotice('Run failed');
+    traceStream.start(
+      ({ signal, onEvent }) => streamCustomWorkflow({ requestBody, signal, onEvent }),
+      () => {
+        setOutput(null);
+        setSources([]);
+        setTotalMs(0);
+        setDoneCount(0);
+        setCompletedNodes([]);
         setActiveNode('idle');
-        setRunning(false);
-      }
-    })();
-  }, [disposeStream, handleEvent, preferences, prompt, workflow]);
+        setError(null);
+        setActiveTab('result');
+        setBuilderNotice('Running custom workflow');
+      },
+    );
+  }, [preferences, prompt, traceStream, workflow]);
 
   const onNodesChange = useCallback((changes: NodeChange<BuilderFlowNode>[]) => {
     const positionChanges = changes.filter(
@@ -402,7 +366,7 @@ export function WorkflowBuilder() {
         workflowName={workflow.name}
         isValid={isValid}
         issueCount={validationIssues.length}
-        running={running}
+        running={traceStream.running}
         nodeCount={workflow.nodes.length}
         maxNodes={MAX_NODES}
         executableNodes={executableNodes}
@@ -496,7 +460,7 @@ export function WorkflowBuilder() {
         prompt={prompt}
         setPrompt={setPrompt}
         placeholder={workflow.input.placeholder}
-        running={running}
+        running={traceStream.running}
         runWorkflow={runWorkflow}
         output={output}
         sources={sources}

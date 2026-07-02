@@ -23,12 +23,12 @@ jobs:
         run: npm run format:check
       - name: TypeScript type check
         run: npm run typecheck
+      - name: Build Next.js app
+        run: npm run build
       - name: Tests and coverage thresholds
         run: npm run test:coverage
       - name: Documentation links
         run: npm run docs:check
-      - name: Build Next.js app
-        run: npm run build
       - name: Build artifacts exist
         run: |
           test -d .next

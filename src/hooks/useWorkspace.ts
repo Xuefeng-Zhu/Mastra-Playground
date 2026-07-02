@@ -10,20 +10,16 @@
  * rail item, the parent re-mounts <Workspace> and this hook re-initializes.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { PlaygroundExample } from '../registry/examples';
 import type { TraceEvent } from '../registry/utils';
 import type { CapturedSource } from '../registry/renderers';
 import { exampleNameToId, traceErrorMessage } from '../registry/utils';
 import { streamWorkflow } from './workflow-stream';
+import { useTraceStream } from './useTraceStream';
 
 export type OutputTab = 'result' | 'sources' | 'json' | 'compare';
-
-export interface ReceivedTraceEvent {
-  id: string;
-  ts: number;
-  event: TraceEvent;
-}
+export type { ReceivedTraceEvent } from './useTraceStream';
 
 export function useWorkspace(example: PlaygroundExample) {
   const [output, setOutput] = useState<unknown>(null);
@@ -38,31 +34,10 @@ export function useWorkspace(example: PlaygroundExample) {
   const [completedNodes, setCompletedNodes] = useState<string[]>([]);
   const [activeNode, setActiveNode] = useState<string>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [running, setRunning] = useState(false);
-  const [traceEvents, setTraceEvents] = useState<ReceivedTraceEvent[]>([]);
-
-  const requestRef = useRef<AbortController | null>(null);
-  const runStartRef = useRef(0);
-  const traceEventIdRef = useRef(0);
-
-  const disposeStream = useCallback((request: AbortController) => {
-    request.abort();
-    if (requestRef.current === request) requestRef.current = null;
-  }, []);
-
-  // Cleanup the SSE connection on unmount (i.e. when switching rail items).
-  useEffect(() => {
-    return () => {
-      if (requestRef.current) {
-        disposeStream(requestRef.current);
-      }
-    };
-  }, [disposeStream]);
 
   // Handle a single SSE event. `stepId` is the per-step identifier the
   // example emits; fall back to `step` (legacy) only if present.
-  const handleEvent = useCallback((ev: TraceEvent) => {
-    const t = runStartRef.current ? performance.now() - runStartRef.current : 0;
+  const handleEvent = useCallback((ev: TraceEvent, elapsedMs: number) => {
     const stepId = 'stepId' in ev ? ev.stepId : undefined;
     switch (ev.type) {
       case 'step:start':
@@ -105,7 +80,7 @@ export function useWorkspace(example: PlaygroundExample) {
           // Don't overwrite the pending state set by `suspend`.
           return;
         }
-        setTotalMs(ev.totalMs || t);
+        setTotalMs(ev.totalMs || elapsedMs);
         setActiveNode('idle');
         if (ev.status === 'success') {
           setOutput(ev.output);
@@ -117,64 +92,38 @@ export function useWorkspace(example: PlaygroundExample) {
     }
   }, []);
 
+  const handleStreamError = useCallback((err: unknown) => {
+    setError(err instanceof Error ? err.message : String(err));
+    setActiveNode('idle');
+  }, []);
+
+  const traceStream = useTraceStream({ onEvent: handleEvent, onError: handleStreamError });
+
   // Run the workflow.
   const run = useCallback(
     (requestBody: Record<string, unknown>) => {
-      // Abort any in-flight stream.
-      if (requestRef.current) {
-        disposeStream(requestRef.current);
-      }
-      setOutput((prev: unknown) => {
-        if (prev !== null && example.output.kind !== 'hitl') setPriorOutput(prev);
-        return null;
-      });
-      // Reset for new run.
-      setSources([]);
-      setTotalMs(0);
-      setStreamingText('');
-      setStreamingModel('');
-      setStreamingTokenCount(0);
-      setDoneCount(0);
-      setCompletedNodes([]);
-      setActiveNode('idle');
-      setError(null);
-      setActiveTab('result');
-      setRunning(true);
-      setTraceEvents([]);
-      traceEventIdRef.current = 0;
-
-      const start = performance.now();
-      runStartRef.current = start;
-
       const slug = exampleNameToId(example.num, example.name);
-      const request = new AbortController();
-      requestRef.current = request;
-
-      const receive = (ev: TraceEvent) => {
-        if (requestRef.current !== request) return;
-        const ts = runStartRef.current ? performance.now() - runStartRef.current : 0;
-        const id = String(++traceEventIdRef.current);
-        setTraceEvents((prev) => [...prev, { id, ts, event: ev }]);
-        handleEvent(ev);
-        if (ev.type === 'done') {
-          requestRef.current = null;
-          setRunning(false);
-        }
-      };
-
-      void (async () => {
-        try {
-          await streamWorkflow({ slug, requestBody, signal: request.signal, onEvent: receive });
-        } catch (err) {
-          if (request.signal.aborted || requestRef.current !== request) return;
-          requestRef.current = null;
-          setError(err instanceof Error ? err.message : String(err));
+      traceStream.start(
+        ({ signal, onEvent }) => streamWorkflow({ slug, requestBody, signal, onEvent }),
+        () => {
+          setOutput((prev: unknown) => {
+            if (prev !== null && example.output.kind !== 'hitl') setPriorOutput(prev);
+            return null;
+          });
+          setSources([]);
+          setTotalMs(0);
+          setStreamingText('');
+          setStreamingModel('');
+          setStreamingTokenCount(0);
+          setDoneCount(0);
+          setCompletedNodes([]);
           setActiveNode('idle');
-          setRunning(false);
-        }
-      })();
+          setError(null);
+          setActiveTab('result');
+        },
+      );
     },
-    [disposeStream, example.num, example.name, example.output.kind, handleEvent],
+    [example.name, example.num, example.output.kind, traceStream],
   );
 
   // HITL: resume the suspended workflow with a decision.
@@ -231,8 +180,8 @@ export function useWorkspace(example: PlaygroundExample) {
     completedNodes,
     activeNode,
     error,
-    running,
-    traceEvents,
+    running: traceStream.running,
+    traceEvents: traceStream.traceEvents,
     run,
     hitlDecide,
   };

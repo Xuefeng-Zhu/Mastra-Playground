@@ -1,4 +1,5 @@
 import type { Node } from '@xyflow/react';
+import { readBrowserStorage, removeBrowserStorage } from '../browser-storage';
 import {
   CLIENT_CUSTOM_TOOL_OPTIONS,
   cloneSeedWorkflow,
@@ -13,6 +14,8 @@ import {
   validateWorkflowClient,
   type WorkflowLayout,
 } from '../registry/custom-workflow-flow';
+
+export { readBrowserStorage, removeBrowserStorage, writeBrowserStorage } from '../browser-storage';
 
 export const MAX_NODES = 12;
 
@@ -277,34 +280,6 @@ function isWorkflowEdgeLike(value: unknown) {
     typeof edge.to === 'string' &&
     (edge.label === undefined || typeof edge.label === 'string')
   );
-}
-
-export function readBrowserStorage(key: string): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    return window.localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-export function writeBrowserStorage(key: string, value: string): boolean {
-  if (typeof window === 'undefined') return false;
-  try {
-    window.localStorage.setItem(key, value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function removeBrowserStorage(key: string) {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.removeItem(key);
-  } catch {
-    // Browser storage can be disabled; callers still update in-memory state.
-  }
 }
 
 export function parseWorkflowJson(text: string): CustomWorkflowDefinition {

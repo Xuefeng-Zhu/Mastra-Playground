@@ -28,7 +28,7 @@ import {
   type StepSpec,
 } from '../../shared/traced-step';
 import { isMain, runCliExample } from '../../shared/cli-bootstrap';
-import { unwrapWorkflowOutput } from '../../shared/workflow-helpers';
+import { finalizeRunResult } from '../../shared/run-result';
 import {
   ClassifiedSchema,
   FinalSchema,
@@ -54,28 +54,9 @@ export function finalizeGuardrailRunResult(
   t0: number,
   echoInput: RunOptions,
 ) {
-  const rawStatus = (result as { status?: string } | null)?.status;
-  const status: 'success' | 'failed' | 'suspended' =
-    rawStatus === 'success' || rawStatus === 'failed' || rawStatus === 'suspended' ? rawStatus : 'failed';
-
-  let output: unknown;
-  let error: string | null = null;
-
-  if (status === 'success') {
-    output = unwrapWorkflowOutput((result as { result: unknown }).result);
-  } else if (status === 'suspended') {
-    const r = result as {
-      suspendedStep?: { id?: string };
-      suspendPayload?: unknown;
-    };
-    output = { token: null, suspendedStep: r.suspendedStep, suspendedPayload: r.suspendPayload };
-  } else {
-    error = safeFailureMessage(result);
-    output = { error };
-  }
-
-  tracer.emit({ type: 'done', status, output, totalMs: Date.now() - t0 });
-  return { status, input: echoInput, output, error };
+  return finalizeRunResult(result, tracer, t0, echoInput, undefined, {
+    failureMessage: safeFailureMessage,
+  });
 }
 
 const STEPS: StepSpec[] = [

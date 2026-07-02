@@ -17,6 +17,27 @@ export type RunResult<TInput = unknown, TOutput = unknown> = {
   error: string | null;
 };
 
+export type FinalizeRunResultOptions = {
+  failureMessage?: (result: unknown) => string;
+};
+
+function fallbackFailureMessage(result: unknown): string {
+  try {
+    return JSON.stringify(result) ?? String(result);
+  } catch {
+    return String(result);
+  }
+}
+
+function failureMessage(result: unknown, options: FinalizeRunResultOptions): string {
+  if (!options.failureMessage) return fallbackFailureMessage(result);
+  try {
+    return options.failureMessage(result);
+  } catch {
+    return fallbackFailureMessage(result);
+  }
+}
+
 /**
  * Finalise a workflow run result.
  *
@@ -33,6 +54,7 @@ export function finalizeRunResult<TInput = unknown>(
   t0: number,
   echoInput: TInput,
   runId?: string,
+  options: FinalizeRunResultOptions = {},
 ): RunResult<TInput, unknown> {
   // Narrow Mastra's broader status union to the tracer's expected set.
   const rawStatus = (result as { status?: string } | null)?.status;
@@ -53,7 +75,7 @@ export function finalizeRunResult<TInput = unknown>(
     output = unwrapWorkflowOutput((result as { result: unknown }).result);
     error = null;
   } else {
-    error = JSON.stringify(result) ?? String(result);
+    error = failureMessage(result, options);
     output = { error };
   }
 

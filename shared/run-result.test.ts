@@ -25,6 +25,44 @@ describe('finalizeRunResult', () => {
     expect(r.output).toEqual({ error: expect.stringContaining('oops') });
   });
 
+  it('allows callers to sanitize failed workflow messages', () => {
+    const tracer = new Tracer();
+    const r = finalizeRunResult(
+      { status: 'failed', input: { secret: 'raw' } },
+      tracer,
+      0,
+      { safe: true },
+      undefined,
+      { failureMessage: () => 'redacted failure' },
+    );
+    expect(r.error).toBe('redacted failure');
+    expect(JSON.stringify(r)).not.toContain('raw');
+  });
+
+  it('falls back when a failed workflow result cannot be JSON stringified', () => {
+    const tracer = new Tracer();
+    const circular: { status: string; self?: unknown } = { status: 'failed' };
+    circular.self = circular;
+
+    const r = finalizeRunResult(circular, tracer, 0, null);
+
+    expect(r.status).toBe('failed');
+    expect(r.error).toBe('[object Object]');
+    expect(r.output).toEqual({ error: '[object Object]' });
+  });
+
+  it('falls back when a custom failure message throws', () => {
+    const tracer = new Tracer();
+    const r = finalizeRunResult({ status: 'failed', reason: 'oops' }, tracer, 0, null, undefined, {
+      failureMessage: () => {
+        throw new Error('formatter failed');
+      },
+    });
+
+    expect(r.status).toBe('failed');
+    expect(r.error).toContain('oops');
+  });
+
   it('narrows unknown statuses (e.g. tripwire, paused) to failed', () => {
     const tracer = new Tracer();
     expect(finalizeRunResult({ status: 'tripwire' }, tracer, 0, null).status).toBe('failed');

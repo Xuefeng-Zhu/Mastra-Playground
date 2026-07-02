@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { readBrowserStorage, removeBrowserStorage, writeBrowserStorage } from '../browser-storage';
 import { MODEL_OPTIONS_BY_PROVIDER, PROVIDER_OPTIONS, type ModelProvider } from '../registry/examples';
 
 export const CUSTOM_MODEL_OPTION = '__custom_model__';
@@ -53,31 +54,6 @@ const DEFAULT_BUILT_IN_SETTINGS: Record<BuiltInProvider, BuiltInSettings> = {
   openrouter: { model: DEFAULT_MODELS.openrouter, customModel: '', apiKey: '', useCustomModel: false },
 };
 
-function readStorage(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function writeStorage(key: string, value: string): boolean {
-  try {
-    localStorage.setItem(key, value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function removeStorage(key: string) {
-  try {
-    localStorage.removeItem(key);
-  } catch {
-    // Ignore unavailable storage; in-memory state is still updated.
-  }
-}
-
 function isBuiltInProvider(value: unknown): value is BuiltInProvider {
   return value === 'google' || value === 'openrouter';
 }
@@ -123,8 +99,8 @@ export function useModelPreferences() {
   const skipNextPreferenceWrite = useRef(true);
 
   useEffect(() => {
-    const saved = readStorage(PREFERENCE_KEY);
-    const legacySaved = LEGACY_PREFERENCE_KEYS.map((key) => readStorage(key)).find(Boolean);
+    const saved = readBrowserStorage(PREFERENCE_KEY);
+    const legacySaved = LEGACY_PREFERENCE_KEYS.map((key) => readBrowserStorage(key)).find(Boolean);
     const rawPreference = saved ?? legacySaved;
 
     if (rawPreference) {
@@ -160,11 +136,11 @@ export function useModelPreferences() {
           setCustomModel(customSettings.customModel);
         }
       } catch {
-        removeStorage(PREFERENCE_KEY);
+        removeBrowserStorage(PREFERENCE_KEY);
       }
     }
 
-    for (const key of LEGACY_PREFERENCE_KEYS) removeStorage(key);
+    for (const key of LEGACY_PREFERENCE_KEYS) removeBrowserStorage(key);
   }, []);
 
   useEffect(() => {
@@ -173,7 +149,7 @@ export function useModelPreferences() {
       return;
     }
 
-    writeStorage(
+    writeBrowserStorage(
       PREFERENCE_KEY,
       JSON.stringify({
         provider,
@@ -258,8 +234,8 @@ export function useModelPreferences() {
     setCustomBaseUrl('');
     setCustomApiKey('');
     setCustomModel('');
-    removeStorage(PREFERENCE_KEY);
-    for (const key of LEGACY_PREFERENCE_KEYS) removeStorage(key);
+    removeBrowserStorage(PREFERENCE_KEY);
+    for (const key of LEGACY_PREFERENCE_KEYS) removeBrowserStorage(key);
   }, []);
 
   const addToRequest = useCallback(

@@ -67,6 +67,11 @@ const ArxivPaperSchema = z.object({
 type WebResult = z.infer<typeof WebResultSchema>;
 type ArxivPaper = z.infer<typeof ArxivPaperSchema>;
 
+const executeWebSearch = webSearch.execute as (input: { query: string }) => Promise<{ results: WebResult[] }>;
+const executeArxivSearch = arxivSearch.execute as (input: {
+  query: string;
+}) => Promise<{ papers: ArxivPaper[] }>;
+
 function makePlanStep(tracer: Tracer, agent: Agent) {
   return createStep({
     id: 'plan',
@@ -112,19 +117,13 @@ function makeFanoutStep(tracer: Tracer) {
         async () => {
           // Fan out: 3 sub-tasks in parallel
           const [webResults, arxivResults, wikiResult] = await Promise.all([
-            (webSearch.execute as unknown as (input: { query: string }) => Promise<{ results: WebResult[] }>)(
-              {
-                query: inputData.subQuestions[0],
-              },
-            ).then((r) => {
+            executeWebSearch({
+              query: inputData.subQuestions[0],
+            }).then((r) => {
               toolCall(tracer, 'fanout', 'web-search', { query: inputData.subQuestions[0] }, r);
               return r;
             }),
-            (
-              arxivSearch.execute as unknown as (input: {
-                query: string;
-              }) => Promise<{ papers: ArxivPaper[] }>
-            )({
+            executeArxivSearch({
               query: inputData.subQuestions[1],
             }).then((r) => {
               toolCall(tracer, 'fanout', 'arxiv-search', { query: inputData.subQuestions[1] }, r);

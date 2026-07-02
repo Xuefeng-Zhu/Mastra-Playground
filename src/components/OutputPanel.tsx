@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import type { CapturedSource } from '../registry/renderers';
 import {
-  RESULT_RENDERERS,
   COMPARE_RENDERERS,
   HAS_SOURCES_TAB,
   HAS_COMPARE_TAB,
   SourcesList,
+  renderResultForKind,
 } from '../registry/renderers';
 import { escapeText } from '../registry/utils';
 import type { OutputTab } from '../hooks/useWorkspace';
@@ -207,11 +207,7 @@ function RenderResult({
   if (error) {
     return <p className="muted output-error">⚠ {error}</p>;
   }
-  const renderer = RESULT_RENDERERS[kind];
-  if (!renderer) {
-    return <p className="muted">No renderer for this example.</p>;
-  }
-  return renderer(output, {
+  return renderResultForKind(kind, output, {
     totalMs,
     sources,
     streamingText,
